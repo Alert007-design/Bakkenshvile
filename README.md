@@ -53,6 +53,26 @@ stedet for den gamle eksterne TicketCloud-side.
 - Når betalingen er gennemført, opdaterer en webhook automatisk bookingens
   status til "Betalt" i Airtable, og gæsten lander på en bekræftelsesside
 
+## Bordplan (/admin)
+
+Til udsolgte shows kan I fordele gæster ved borde og printe en samlet plan:
+
+1. Sæt en ny miljøvariabel i Vercel: `ADMIN_KEY` = en selvvalgt, hemmelig
+   værdi (fx en lang tilfældig streng)
+2. Tilgå `https://bakkenshvile.vercel.app/admin?key=DIN-NOEGLE`
+3. Vælg en showdato, skriv bordnumre ind ud for hver booking, og klik
+   "Print bordplan"
+
+**Vigtigt:** denne side har kun en simpel nøgle som beskyttelse, ikke rigtig
+login. Del ikke linket offentligt, og overvej en rigtig adgangskontrol
+(fx Vercels adgangskode-beskyttelse for hele sitet) hvis I vil bruge det i
+længere tid.
+
+Ved købet kan gæster frivilligt svare på et par spørgsmål (alder, hvor de er
+fra, drikkepræference, interesser, og en fritekst-note), som vises ud for
+hver booking i bordplanen, så I kan sætte selskaber sammen, der passer godt
+sammen.
+
 ## Hvad der endnu mangler, før den er helt "live"
 
 - Test-tilstand: brug Stripes testkort (4242 4242 4242 4242) indtil I er
