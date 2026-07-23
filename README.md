@@ -1,7 +1,16 @@
-# Bakkens Hvile — booking-side
+# Bakkens Hvile — samlet website
 
-En simpel Next.js-side der viser næste show, lader gæster vælge billetter og
-tilvalg, og gemmer bookingen direkte i jeres Airtable-base ("Bakkens Hvile").
+Ét Next.js-site med to dele:
+
+- **Forsiden (`/`)** — det flotte marketing-design (sort/guld, sangerinderne,
+  priser, galleri, kontakt, samt en kontaktformular til booking af
+  syngepigerne til private arrangementer)
+- **Billetkøb (`/book`)** — booking-flowet der henter data fra Airtable,
+  lader gæster vælge billetter og tilvalg, og sender dem til Stripe for at
+  betale
+
+Alle "Køb billetter"-knapper på forsiden peger nu internt på `/book` i
+stedet for den gamle eksterne TicketCloud-side.
 
 ## Sådan får du den op at køre
 
