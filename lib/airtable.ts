@@ -64,11 +64,14 @@ function baseId() {
 }
 
 export async function listRecords(tableId: string) {
-  const res = await fetch(`${BASE_URL}/${baseId()}/${tableId}`, {
-    headers: headers(),
-    // Data ændrer sig sjældent — cache kort for at spare kald.
-    next: { revalidate: 30 },
-  });
+  const res = await fetch(
+    `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true`,
+    {
+      headers: headers(),
+      // Data ændrer sig sjældent — cache kort for at spare kald.
+      next: { revalidate: 30 },
+    }
+  );
   if (!res.ok) throw new Error(`Airtable-fejl (${tableId}): ${res.status}`);
   const data = await res.json();
   return data.records as Array<{ id: string; fields: Record<string, unknown> }>;
@@ -78,11 +81,14 @@ export async function createRecord(
   tableId: string,
   fields: Record<string, unknown>
 ) {
-  const res = await fetch(`${BASE_URL}/${baseId()}/${tableId}`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({ fields }),
-  });
+  const res = await fetch(
+    `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true`,
+    {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ fields }),
+    }
+  );
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Airtable-fejl ved oprettelse (${tableId}): ${body}`);
@@ -95,11 +101,14 @@ export async function updateRecord(
   recordId: string,
   fields: Record<string, unknown>
 ) {
-  const res = await fetch(`${BASE_URL}/${baseId()}/${tableId}/${recordId}`, {
-    method: "PATCH",
-    headers: headers(),
-    body: JSON.stringify({ fields }),
-  });
+  const res = await fetch(
+    `${BASE_URL}/${baseId()}/${tableId}/${recordId}?returnFieldsByFieldId=true`,
+    {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ fields }),
+    }
+  );
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Airtable-fejl ved opdatering (${tableId}): ${body}`);
