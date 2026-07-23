@@ -18,7 +18,8 @@ type AddOn = {
   category: string;
 };
 
-type EventInfo = {
+type ShowDate = {
+  id: string;
   title: string;
   date: string;
   time: string;
@@ -30,15 +31,44 @@ function kr(n: number) {
   return n.toLocaleString("da-DK", { minimumFractionDigits: 0 }) + " kr.";
 }
 
+const WEEKDAYS = ["søn", "man", "tir", "ons", "tor", "fre", "lør"];
+const MONTHS = [
+  "januar",
+  "februar",
+  "marts",
+  "april",
+  "maj",
+  "juni",
+  "juli",
+  "august",
+  "september",
+  "oktober",
+  "november",
+  "december",
+];
+
+function formatShortDate(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return iso;
+  return `${WEEKDAYS[d.getDay()]} ${d.getDate()}. ${MONTHS[d.getMonth()]}`;
+}
+
+function monthLabel(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return "";
+  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 export default function BookingClient({
-  event,
+  showDates,
   tickets,
   addons,
 }: {
-  event: EventInfo;
+  showDates: ShowDate[];
   tickets: Ticket[];
   addons: AddOn[];
 }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [ticketQty, setTicketQty] = useState<Record<string, number>>({});
   const [addonQty, setAddonQty] = useState<Record<string, number>>({});
   const [customer, setCustomer] = useState({
@@ -52,6 +82,18 @@ export default function BookingClient({
   const [specialRequests, setSpecialRequests] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedShow = showDates.find((s) => s.id === selectedId) ?? null;
+
+  const groupedByMonth = useMemo(() => {
+    const map = new Map<string, ShowDate[]>();
+    for (const s of showDates) {
+      const key = monthLabel(s.date);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    }
+    return Array.from(map.entries());
+  }, [showDates]);
 
   const groupedAddons = useMemo(() => {
     const map = new Map<string, AddOn[]>();
@@ -87,6 +129,10 @@ export default function BookingClient({
 
   async function submit() {
     setError(null);
+    if (!selectedShow) {
+      setError("Vælg en dato.");
+      return;
+    }
     if (totalTickets === 0) {
       setError("Vælg mindst én billet.");
       return;
@@ -97,11 +143,12 @@ export default function BookingClient({
     }
     setSubmitting(true);
     try {
+      const showLabel = `${formatShortDate(selectedShow.date)} kl. ${selectedShow.time}`;
       const lineItems = [
         ...tickets
           .filter((t) => ticketQty[t.id])
           .map((t) => ({
-            name: `Billet: ${t.category}`,
+            name: `Billet: ${t.category} — ${showLabel}`,
             unitAmount: t.price + t.fee,
             quantity: ticketQty[t.id],
           })),
@@ -120,7 +167,9 @@ export default function BookingClient({
         body: JSON.stringify({
           customer,
           ticketCount: totalTickets,
-          specialRequests,
+          specialRequests: `Show: ${showLabel}${
+            specialRequests ? " — " + specialRequests : ""
+          }`,
           lineItems,
         }),
       });
@@ -133,6 +182,48 @@ export default function BookingClient({
     }
   }
 
+  if (!selectedShow) {
+    return (
+      <div className="page">
+        <div className="hero ticket-edge">
+          <div>
+            <div className="eyebrow" style={{ color: "var(--bh-gold)" }}>
+              Bakkens Hvile · Underholdning siden 1877
+            </div>
+            <h1 className="hero-title">Vælg en dato</h1>
+            <div className="hero-meta">
+              <span>150 års jubilæumsshow · Maj–september 2027</span>
+            </div>
+          </div>
+          <div className="hero-stub">
+            <div className="mono">BILLET</div>
+            <div className="stub-since">Nr. 150</div>
+          </div>
+        </div>
+
+        {groupedByMonth.map(([month, shows]) => (
+          <div className="section" key={month}>
+            <div className="section-title" style={{ textTransform: "capitalize" }}>
+              {month}
+            </div>
+            <div className="date-grid">
+              {shows.map((s) => (
+                <button
+                  key={s.id}
+                  className="date-btn"
+                  onClick={() => setSelectedId(s.id)}
+                >
+                  <span className="date-btn-day">{formatShortDate(s.date)}</span>
+                  <span className="date-btn-time">kl. {s.time}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="hero ticket-edge">
@@ -140,25 +231,40 @@ export default function BookingClient({
           <div className="eyebrow" style={{ color: "var(--bh-gold)" }}>
             Bakkens Hvile · Underholdning siden 1877
           </div>
-          <h1 className="hero-title">{event.title}</h1>
+          <h1 className="hero-title">{selectedShow.title}</h1>
           <div className="hero-meta">
             <span>
-              <b>Dato</b> {event.date}
+              <b>Dato</b> {formatShortDate(selectedShow.date)}
             </span>
             <span>
-              <b>Kl.</b> {event.time}
+              <b>Kl.</b> {selectedShow.time}
             </span>
             <span>
-              <b>Varighed</b> {event.duration}
+              <b>Varighed</b> {selectedShow.duration}
             </span>
           </div>
+          <button
+            onClick={() => setSelectedId(null)}
+            style={{
+              marginTop: 14,
+              background: "none",
+              border: "none",
+              color: "var(--bh-gold)",
+              textDecoration: "underline",
+              cursor: "pointer",
+              padding: 0,
+              fontSize: 13,
+            }}
+          >
+            Skift dato
+          </button>
         </div>
         <div className="hero-stub">
           <div className="mono">BILLET</div>
           <div className="stub-since">Nr. 150</div>
         </div>
       </div>
-      {event.notes && <div className="notice">{event.notes}</div>}
+      {selectedShow.notes && <div className="notice">{selectedShow.notes}</div>}
 
       <div className="section">
         <div className="section-title">Vælg billetter</div>
