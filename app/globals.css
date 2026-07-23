@@ -1,0 +1,79 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap");
+
+:root {
+  --bh-green: #0d3b2e;
+  --bh-green-deep: #082921;
+  --bh-gold: #c9a227;
+  --bh-red: #8a1f2b;
+  --bh-cream: #f6f1e4;
+  --bh-ink: #1a1a16;
+  --bh-line: rgba(13, 59, 46, 0.18);
+  --radius: 2px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bh-cream);
+  color: var(--bh-ink);
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Fraunces", serif;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.mono {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Perforeret billet-kant — det visuelle signatur-element */
+.ticket-edge {
+  position: relative;
+}
+.ticket-edge::before,
+.ticket-edge::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  background-image: radial-gradient(
+    circle at 11px 0,
+    transparent 10px,
+    var(--bh-cream) 10.5px
+  );
+  background-size: 22px 22px;
+  background-repeat: repeat-y;
+}
+.ticket-edge::before {
+  left: -1px;
+}
+.ticket-edge::after {
+  right: -1px;
+  transform: scaleX(-1);
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: var(--bh-gold);
+  color: var(--bh-ink);
+}
