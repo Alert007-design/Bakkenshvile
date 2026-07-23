@@ -1,118 +1,534 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createRecord, TABLES, FIELDS } from "@/lib/airtable";
-import { getStripe } from "@/lib/stripe";
+"use client";
 
-type LineItem = { name: string; unitAmount: number; quantity: number };
+import { useMemo, useState } from "react";
+import "./booking.css";
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const {
-      customer,
-      specialRequests,
-      ticketCount,
-      lineItems,
-      showId,
-      matching,
-    }: {
-      customer: {
-        name: string;
-        company?: string;
-        address?: string;
-        zip?: string;
-        phone?: string;
-        email?: string;
-      };
-      specialRequests?: string;
-      ticketCount: number;
-      lineItems: LineItem[];
-      showId?: string;
-      matching?: {
-        wantsMatching?: boolean;
-        ageGroup?: string;
-        location?: string;
-        interests?: string;
-        drinkPreference?: string;
-        note?: string;
-      };
-    } = body;
+type Ticket = {
+  id: string;
+  category: string;
+  price: number;
+  fee: number;
+  maxCount: number;
+};
 
-    if (!customer?.name || (!customer?.phone && !customer?.email)) {
-      return NextResponse.json(
-        { error: "Navn samt telefon eller email er påkrævet" },
-        { status: 400 }
-      );
+type AddOn = {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+};
+
+type ShowDate = {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  duration: string;
+  notes: string;
+};
+
+function kr(n: number) {
+  return n.toLocaleString("da-DK", { minimumFractionDigits: 0 }) + " kr.";
+}
+
+const WEEKDAYS = ["søn", "man", "tir", "ons", "tor", "fre", "lør"];
+const MONTHS = [
+  "januar",
+  "februar",
+  "marts",
+  "april",
+  "maj",
+  "juni",
+  "juli",
+  "august",
+  "september",
+  "oktober",
+  "november",
+  "december",
+];
+
+function formatShortDate(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return iso;
+  return `${WEEKDAYS[d.getDay()]} ${d.getDate()}. ${MONTHS[d.getMonth()]}`;
+}
+
+function monthLabel(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return "";
+  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+export default function BookingClient({
+  showDates,
+  tickets,
+  addons,
+}: {
+  showDates: ShowDate[];
+  tickets: Ticket[];
+  addons: AddOn[];
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [ticketQty, setTicketQty] = useState<Record<string, number>>({});
+  const [addonQty, setAddonQty] = useState<Record<string, number>>({});
+  const [customer, setCustomer] = useState({
+    name: "",
+    company: "",
+    address: "",
+    zip: "",
+    phone: "",
+    email: "",
+  });
+  const [specialRequests, setSpecialRequests] = useState("");
+  const [wantsMatching, setWantsMatching] = useState(false);
+  const [matching, setMatching] = useState({
+    ageGroup: "",
+    location: "",
+    interests: "",
+    drinkPreference: "",
+    note: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectedShow = showDates.find((s) => s.id === selectedId) ?? null;
+
+  const groupedByMonth = useMemo(() => {
+    const map = new Map<string, ShowDate[]>();
+    for (const s of showDates) {
+      const key = monthLabel(s.date);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
     }
-    if (!lineItems?.length) {
-      return NextResponse.json(
-        { error: "Vælg mindst én billet" },
-        { status: 400 }
-      );
-    }
+    return Array.from(map.entries());
+  }, [showDates]);
 
-    const customerRecord = await createRecord(TABLES.customers, {
-      [FIELDS.customer.name]: customer.name,
-      [FIELDS.customer.company]: customer.company || "",
-      [FIELDS.customer.address]: customer.address || "",
-      [FIELDS.customer.zip]: customer.zip || "",
-      [FIELDS.customer.phone]: customer.phone || "",
-      [FIELDS.customer.email]: customer.email || "",
+  const groupedAddons = useMemo(() => {
+    const map = new Map<string, AddOn[]>();
+    for (const a of addons) {
+      if (!map.has(a.category)) map.set(a.category, []);
+      map.get(a.category)!.push(a);
+    }
+    return Array.from(map.entries());
+  }, [addons]);
+
+  const totalTickets = Object.values(ticketQty).reduce((a, b) => a + b, 0);
+
+  const total = useMemo(() => {
+    let sum = 0;
+    for (const t of tickets) sum += (ticketQty[t.id] || 0) * (t.price + t.fee);
+    for (const a of addons) sum += (addonQty[a.id] || 0) * a.price;
+    return sum;
+  }, [tickets, addons, ticketQty, addonQty]);
+
+  function setTicket(id: string, delta: number, max: number) {
+    setTicketQty((prev) => {
+      const next = Math.max(0, Math.min(max, (prev[id] || 0) + delta));
+      return { ...prev, [id]: next };
     });
+  }
 
-    const bookingNo = `BH-${Date.now().toString().slice(-8)}`;
-
-    const bookingFields: Record<string, unknown> = {
-      [FIELDS.booking.bookingNo]: bookingNo,
-      [FIELDS.booking.ticketCount]: ticketCount || 0,
-      [FIELDS.booking.specialRequests]: specialRequests || "",
-      [FIELDS.booking.status]: "Afventer betaling",
-      [FIELDS.booking.customer]: [customerRecord.id],
-    };
-    if (showId) {
-      bookingFields[FIELDS.booking.show] = [showId];
-    }
-    if (matching?.wantsMatching) {
-      bookingFields[FIELDS.booking.wantsMatching] = true;
-      if (matching.ageGroup) bookingFields[FIELDS.booking.ageGroup] = matching.ageGroup;
-      if (matching.location) bookingFields[FIELDS.booking.location] = matching.location;
-      if (matching.interests) bookingFields[FIELDS.booking.interests] = matching.interests;
-      if (matching.drinkPreference)
-        bookingFields[FIELDS.booking.drinkPreference] = matching.drinkPreference;
-      if (matching.note) bookingFields[FIELDS.booking.matchNote] = matching.note;
-    }
-
-    const bookingRecord = await createRecord(TABLES.bookings, bookingFields);
-
-    const origin = req.nextUrl.origin;
-    const stripe = getStripe();
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      locale: "da",
-      line_items: lineItems.map((li) => ({
-        quantity: li.quantity,
-        price_data: {
-          currency: "dkk",
-          unit_amount: Math.round(li.unitAmount * 100),
-          product_data: { name: li.name },
-        },
-      })),
-      customer_email: customer.email || undefined,
-      metadata: {
-        bookingId: bookingRecord.id,
-        bookingNo,
-      },
-      success_url: `${origin}/success?booking=${bookingNo}`,
-      cancel_url: `${origin}/?cancelled=1`,
+  function setAddon(id: string, delta: number) {
+    setAddonQty((prev) => {
+      const next = Math.max(0, (prev[id] || 0) + delta);
+      return { ...prev, [id]: next };
     });
+  }
 
-    return NextResponse.json({ url: session.url });
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json(
-      { error: "Booking kunne ikke oprettes. Prøv igen." },
-      { status: 500 }
+  async function submit() {
+    setError(null);
+    if (!selectedShow) {
+      setError("Vælg en dato.");
+      return;
+    }
+    if (totalTickets === 0) {
+      setError("Vælg mindst én billet.");
+      return;
+    }
+    if (!customer.name || (!customer.phone && !customer.email)) {
+      setError("Udfyld navn samt telefon eller email.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const showLabel = `${formatShortDate(selectedShow.date)} kl. ${selectedShow.time}`;
+      const lineItems = [
+        ...tickets
+          .filter((t) => ticketQty[t.id])
+          .map((t) => ({
+            name: `Billet: ${t.category} — ${showLabel}`,
+            unitAmount: t.price + t.fee,
+            quantity: ticketQty[t.id],
+          })),
+        ...addons
+          .filter((a) => addonQty[a.id])
+          .map((a) => ({
+            name: a.name,
+            unitAmount: a.price,
+            quantity: addonQty[a.id],
+          })),
+      ];
+
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer,
+          ticketCount: totalTickets,
+          specialRequests: `Show: ${showLabel}${
+            specialRequests ? " — " + specialRequests : ""
+          }`,
+          lineItems,
+          showId: selectedShow.id,
+          matching: wantsMatching ? { wantsMatching, ...matching } : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Noget gik galt");
+      window.location.href = data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Noget gik galt");
+      setSubmitting(false);
+    }
+  }
+
+  if (!selectedShow) {
+    return (
+      <div className="page">
+        <div className="hero ticket-edge">
+          <div>
+            <div className="eyebrow" style={{ color: "var(--bh-gold)" }}>
+              Bakkens Hvile · Underholdning siden 1877
+            </div>
+            <h1 className="hero-title">Vælg en dato</h1>
+            <div className="hero-meta">
+              <span>150 års jubilæumsshow · Maj–september 2027</span>
+            </div>
+          </div>
+          <div className="hero-stub">
+            <div className="mono">BILLET</div>
+            <div className="stub-since">Nr. 150</div>
+          </div>
+        </div>
+
+        {groupedByMonth.map(([month, shows]) => (
+          <div className="section" key={month}>
+            <div className="section-title" style={{ textTransform: "capitalize" }}>
+              {month}
+            </div>
+            <div className="date-grid">
+              {shows.map((s) => (
+                <button
+                  key={s.id}
+                  className="date-btn"
+                  onClick={() => setSelectedId(s.id)}
+                >
+                  <span className="date-btn-day">{formatShortDate(s.date)}</span>
+                  <span className="date-btn-time">kl. {s.time}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     );
   }
+
+  return (
+    <div className="page">
+      <div className="hero ticket-edge">
+        <div>
+          <div className="eyebrow" style={{ color: "var(--bh-gold)" }}>
+            Bakkens Hvile · Underholdning siden 1877
+          </div>
+          <h1 className="hero-title">{selectedShow.title}</h1>
+          <div className="hero-meta">
+            <span>
+              <b>Dato</b> {formatShortDate(selectedShow.date)}
+            </span>
+            <span>
+              <b>Kl.</b> {selectedShow.time}
+            </span>
+            <span>
+              <b>Varighed</b> {selectedShow.duration}
+            </span>
+          </div>
+          <button
+            onClick={() => setSelectedId(null)}
+            style={{
+              marginTop: 14,
+              background: "none",
+              border: "none",
+              color: "var(--bh-gold)",
+              textDecoration: "underline",
+              cursor: "pointer",
+              padding: 0,
+              fontSize: 13,
+            }}
+          >
+            Skift dato
+          </button>
+        </div>
+        <div className="hero-stub">
+          <div className="mono">BILLET</div>
+          <div className="stub-since">Nr. 150</div>
+        </div>
+      </div>
+      {selectedShow.notes && <div className="notice">{selectedShow.notes}</div>}
+
+      <div className="section">
+        <div className="section-title">Vælg billetter</div>
+        <div className="section-sub">Alle priser er inkl. moms og gebyr</div>
+        {tickets.map((t) => (
+          <div className="ticket-row" key={t.id}>
+            <div className="ticket-name">{t.category}</div>
+            <div className="ticket-price">{kr(t.price + t.fee)}</div>
+            <div className="stepper">
+              <button
+                onClick={() => setTicket(t.id, -1, t.maxCount)}
+                disabled={!ticketQty[t.id]}
+                aria-label={`Fjern ${t.category}`}
+              >
+                −
+              </button>
+              <span>{ticketQty[t.id] || 0}</span>
+              <button
+                onClick={() => setTicket(t.id, 1, t.maxCount)}
+                aria-label={`Tilføj ${t.category}`}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {groupedAddons.length > 0 && (
+        <div className="section">
+          <div className="section-title">Tilvalg</div>
+          <div className="section-sub">Drikkevarer og snacks til bordet</div>
+          <div className="addon-groups">
+            {groupedAddons.map(([category, items]) => (
+              <div className="addon-group" key={category}>
+                <h4>{category}</h4>
+                {items.map((a) => (
+                  <div className="addon-item" key={a.id}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={!!addonQty[a.id]}
+                        onChange={() =>
+                          setAddon(a.id, addonQty[a.id] ? -addonQty[a.id] : 1)
+                        }
+                      />
+                      {a.name}
+                    </label>
+                    <span className="addon-price">{kr(a.price)}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="section">
+        <div className="section-title">Dine oplysninger</div>
+        <div className="form-grid">
+          <div className="field">
+            <label>Fornavn og efternavn *</label>
+            <input
+              value={customer.name}
+              onChange={(e) =>
+                setCustomer({ ...customer, name: e.target.value })
+              }
+            />
+          </div>
+          <div className="field">
+            <label>Firmanavn</label>
+            <input
+              value={customer.company}
+              onChange={(e) =>
+                setCustomer({ ...customer, company: e.target.value })
+              }
+            />
+          </div>
+          <div className="field">
+            <label>Telefon *</label>
+            <input
+              value={customer.phone}
+              onChange={(e) =>
+                setCustomer({ ...customer, phone: e.target.value })
+              }
+            />
+          </div>
+          <div className="field">
+            <label>Email *</label>
+            <input
+              value={customer.email}
+              onChange={(e) =>
+                setCustomer({ ...customer, email: e.target.value })
+              }
+            />
+          </div>
+          <div className="field">
+            <label>Adresse</label>
+            <input
+              value={customer.address}
+              onChange={(e) =>
+                setCustomer({ ...customer, address: e.target.value })
+              }
+            />
+          </div>
+          <div className="field">
+            <label>Postnr.</label>
+            <input
+              value={customer.zip}
+              onChange={(e) =>
+                setCustomer({ ...customer, zip: e.target.value })
+              }
+            />
+          </div>
+          <div className="field full">
+            <label>Særlige ønsker (maks. 100 tegn)</label>
+            <textarea
+              maxLength={100}
+              rows={2}
+              value={specialRequests}
+              onChange={(e) => setSpecialRequests(e.target.value)}
+            />
+          </div>
+        </div>
+        {error && <div className="error-msg">{error}</div>}
+      </div>
+
+      <div className="section">
+        <div className="section-title">Hjælp os sætte jer godt</div>
+        <div className="section-sub">
+          Hvis salen er udsolgt, sætter vi gæster ved fælles borde. Svar
+          gerne på et par valgfrie spørgsmål, så vi kan sætte jer sammen med
+          andre, I passer godt med — helt frivilligt.
+        </div>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            fontSize: 14,
+            marginBottom: wantsMatching ? 20 : 0,
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={wantsMatching}
+            onChange={(e) => setWantsMatching(e.target.checked)}
+          />
+          Ja, vi vil gerne udfylde et par ting, der kan hjælpe med
+          bordplaceringen
+        </label>
+        {wantsMatching && (
+          <div className="form-grid">
+            <div className="field">
+              <label>Aldersgruppe</label>
+              <select
+                value={matching.ageGroup}
+                onChange={(e) =>
+                  setMatching({ ...matching, ageGroup: e.target.value })
+                }
+                style={{
+                  width: "100%",
+                  padding: "11px 12px",
+                  border: "1px solid var(--bh-line)",
+                  borderRadius: "var(--radius)",
+                  background: "#fff",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 14,
+                }}
+              >
+                <option value="">Vælg...</option>
+                <option value="18-25">18-25</option>
+                <option value="26-35">26-35</option>
+                <option value="36-50">36-50</option>
+                <option value="51-65">51-65</option>
+                <option value="65+">65+</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Hvor er I fra?</label>
+              <input
+                placeholder="fx København"
+                value={matching.location}
+                onChange={(e) =>
+                  setMatching({ ...matching, location: e.target.value })
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Foretrukken drik</label>
+              <select
+                value={matching.drinkPreference}
+                onChange={(e) =>
+                  setMatching({ ...matching, drinkPreference: e.target.value })
+                }
+                style={{
+                  width: "100%",
+                  padding: "11px 12px",
+                  border: "1px solid var(--bh-line)",
+                  borderRadius: "var(--radius)",
+                  background: "#fff",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 14,
+                }}
+              >
+                <option value="">Vælg...</option>
+                <option value="Vin">Vin</option>
+                <option value="Øl">Øl</option>
+                <option value="Cocktails/drinks">Cocktails/drinks</option>
+                <option value="Alkoholfrit">Alkoholfrit</option>
+                <option value="Bland selv">Bland selv</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Interesser</label>
+              <input
+                placeholder="fx rejser, mad, musik"
+                value={matching.interests}
+                onChange={(e) =>
+                  setMatching({ ...matching, interests: e.target.value })
+                }
+              />
+            </div>
+            <div className="field full">
+              <label>Andet der kan hjælpe os med at sætte jer godt</label>
+              <textarea
+                rows={2}
+                placeholder="Helt op til jer — fx hvem I gerne vil sidde sammen med"
+                value={matching.note}
+                onChange={(e) =>
+                  setMatching({ ...matching, note: e.target.value })
+                }
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="summary">
+        <div>
+          <div className="summary-total">{kr(total)}</div>
+          <div className="summary-count">
+            {totalTickets} billet{totalTickets === 1 ? "" : "ter"}
+          </div>
+        </div>
+        <button
+          className="submit-btn"
+          onClick={submit}
+          disabled={submitting}
+        >
+          {submitting ? "Sender..." : "Gå til betaling"}
+        </button>
+      </div>
+    </div>
+  );
 }
