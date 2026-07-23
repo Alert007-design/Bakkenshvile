@@ -12,6 +12,8 @@ export async function POST(req: NextRequest) {
       specialRequests,
       ticketCount,
       lineItems,
+      showId,
+      matching,
     }: {
       customer: {
         name: string;
@@ -24,6 +26,15 @@ export async function POST(req: NextRequest) {
       specialRequests?: string;
       ticketCount: number;
       lineItems: LineItem[];
+      showId?: string;
+      matching?: {
+        wantsMatching?: boolean;
+        ageGroup?: string;
+        location?: string;
+        interests?: string;
+        drinkPreference?: string;
+        note?: string;
+      };
     } = body;
 
     if (!customer?.name || (!customer?.phone && !customer?.email)) {
@@ -50,12 +61,27 @@ export async function POST(req: NextRequest) {
 
     const bookingNo = `BH-${Date.now().toString().slice(-8)}`;
 
-    const bookingRecord = await createRecord(TABLES.bookings, {
+    const bookingFields: Record<string, unknown> = {
       [FIELDS.booking.bookingNo]: bookingNo,
       [FIELDS.booking.ticketCount]: ticketCount || 0,
       [FIELDS.booking.specialRequests]: specialRequests || "",
       [FIELDS.booking.status]: "Afventer betaling",
-    });
+      [FIELDS.booking.customer]: [customerRecord.id],
+    };
+    if (showId) {
+      bookingFields[FIELDS.booking.show] = [showId];
+    }
+    if (matching?.wantsMatching) {
+      bookingFields[FIELDS.booking.wantsMatching] = true;
+      if (matching.ageGroup) bookingFields[FIELDS.booking.ageGroup] = matching.ageGroup;
+      if (matching.location) bookingFields[FIELDS.booking.location] = matching.location;
+      if (matching.interests) bookingFields[FIELDS.booking.interests] = matching.interests;
+      if (matching.drinkPreference)
+        bookingFields[FIELDS.booking.drinkPreference] = matching.drinkPreference;
+      if (matching.note) bookingFields[FIELDS.booking.matchNote] = matching.note;
+    }
+
+    const bookingRecord = await createRecord(TABLES.bookings, bookingFields);
 
     const origin = req.nextUrl.origin;
     const stripe = getStripe();
