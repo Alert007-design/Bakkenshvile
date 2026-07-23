@@ -11,7 +11,16 @@ export default async function Page() {
     listRecords(TABLES.addOns),
   ]);
 
-  const event = events[0]?.fields ?? {};
+  const showDates = events
+    .map((r) => ({
+      id: r.id,
+      title: String(r.fields[FIELDS.event.title] ?? "Kommende show"),
+      date: String(r.fields[FIELDS.event.date] ?? ""),
+      time: String(r.fields[FIELDS.event.time] ?? ""),
+      duration: String(r.fields[FIELDS.event.duration] ?? ""),
+      notes: String(r.fields[FIELDS.event.notes] ?? ""),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   const tickets = ticketTypes.map((r) => ({
     id: r.id,
@@ -30,17 +39,7 @@ export default async function Page() {
 
   return (
     <BookingShell>
-      <BookingClient
-        event={{
-          title: String(event[FIELDS.event.title] ?? "Kommende show"),
-          date: String(event[FIELDS.event.date] ?? ""),
-          time: String(event[FIELDS.event.time] ?? ""),
-          duration: String(event[FIELDS.event.duration] ?? ""),
-          notes: String(event[FIELDS.event.notes] ?? ""),
-        }}
-        tickets={tickets}
-        addons={addons}
-      />
+      <BookingClient showDates={showDates} tickets={tickets} addons={addons} />
     </BookingShell>
   );
 }
