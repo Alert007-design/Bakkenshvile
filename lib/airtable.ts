@@ -51,4 +51,75 @@ export const FIELDS = {
     wantsMatching: "fld242N7bp3xLt6Jc",
     ageGroup: "fldcCOEcmEN8HOgNY",
     location: "fldki1v83drDTvxWy",
-    interests:
+    interests: "fldqeD4BMprejPZrC",
+    drinkPreference: "fldTUUh4pZHpvakeb",
+    matchNote: "fldiOj5VZFyDT4Wlo",
+  },
+} as const;
+
+function headers() {
+  const token = process.env.AIRTABLE_TOKEN;
+  if (!token) throw new Error("AIRTABLE_TOKEN mangler i miljøvariablerne");
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+}
+
+function baseId() {
+  const id = process.env.AIRTABLE_BASE_ID;
+  if (!id) throw new Error("AIRTABLE_BASE_ID mangler i miljøvariablerne");
+  return id;
+}
+
+export async function listRecords(tableId: string) {
+  const res = await fetch(
+    `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true`,
+    {
+      headers: headers(),
+      next: { revalidate: 30 },
+    }
+  );
+  if (!res.ok) throw new Error(`Airtable-fejl (${tableId}): ${res.status}`);
+  const data = await res.json();
+  return data.records as Array<{ id: string; fields: Record<string, unknown> }>;
+}
+
+export async function createRecord(
+  tableId: string,
+  fields: Record<string, unknown>
+) {
+  const res = await fetch(
+    `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true`,
+    {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ fields }),
+    }
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Airtable-fejl ved oprettelse (${tableId}): ${body}`);
+  }
+  return res.json();
+}
+
+export async function updateRecord(
+  tableId: string,
+  recordId: string,
+  fields: Record<string, unknown>
+) {
+  const res = await fetch(
+    `${BASE_URL}/${baseId()}/${tableId}/${recordId}?returnFieldsByFieldId=true`,
+    {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ fields }),
+    }
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Airtable-fejl ved opdatering (${tableId}): ${body}`);
+  }
+  return res.json();
+}
