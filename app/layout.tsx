@@ -5,6 +5,21 @@ export const metadata: Metadata = {
   title: "Bakkens Hvile — Skønsang & samfundssatire på Dyrehavsbakken",
   description:
     "Bakkens Hvile er scenen for bakkesangerinderne på Dyrehavsbakken i Klampenborg. Snart 150 år med skønsang og syngende samfundssatire.",
+  openGraph: {
+    title: "Bakkens Hvile — Skønsang & samfundssatire på Dyrehavsbakken",
+    description:
+      "Bakkens Hvile er scenen for bakkesangerinderne på Dyrehavsbakken i Klampenborg. Snart 150 år med skønsang og syngende samfundssatire.",
+    url: "https://bakkenshvile.vercel.app/",
+    siteName: "Bakkens Hvile",
+    locale: "da_DK",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Bakkens Hvile — Skønsang & samfundssatire på Dyrehavsbakken",
+    description:
+      "Bakkens Hvile er scenen for bakkesangerinderne på Dyrehavsbakken i Klampenborg. Snart 150 år med skønsang og syngende samfundssatire.",
+  },
 };
 
 export default function RootLayout({
