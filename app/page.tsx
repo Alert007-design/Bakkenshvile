@@ -28,23 +28,11 @@ const SINGERS = [
   },
 ];
 
-const PRICE_TIERS = [
-  {
-    title: "Aftenshow",
-    price: "Fra 299 kr",
-    desc: "Tirsdag–lørdag aften. Bakkesangerinderne på scenen, baren åben under hele showet.",
-  },
-  {
-    title: "Søndags Show",
-    price: "Fra 319 kr",
-    desc: "Udvalgte søndage eftermiddag — samme show, roligere tempo.",
-  },
-  {
-    title: "150 års Jubilæumsshow 2027",
-    price: "Fra 209 kr",
-    desc: "Forpremiere og jubilæumsforestillinger maj–september 2027.",
-  },
-];
+const JUBILEE = {
+  title: "150 års jubilæumssæson 2027",
+  price: "Fra 209 kr",
+  desc: "Hele 2027 fejrer vi 150 år på Dyrehavsbakken med en samlet jubilæumssæson. Book jeres billet og vær med til at fejre det med os.",
+};
 
 export default function Home() {
   const year = new Date().getFullYear();
@@ -77,7 +65,7 @@ export default function Home() {
           <div className="heroScrim" />
         </div>
         <div className="heroInner">
-          <p className="eyebrow">Dyrehavsbakken · Snart 150 år på scenen</p>
+          <p className="eyebrow">Bakkens Hvile – 150 år på Dyrehavsbakken</p>
           <h1>
             Skønsang &amp; samfundssatire, live.
           </h1>
@@ -131,7 +119,7 @@ export default function Home() {
           <p className="eyebrow" style={{ textAlign: "center" }}>
             Sæsonens ensemble
           </p>
-          <h2 className="sectionTitle">Sangerinderne 2025</h2>
+          <h2 className="sectionTitle">Sangerinderne 2027</h2>
           <div className="singerGrid">
             {SINGERS.map((singer) => (
               <div className="singerCard" key={singer.name}>
@@ -152,14 +140,10 @@ export default function Home() {
             Billetter
           </p>
           <h2 className="sectionTitle">Priser &amp; forestillinger</h2>
-          <div className="priceGrid">
-            {PRICE_TIERS.map((tier) => (
-              <div className="priceCard" key={tier.title}>
-                <h3>{tier.title}</h3>
-                <p className="amount">{tier.price}</p>
-                <p className="desc">{tier.desc}</p>
-              </div>
-            ))}
+          <div className="jubileeCard">
+            <h3>{JUBILEE.title}</h3>
+            <p className="amount">{JUBILEE.price}</p>
+            <p className="desc">{JUBILEE.desc}</p>
           </div>
           <div style={{ textAlign: "center", marginTop: 48 }}>
             <Link
@@ -192,9 +176,21 @@ export default function Home() {
               src="/dot-vintage-2.jpg"
               alt="Bakkesangerinde foran malet kulisse"
             />
-            <div className="placeholder">Foto fra baren</div>
-            <div className="placeholder">Foto af publikum</div>
-            <div className="placeholder">Foto bag scenen</div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/ensemble-1.jpg"
+              alt="Bakkesangerinderne griner sammen i kulisserne"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/ensemble-2.jpg"
+              alt="Bakkesangerinderne synger på scenen"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/ensemble-3.jpg"
+              alt="Bakkesangerinderne synger på scenen"
+            />
           </div>
         </div>
       </section>
@@ -227,10 +223,12 @@ export default function Home() {
                 <p>Dyrehavsbakken 38, 2930 Klampenborg</p>
               </div>
               <div>
-                <p className="label">Sæson</p>
+                <p className="label">Spørgsmål</p>
                 <p>
-                  Maj–september, aftenshow tirsdag–lørdag samt udvalgte
-                  søndage.
+                  Har du et spørgsmål, så send en mail.{" "}
+                  <a href="mailto:kontor@bakkenshvile.dk">
+                    kontor@bakkenshvile.dk
+                  </a>
                 </p>
               </div>
               <div>
