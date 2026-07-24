@@ -71,7 +71,7 @@ export default function Home() {
         <div className="heroBg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="https://bakkenshvile.dk/wp-content/uploads/2022/03/222637436_4168397549942839_7215734764110107219_n.jpeg"
+            src="/dot-vintage-1.jpg"
             alt="Bakkesangerinderne på scenen"
           />
           <div className="heroScrim" />
@@ -82,9 +82,10 @@ export default function Home() {
             Skønsang &amp; samfundssatire, live.
           </h1>
           <p className="heroLead">
-            Bakkesangerinderne har underholdt Dyrehavsbakken siden
-            1800-tallet — fra fine sonetter til dagens friskeste satire.
-            Oplev showet, betjen dig i baren, og bliv en del af traditionen.
+            Bakkesangerinderne har underholdt Dyrehavsbakken siden 1877 —
+            fra klassiske danske sange og viser til dagens friskeste
+            satire. Oplev showet, bestil drinks i baren, og bliv en del af
+            traditionen.
           </p>
           <div className="heroCtas">
             <Link href="/book" className="ctaGoldLg">
@@ -108,15 +109,15 @@ export default function Home() {
               leveret skønsang og syngende samfundssatire til alle, om alle.
             </p>
             <p>
-              Traditionen startede i starten af 1800-tallet på så fine
-              steder som d&apos;Angleterre og Det Kongelige Teater. Vores
-              sange spænder fra smukke sonetter fra tidernes morgen til
-              gårsdagens friskeste overskrifter.
+              Traditionen startede i 1877 på så fine steder som
+              d&apos;Angleterre og Det Kongelige Teater — og har fra
+              begyndelsen været for alle slags folk. Vores sange spænder fra
+              klassiske danske sange og viser til gårsdagens friskeste
+              overskrifter.
             </p>
             <p>
-              Oplev os over sommermånederne i vores smukke bøgeskov, og smag
-              på udvalget i baren, som du kan betjene dig af under hele
-              showet.
+              Oplev os over sommermånederne i vores smukke bøgeskov, og
+              bestil drinks i baren under hele showet.
             </p>
           </div>
           <div className="aboutPhoto">
@@ -182,8 +183,15 @@ export default function Home() {
             <div className="galleryFeature">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://bakkenshvile.dk/wp-content/uploads/2022/03/222637436_4168397549942839_7215734764110107219_n.jpeg"
-                alt="Foto fra showet"
+                src="/dot-vintage-1.jpg"
+                alt="Bakkesangerinde i historisk kostume"
+              />
+            </div>
+            <div className="galleryFeature">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/dot-vintage-2.jpg"
+                alt="Bakkesangerinde foran malet kulisse"
               />
             </div>
             <div className="placeholder">Foto fra baren</div>
