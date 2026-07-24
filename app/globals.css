@@ -1,14 +1,14 @@
 :root {
-  --ink-950: oklch(0.13 0.02 40);
-  --ink-900: oklch(0.15 0.02 40);
-  --ink-800: oklch(0.18 0.02 40);
+  --ink-950: oklch(0.19 0.05 265);
+  --ink-900: oklch(0.23 0.055 265);
+  --ink-800: oklch(0.29 0.06 265);
   --paper: oklch(0.95 0.01 80);
   --paper-dim: oklch(0.82 0.01 80);
-  --muted: oklch(0.7 0.01 80);
+  --muted: oklch(0.74 0.02 265);
   --gold: oklch(0.78 0.12 85);
   --gold-hover: oklch(0.85 0.13 88);
-  --line: oklch(0.3 0.03 60 / 0.3);
-  --line-strong: oklch(0.35 0.03 60 / 0.5);
+  --line: oklch(0.45 0.05 265 / 0.35);
+  --line-strong: oklch(0.55 0.05 265 / 0.55);
 
   --font-display: "Playfair Display", ui-serif, Georgia, serif;
   --font-body: "Work Sans", ui-sans-serif, system-ui, sans-serif;
@@ -78,7 +78,7 @@ button {
   align-items: center;
   justify-content: space-between;
   padding: 20px 48px;
-  background: oklch(0.13 0.02 40 / 0.9);
+  background: oklch(0.19 0.05 265 / 0.9);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line-strong);
 }
@@ -127,7 +127,7 @@ button {
 }
 
 .ctaOutline {
-  border: 1px solid oklch(0.6 0.02 80 / 0.5);
+  border: 1px solid oklch(0.6 0.03 265 / 0.6);
   color: var(--paper);
   padding: 17px 34px;
   border-radius: 2px;
@@ -164,9 +164,9 @@ button {
   inset: 0;
   background: linear-gradient(
     180deg,
-    oklch(0.13 0.02 40 / 0.55) 0%,
-    oklch(0.13 0.02 40 / 0.75) 55%,
-    oklch(0.13 0.02 40 / 0.97) 100%
+    oklch(0.19 0.05 265 / 0.55) 0%,
+    oklch(0.19 0.05 265 / 0.78) 55%,
+    oklch(0.19 0.05 265 / 0.97) 100%
   );
   pointer-events: none;
 }
@@ -201,7 +201,7 @@ button {
 .heroLead {
   font-size: 19px;
   line-height: 1.7;
-  color: oklch(0.88 0.01 80);
+  color: oklch(0.9 0.01 80);
   max-width: 52ch;
   margin: 0 0 40px;
 }
@@ -351,9 +351,40 @@ button {
 .priceCard p.desc {
   font-size: 15px;
   line-height: 1.7;
-  color: oklch(0.75 0.01 80);
+  color: oklch(0.8 0.01 80);
   margin: 0;
   flex: 1;
+}
+
+.jubileeCard {
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 64px 48px;
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.jubileeCard h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  margin: 0 0 20px;
+}
+
+.jubileeCard .amount {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 40px;
+  color: var(--gold);
+  margin: 0 0 20px;
+}
+
+.jubileeCard p.desc {
+  font-size: 16px;
+  line-height: 1.8;
+  color: oklch(0.82 0.01 80);
+  margin: 0;
 }
 
 /* ---------- galleri ---------- */
@@ -380,10 +411,10 @@ button {
   justify-content: center;
   background: repeating-linear-gradient(
     45deg,
-    oklch(0.2 0.02 40),
-    oklch(0.2 0.02 40) 10px,
-    oklch(0.22 0.02 40) 10px,
-    oklch(0.22 0.02 40) 20px
+    oklch(0.26 0.045 265),
+    oklch(0.26 0.045 265) 10px,
+    oklch(0.29 0.045 265) 10px,
+    oklch(0.29 0.045 265) 20px
   );
   font-family: monospace;
   font-size: 12px;
@@ -433,21 +464,33 @@ button {
   font-size: 13px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: oklch(0.88 0.01 80);
   margin-bottom: 8px;
+  font-weight: 600;
 }
 
 .bookField input,
 .bookField textarea {
   width: 100%;
   box-sizing: border-box;
-  background: var(--ink-800);
-  border: 1px solid var(--line-strong);
-  border-radius: 2px;
+  background: oklch(0.15 0.03 265);
+  border: 1.5px solid var(--line-strong);
+  border-radius: 3px;
   padding: 14px 16px;
   color: var(--paper);
   font-size: 15px;
   font-family: var(--font-body);
+}
+
+.bookField input::placeholder,
+.bookField textarea::placeholder {
+  color: oklch(0.62 0.02 265);
+}
+
+.bookField input:focus,
+.bookField textarea:focus {
+  outline: none;
+  border-color: var(--gold);
 }
 
 .bookField textarea {
@@ -603,6 +646,10 @@ button {
 
   .heroInner {
     padding: 0 24px;
+  }
+
+  .jubileeCard {
+    padding: 40px 28px;
   }
 }
 
