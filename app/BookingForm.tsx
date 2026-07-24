@@ -20,7 +20,8 @@ export default function BookingForm() {
       setForm((prev) => ({ ...prev, [field]: e.target.value }));
     };
 
-  const onSubmit = () => {
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     const subject = encodeURIComponent("Booking af syngepigerne");
     const body = encodeURIComponent(
       `Navn: ${form.name}\nE-mail: ${form.email}\nØnsket dato: ${form.date}\nAntal gæster: ${form.guests}\n\n${form.message}`
@@ -42,46 +43,55 @@ export default function BookingForm() {
   }
 
   return (
-    <div className="bookForm">
+    <form className="bookForm" onSubmit={onSubmit}>
       <div className="bookField">
-        <label>Navn</label>
+        <label htmlFor="booking-name">Navn</label>
         <input
+          id="booking-name"
           type="text"
           value={form.name}
           onChange={onChange("name")}
           placeholder="Dit navn"
+          required
         />
       </div>
       <div className="bookField">
-        <label>E-mail</label>
+        <label htmlFor="booking-email">E-mail</label>
         <input
+          id="booking-email"
           type="email"
           value={form.email}
           onChange={onChange("email")}
           placeholder="din@mail.dk"
+          required
         />
       </div>
       <div className="bookField">
-        <label>Ønsket dato</label>
+        <label htmlFor="booking-date">Ønsket dato</label>
         <input
+          id="booking-date"
           type="text"
           value={form.date}
           onChange={onChange("date")}
           placeholder="fx 12. september 2026"
+          required
         />
       </div>
       <div className="bookField">
-        <label>Antal gæster</label>
+        <label htmlFor="booking-guests">Antal gæster</label>
         <input
+          id="booking-guests"
           type="text"
           value={form.guests}
           onChange={onChange("guests")}
           placeholder="fx 40"
+          required
         />
       </div>
       <div className="bookField full">
-        <label>Besked</label>
+        <label htmlFor="booking-message">Besked</label>
         <textarea
+          id="booking-message"
           rows={4}
           value={form.message}
           onChange={onChange("message")}
@@ -89,10 +99,10 @@ export default function BookingForm() {
         />
       </div>
       <div className="bookSubmitRow">
-        <button className="bookSubmit" onClick={onSubmit}>
+        <button type="submit" className="bookSubmit">
           Send forespørgsel
         </button>
       </div>
-    </div>
+    </form>
   );
 }
