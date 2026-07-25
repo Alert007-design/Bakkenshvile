@@ -4,6 +4,23 @@ import { getStripe } from "@/lib/stripe";
 
 type LineItem = { name: string; unitAmount: number; quantity: number };
 
+// Trækker billetkategorierne ud af lineItems og opsummerer antal pr.
+// kategori, fx "A+ x2, B x1". Kun linjer der matcher det navneformat,
+// BookingClient sender for billetter ("Billet: <kategori> — <showlabel>"),
+// tælles med — tilvalg (drinks/mad) har ikke dette præfiks og ignoreres.
+function summarizeTicketCategories(lineItems: LineItem[]): string {
+  const totals = new Map<string, number>();
+  for (const li of lineItems) {
+    const match = li.name.match(/^Billet: (.+?) —/);
+    if (!match) continue;
+    const category = match[1].trim();
+    totals.set(category, (totals.get(category) || 0) + li.quantity);
+  }
+  return Array.from(totals.entries())
+    .map(([category, qty]) => `${category} x${qty}`)
+    .join(", ");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -36,7 +53,6 @@ export async function POST(req: NextRequest) {
         note?: string;
       };
     } = body;
-
     if (!customer?.name || (!customer?.phone && !customer?.email)) {
       return NextResponse.json(
         { error: "Navn samt telefon eller email er påkrævet" },
@@ -49,7 +65,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
     const customerRecord = await createRecord(TABLES.customers, {
       [FIELDS.customer.name]: customer.name,
       [FIELDS.customer.company]: customer.company || "",
@@ -58,15 +73,20 @@ export async function POST(req: NextRequest) {
       [FIELDS.customer.phone]: customer.phone || "",
       [FIELDS.customer.email]: customer.email || "",
     });
-
     const bookingNo = `BH-${Date.now().toString().slice(-8)}`;
-
+    const ticketBreakdown = summarizeTicketCategories(lineItems);
     const bookingFields: Record<string, unknown> = {
       [FIELDS.booking.bookingNo]: bookingNo,
       [FIELDS.booking.ticketCount]: ticketCount || 0,
       [FIELDS.booking.specialRequests]: specialRequests || "",
       [FIELDS.booking.status]: "Afventer betaling",
       [FIELDS.booking.customer]: [customerRecord.id],
+      // Feltet "Billetkategorier" (fldXuocW3IneLzwnY) i Airtable —
+      // tilføjet direkte som felt-ID, da det endnu ikke er lagt ind i
+      // FIELDS-mappingen i lib/airtable.ts. Overvej at tilføje
+      // "ticketBreakdown: 'fldXuocW3IneLzwnY'" til FIELDS.booking der,
+      // og skift nøglen herunder til FIELDS.booking.ticketBreakdown.
+      fldXuocW3IneLzwnY: ticketBreakdown,
     };
     if (showId) {
       bookingFields[FIELDS.booking.show] = [showId];
@@ -80,12 +100,9 @@ export async function POST(req: NextRequest) {
         bookingFields[FIELDS.booking.drinkPreference] = matching.drinkPreference;
       if (matching.note) bookingFields[FIELDS.booking.matchNote] = matching.note;
     }
-
     const bookingRecord = await createRecord(TABLES.bookings, bookingFields);
-
     const origin = req.nextUrl.origin;
     const stripe = getStripe();
-
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -106,7 +123,6 @@ export async function POST(req: NextRequest) {
       success_url: `${origin}/success?booking=${bookingNo}`,
       cancel_url: `${origin}/?cancelled=1`,
     });
-
     return NextResponse.json({ url: session.url });
   } catch (err) {
     console.error(err);
