@@ -311,6 +311,10 @@
 .field textarea::placeholder {
   color: rgba(246, 241, 228, 0.35);
 }
+.field select option {
+  color: var(--bh-ink);
+  background: #fff;
+}
 .field input:focus,
 .field textarea:focus,
 .field select:focus {
