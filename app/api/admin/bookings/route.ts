@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listRecords, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
 
+// Felt-id for "Billetkategorier" i Bookings-tabellen (oprettet direkte i
+// Airtable). Overvej at tilføje "ticketBreakdown: 'fldXuocW3IneLzwnY'" til
+// FIELDS.booking i lib/airtable.ts, og skift referencen herunder til
+// FIELDS.booking.ticketBreakdown for konsistens med resten af koden.
+const TICKET_BREAKDOWN_FIELD = "fldXuocW3IneLzwnY";
+
 function checkKey(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
   return key && key === process.env.ADMIN_KEY;
 }
-
 export async function GET(req: NextRequest) {
   if (!checkKey(req)) {
     return NextResponse.json({ error: "Ugyldig nøgle" }, { status: 401 });
@@ -14,14 +19,11 @@ export async function GET(req: NextRequest) {
   if (!showId) {
     return NextResponse.json({ error: "showId mangler" }, { status: 400 });
   }
-
   const [bookings, customers] = await Promise.all([
     listRecords(TABLES.bookings),
     listRecords(TABLES.customers),
   ]);
-
   const customerMap = new Map(customers.map((c) => [c.id, c.fields]));
-
   const rows = bookings
     .filter((b) => {
       const shows = b.fields[FIELDS.booking.show] as string[] | undefined;
@@ -34,6 +36,7 @@ export async function GET(req: NextRequest) {
         id: b.id,
         bookingNo: String(b.fields[FIELDS.booking.bookingNo] ?? ""),
         ticketCount: Number(b.fields[FIELDS.booking.ticketCount] ?? 0),
+        ticketBreakdown: String(b.fields[TICKET_BREAKDOWN_FIELD] ?? ""),
         status: String(b.fields[FIELDS.booking.status] ?? ""),
         tableNumber: String(b.fields[FIELDS.booking.tableNumber] ?? ""),
         wantsMatching: Boolean(b.fields[FIELDS.booking.wantsMatching]),
@@ -46,10 +49,8 @@ export async function GET(req: NextRequest) {
         customerPhone: String(customerFields[FIELDS.customer.phone] ?? ""),
       };
     });
-
   return NextResponse.json({ rows });
 }
-
 export async function PATCH(req: NextRequest) {
   if (!checkKey(req)) {
     return NextResponse.json({ error: "Ugyldig nøgle" }, { status: 401 });
