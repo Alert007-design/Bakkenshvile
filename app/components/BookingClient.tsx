@@ -253,69 +253,69 @@ export default function BookingClient({
   if (!selectedShow) {
     return (
       <div className="page">
-        <div className="ticket-edge date-picker-card">
-          <div className="date-picker-hero">
-            <div className="eyebrow" style={{ color: "var(--bh-gold)" }}>
-              Bakkens Hvile · Underholdning siden 1877
-            </div>
-            <h1 className="hero-title">Vælg en dato</h1>
-            <div className="jubilee-block">
-              <span className="jubilee-title">150 års jubilæumsshow</span>
-              <span className="jubilee-sub">Maj–september 2027</span>
-            </div>
-            <StepIndicator current={1} />
-          </div>
+        <div className="book-hero">
+          <div className="eyebrow">Bakkens Hvile · Underholdning siden 1877</div>
+          <h1 className="jubilee-title">150 års jubilæumsshow</h1>
+          <p className="book-helper">
+            Vælg den forestilling, du ønsker at bestille billetter til.
+          </p>
+          <StepIndicator current={1} />
+        </div>
 
-          <div className="date-picker-panel">
-            {groupedByMonth.map(([month, shows]) => (
-              <div className="date-picker-month" key={month}>
-                <div className="date-picker-month-title">{month}</div>
-                <div className="date-picker-grid">
-                  {shows.map((s) => {
-                    const badge = getBadge(s, s.id === earliestId);
-                    const isSelected = pendingDateId === s.id;
-                    const isSoldOut = badge?.type === "soldout";
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        className={`date-picker-btn${
-                          isSelected ? " is-selected" : ""
-                        }${isSoldOut ? " is-soldout" : ""}`}
-                        onClick={() => !isSoldOut && setPendingDateId(s.id)}
-                        disabled={isSoldOut}
-                        aria-pressed={isSelected}
-                        aria-label={`${formatShortDate(s.date)} kl. ${
-                          s.time
-                        }${badge ? ", " + badge.label : ""}`}
-                      >
-                        {badge && (
-                          <span className={`date-picker-badge badge-${badge.type}`}>
-                            {badge.label}
-                          </span>
-                        )}
-                        <span className="date-picker-day">
-                          {formatShortDate(s.date)}
+        <div className="date-picker-panel">
+          {groupedByMonth.map(([month, shows]) => (
+            <div className="date-picker-month" key={month}>
+              <div className="date-picker-month-title">{month}</div>
+              <div className="date-picker-grid">
+                {shows.map((s) => {
+                  const badge = getBadge(s, s.id === earliestId);
+                  const isSelected = pendingDateId === s.id;
+                  const isSoldOut = badge?.type === "soldout";
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className={`date-picker-btn${
+                        isSelected ? " is-selected" : ""
+                      }${isSoldOut ? " is-soldout" : ""}`}
+                      onClick={() => !isSoldOut && setPendingDateId(s.id)}
+                      disabled={isSoldOut}
+                      aria-pressed={isSelected}
+                      aria-label={`${formatShortDate(s.date)} kl. ${s.time}${
+                        badge ? ", " + badge.label : ""
+                      }`}
+                    >
+                      {badge && (
+                        <span className={`date-picker-badge badge-${badge.type}`}>
+                          {badge.label}
                         </span>
-                        <span className="date-picker-time">kl. {s.time}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                      )}
+                      <span className="date-picker-day">
+                        {formatShortDate(s.date)}
+                      </span>
+                      <span className="date-picker-time">kl. {s.time}</span>
+                      {!isSoldOut && (
+                        <span className="date-picker-go" aria-hidden="true">
+                          Vælg →
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
 
-          <div className="date-picker-cta">
-            <button
-              type="button"
-              className="submit-btn date-picker-confirm"
-              onClick={confirmDate}
-              disabled={!pendingDateId}
-            >
-              Vælg spilledag
-            </button>
-          </div>
+        <div className="date-picker-cta">
+          <button
+            type="button"
+            className="submit-btn"
+            onClick={confirmDate}
+            disabled={!pendingDateId}
+          >
+            Vælg spilledag
+          </button>
         </div>
       </div>
     );
@@ -323,47 +323,32 @@ export default function BookingClient({
 
   return (
     <div className="page">
-      <div className="hero ticket-edge">
-        <div>
-          <div className="eyebrow" style={{ color: "var(--bh-gold)" }}>
-            Bakkens Hvile · Underholdning siden 1877
-          </div>
-          <h1 className="hero-title">{selectedShow.title}</h1>
-          <div className="hero-meta">
-            <span>
-              <b>Dato</b> {formatShortDate(selectedShow.date)}
-            </span>
-            <span>
-              <b>Kl.</b> {selectedShow.time}
-            </span>
-            <span>
-              <b>Varighed</b> {selectedShow.duration}
-            </span>
-          </div>
-          <StepIndicator current={2} />
-          <button
-            onClick={() => {
-              setSelectedId(null);
-              setPendingDateId(selectedShow.id);
-            }}
-            style={{
-              marginTop: 14,
-              background: "none",
-              border: "none",
-              color: "var(--bh-gold)",
-              textDecoration: "underline",
-              cursor: "pointer",
-              padding: 0,
-              fontSize: 13,
-            }}
-          >
-            Skift dato
-          </button>
+      <div className="book-hero book-hero--compact">
+        <div className="eyebrow">Bakkens Hvile · Underholdning siden 1877</div>
+        <h1 className="jubilee-title" style={{ fontSize: "clamp(26px, 4vw, 38px)" }}>
+          {selectedShow.title}
+        </h1>
+        <div className="hero-meta">
+          <span>
+            <b>Dato</b> {formatShortDate(selectedShow.date)}
+          </span>
+          <span>
+            <b>Kl.</b> {selectedShow.time}
+          </span>
+          <span>
+            <b>Varighed</b> {selectedShow.duration}
+          </span>
         </div>
-        <div className="hero-stub">
-          <div className="mono">BILLET</div>
-          <div className="stub-since">Nr. 150</div>
-        </div>
+        <StepIndicator current={2} />
+        <button
+          className="change-date-link"
+          onClick={() => {
+            setSelectedId(null);
+            setPendingDateId(selectedShow.id);
+          }}
+        >
+          Skift dato
+        </button>
       </div>
       {selectedShow.notes && <div className="notice">{selectedShow.notes}</div>}
 
@@ -427,8 +412,9 @@ export default function BookingClient({
         <div className="section-title">Dine oplysninger</div>
         <div className="form-grid">
           <div className="field">
-            <label>Fornavn og efternavn *</label>
+            <label htmlFor="cust-name">Fornavn og efternavn *</label>
             <input
+              id="cust-name"
               value={customer.name}
               onChange={(e) =>
                 setCustomer({ ...customer, name: e.target.value })
@@ -436,8 +422,9 @@ export default function BookingClient({
             />
           </div>
           <div className="field">
-            <label>Firmanavn</label>
+            <label htmlFor="cust-company">Firmanavn</label>
             <input
+              id="cust-company"
               value={customer.company}
               onChange={(e) =>
                 setCustomer({ ...customer, company: e.target.value })
@@ -445,8 +432,9 @@ export default function BookingClient({
             />
           </div>
           <div className="field">
-            <label>Telefon *</label>
+            <label htmlFor="cust-phone">Telefon *</label>
             <input
+              id="cust-phone"
               value={customer.phone}
               onChange={(e) =>
                 setCustomer({ ...customer, phone: e.target.value })
@@ -454,8 +442,9 @@ export default function BookingClient({
             />
           </div>
           <div className="field">
-            <label>Email *</label>
+            <label htmlFor="cust-email">Email *</label>
             <input
+              id="cust-email"
               value={customer.email}
               onChange={(e) =>
                 setCustomer({ ...customer, email: e.target.value })
@@ -463,8 +452,9 @@ export default function BookingClient({
             />
           </div>
           <div className="field">
-            <label>Adresse</label>
+            <label htmlFor="cust-address">Adresse</label>
             <input
+              id="cust-address"
               value={customer.address}
               onChange={(e) =>
                 setCustomer({ ...customer, address: e.target.value })
@@ -472,8 +462,9 @@ export default function BookingClient({
             />
           </div>
           <div className="field">
-            <label>Postnr.</label>
+            <label htmlFor="cust-zip">Postnr.</label>
             <input
+              id="cust-zip"
               value={customer.zip}
               onChange={(e) =>
                 setCustomer({ ...customer, zip: e.target.value })
@@ -481,8 +472,9 @@ export default function BookingClient({
             />
           </div>
           <div className="field full">
-            <label>Særlige ønsker (maks. 100 tegn)</label>
+            <label htmlFor="cust-notes">Særlige ønsker (maks. 100 tegn)</label>
             <textarea
+              id="cust-notes"
               maxLength={100}
               rows={2}
               value={specialRequests}
@@ -490,7 +482,11 @@ export default function BookingClient({
             />
           </div>
         </div>
-        {error && <div className="error-msg">{error}</div>}
+        {error && (
+          <div className="error-msg" role="alert">
+            {error}
+          </div>
+        )}
       </div>
 
       <div className="section">
@@ -523,21 +519,13 @@ export default function BookingClient({
         {wantsMatching && (
           <div className="form-grid">
             <div className="field">
-              <label>Aldersgruppe</label>
+              <label htmlFor="match-age">Aldersgruppe</label>
               <select
+                id="match-age"
                 value={matching.ageGroup}
                 onChange={(e) =>
                   setMatching({ ...matching, ageGroup: e.target.value })
                 }
-                style={{
-                  width: "100%",
-                  padding: "11px 12px",
-                  border: "1px solid var(--bh-line)",
-                  borderRadius: "var(--radius)",
-                  background: "#fff",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 14,
-                }}
               >
                 <option value="">Vælg...</option>
                 <option value="18-25">18-25</option>
@@ -548,8 +536,9 @@ export default function BookingClient({
               </select>
             </div>
             <div className="field">
-              <label>Hvor er I fra?</label>
+              <label htmlFor="match-location">Hvor er I fra?</label>
               <input
+                id="match-location"
                 placeholder="fx København"
                 value={matching.location}
                 onChange={(e) =>
@@ -558,21 +547,13 @@ export default function BookingClient({
               />
             </div>
             <div className="field">
-              <label>Foretrukken drik</label>
+              <label htmlFor="match-drink">Foretrukken drik</label>
               <select
+                id="match-drink"
                 value={matching.drinkPreference}
                 onChange={(e) =>
                   setMatching({ ...matching, drinkPreference: e.target.value })
                 }
-                style={{
-                  width: "100%",
-                  padding: "11px 12px",
-                  border: "1px solid var(--bh-line)",
-                  borderRadius: "var(--radius)",
-                  background: "#fff",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 14,
-                }}
               >
                 <option value="">Vælg...</option>
                 <option value="Vin">Vin</option>
@@ -583,8 +564,9 @@ export default function BookingClient({
               </select>
             </div>
             <div className="field">
-              <label>Interesser</label>
+              <label htmlFor="match-interests">Interesser</label>
               <input
+                id="match-interests"
                 placeholder="fx rejser, mad, musik"
                 value={matching.interests}
                 onChange={(e) =>
@@ -593,8 +575,11 @@ export default function BookingClient({
               />
             </div>
             <div className="field full">
-              <label>Andet der kan hjælpe os med at sætte jer godt</label>
+              <label htmlFor="match-note">
+                Andet der kan hjælpe os med at sætte jer godt
+              </label>
               <textarea
+                id="match-note"
                 rows={2}
                 placeholder="Helt op til jer — fx hvem I gerne vil sidde sammen med"
                 value={matching.note}
