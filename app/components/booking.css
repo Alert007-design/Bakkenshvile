@@ -279,6 +279,94 @@
   outline-offset: 1px;
 }
 
+/* --- Datovælger: fortsætter billetten fra hero'en, samme kort --- */
+.date-picker-card {
+  background: var(--bh-green);
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+}
+.date-picker-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    115deg,
+    rgba(201, 162, 39, 0.05) 0px,
+    rgba(201, 162, 39, 0.05) 1px,
+    transparent 1px,
+    transparent 34px
+  );
+  pointer-events: none;
+}
+.date-picker-hero {
+  padding: 40px 44px 20px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.date-picker-panel {
+  position: relative;
+  z-index: 1;
+  padding: 8px 44px 40px;
+}
+.date-picker-month {
+  padding-top: 28px;
+  border-top: 1px dashed rgba(246, 241, 228, 0.2);
+  margin-top: 28px;
+}
+.date-picker-month:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+.date-picker-month-title {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: 21px;
+  color: var(--bh-gold);
+  text-transform: capitalize;
+  margin-bottom: 14px;
+}
+.date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 8px;
+}
+.date-picker-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 12px 14px;
+  background: rgba(246, 241, 228, 0.05);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.date-picker-btn:hover {
+  background: rgba(201, 162, 39, 0.14);
+  border-color: var(--bh-gold);
+  transform: translateY(-1px);
+}
+.date-picker-day {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--bh-cream);
+  text-transform: capitalize;
+}
+.date-picker-time {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: rgba(246, 241, 228, 0.6);
+}
+
 .date-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -376,7 +464,8 @@
 }
 
 @media (max-width: 640px) {
-  .hero {
+  .hero,
+  .date-picker-hero {
     grid-template-columns: 1fr;
   }
   .hero-stub {
@@ -386,6 +475,14 @@
     padding-top: 16px;
     text-align: left;
   }
+  .date-picker-panel {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .date-picker-hero {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
   .form-grid {
     grid-template-columns: 1fr;
   }
@@ -393,5 +490,207 @@
     flex-direction: column;
     gap: 14px;
     align-items: stretch;
+  }
+}
+
+/* --- Trinindikator (Dato → Billetter → Betaling) --- */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  margin-top: 22px;
+  flex-wrap: wrap;
+  gap: 0;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.step-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  flex-shrink: 0;
+  border: 1px solid rgba(246, 241, 228, 0.35);
+  color: rgba(246, 241, 228, 0.5);
+}
+.step-dot.step-active {
+  background: var(--bh-gold);
+  border-color: var(--bh-gold);
+  color: var(--bh-green-deep);
+  font-weight: 600;
+}
+.step-dot.step-done {
+  background: transparent;
+  border-color: var(--bh-gold);
+  color: var(--bh-gold);
+}
+.step-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: rgba(246, 241, 228, 0.5);
+}
+.step-label-active {
+  color: var(--bh-cream);
+  font-weight: 600;
+}
+.step-label-done {
+  color: rgba(246, 241, 228, 0.75);
+}
+.step-connector {
+  width: 28px;
+  height: 1px;
+  background: rgba(246, 241, 228, 0.25);
+  margin: 0 10px;
+}
+
+/* --- Praktiske oplysninger --- */
+.practical-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 16px 0 28px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed rgba(246, 241, 228, 0.2);
+}
+.practical-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 140px;
+}
+.practical-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bh-gold);
+  opacity: 0.85;
+}
+.practical-value {
+  font-size: 13px;
+  color: rgba(246, 241, 228, 0.85);
+}
+
+/* --- Datokort: badge, valgt-tilstand, hover, animation --- */
+.date-picker-btn {
+  position: relative;
+}
+.date-picker-badge {
+  position: absolute;
+  top: -9px;
+  right: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  line-height: 1.6;
+}
+.badge-premiere {
+  background: var(--bh-gold);
+  color: var(--bh-green-deep);
+}
+.badge-few {
+  background: var(--bh-cream);
+  color: var(--bh-red);
+  border: 1px solid var(--bh-red);
+}
+.badge-soldout {
+  background: rgba(246, 241, 228, 0.15);
+  color: rgba(246, 241, 228, 0.65);
+  border: 1px solid rgba(246, 241, 228, 0.3);
+}
+
+.date-picker-btn:hover:not(:disabled) {
+  background: rgba(201, 162, 39, 0.16);
+  border-color: var(--bh-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+}
+
+.date-picker-btn.is-selected {
+  background: var(--bh-gold);
+  border-color: var(--bh-gold);
+  animation: select-pulse 0.28s ease;
+}
+.date-picker-btn.is-selected .date-picker-day {
+  color: var(--bh-green-deep);
+}
+.date-picker-btn.is-selected .date-picker-time {
+  color: rgba(8, 41, 33, 0.7);
+}
+@keyframes select-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.date-picker-btn.is-soldout,
+.date-picker-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+.date-picker-btn.is-soldout:hover {
+  background: rgba(246, 241, 228, 0.05);
+  border-color: rgba(201, 162, 39, 0.3);
+  box-shadow: none;
+}
+
+/* --- CTA --- */
+.date-picker-cta {
+  position: relative;
+  z-index: 1;
+  padding: 0 44px 40px;
+  display: flex;
+  justify-content: flex-end;
+}
+.date-picker-confirm {
+  min-width: 200px;
+  text-align: center;
+}
+.date-picker-confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- Tilgængelighed: tydelig keyboard-fokus i hele bookingflowet --- */
+.date-picker-btn:focus-visible,
+.date-picker-confirm:focus-visible,
+.submit-btn:focus-visible,
+.stepper button:focus-visible,
+.field input:focus-visible,
+.field textarea:focus-visible,
+.field select:focus-visible {
+  outline: 3px solid var(--bh-gold);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .date-picker-cta {
+    padding-left: 24px;
+    padding-right: 24px;
+    justify-content: stretch;
+  }
+  .date-picker-confirm {
+    width: 100%;
+  }
+  .practical-info {
+    flex-direction: column;
+    gap: 12px;
   }
 }
