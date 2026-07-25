@@ -1,15 +1,12 @@
 import { listRecords, TABLES, FIELDS } from "@/lib/airtable";
 import AdminClient from "./AdminClient";
-
 export const dynamic = "force-dynamic";
-
 export default async function AdminPage({
   searchParams,
 }: {
   searchParams: { key?: string };
 }) {
   const key = searchParams.key || "";
-
   if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
     return (
       <div style={{ padding: 48, fontFamily: "sans-serif" }}>
@@ -22,8 +19,10 @@ export default async function AdminPage({
       </div>
     );
   }
-
-  const events = await listRecords(TABLES.events);
+  const [events, ticketTypes] = await Promise.all([
+    listRecords(TABLES.events),
+    listRecords(TABLES.ticketTypes),
+  ]);
   const shows = events
     .map((r) => ({
       id: r.id,
@@ -33,5 +32,21 @@ export default async function AdminPage({
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  return <AdminClient shows={shows} adminKey={key} />;
+  // Kategori-rækkefølge, dyreste først — samme sortering som på
+  // selve bookingsiden. Bruges af AdminClient til at gruppere
+  // bordplanen efter kategori (A+, A, B ...), i stedet for at
+  // gætte ud fra bogstaverne alene.
+  const categoryOrder = [...ticketTypes]
+    .map((r) => ({
+      category: String(r.fields[FIELDS.ticketType.category] ?? ""),
+      price: Number(r.fields[FIELDS.ticketType.price] ?? 0),
+      fee: Number(r.fields[FIELDS.ticketType.fee] ?? 0),
+    }))
+    .sort((a, b) => b.price + b.fee - (a.price + a.fee))
+    .map((t) => t.category)
+    .filter(Boolean);
+
+  return (
+    <AdminClient shows={shows} adminKey={key} categoryOrder={categoryOrder} />
+  );
 }
