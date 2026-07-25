@@ -661,3 +661,29 @@
     display: flex;
   }
 }
+
+/* --- Pladsoversigt --- */
+.seating-chart-toggle {
+  background: none;
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  color: var(--bh-gold);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  margin-bottom: 20px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.seating-chart-toggle:hover {
+  background: rgba(201, 162, 39, 0.1);
+  border-color: var(--bh-gold);
+}
+.seating-chart-wrap {
+  background: rgba(246, 241, 228, 0.03);
+  border: 1px solid var(--bh-line);
+  border-radius: var(--radius);
+  padding: 24px 16px;
+  margin-bottom: 28px;
+}
