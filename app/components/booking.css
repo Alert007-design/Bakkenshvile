@@ -300,11 +300,7 @@
   pointer-events: none;
 }
 .date-picker-hero {
-  padding: 40px 44px 20px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 24px;
-  align-items: center;
+  padding: 40px 44px 22px;
   position: relative;
   z-index: 1;
 }
@@ -464,8 +460,7 @@
 }
 
 @media (max-width: 640px) {
-  .hero,
-  .date-picker-hero {
+  .hero {
     grid-template-columns: 1fr;
   }
   .hero-stub {
@@ -548,34 +543,6 @@
   height: 1px;
   background: rgba(246, 241, 228, 0.25);
   margin: 0 10px;
-}
-
-/* --- Praktiske oplysninger --- */
-.practical-info {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  padding: 16px 0 28px;
-  margin-bottom: 8px;
-  border-bottom: 1px dashed rgba(246, 241, 228, 0.2);
-}
-.practical-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 140px;
-}
-.practical-label {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--bh-gold);
-  opacity: 0.85;
-}
-.practical-value {
-  font-size: 13px;
-  color: rgba(246, 241, 228, 0.85);
 }
 
 /* --- Datokort: badge, valgt-tilstand, hover, animation --- */
@@ -689,8 +656,36 @@
   .date-picker-confirm {
     width: 100%;
   }
-  .practical-info {
-    flex-direction: column;
-    gap: 12px;
-  }
+}
+
+/* --- Jubilæumsstribe: erstatter den lille meta-linje med noget elegant --- */
+.jubilee-block {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jubilee-block::before {
+  content: "";
+  display: block;
+  width: 52px;
+  height: 1px;
+  background: var(--bh-gold);
+  margin-bottom: 14px;
+  opacity: 0.7;
+}
+.jubilee-title {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: clamp(19px, 2.6vw, 25px);
+  color: var(--bh-gold);
+  line-height: 1.2;
+}
+.jubilee-sub {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(246, 241, 228, 0.55);
 }
