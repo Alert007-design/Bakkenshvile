@@ -18,13 +18,16 @@ type Row = {
   note: string;
   customerName: string;
   customerPhone: string;
-  // Nyt felt — nedbrydning af billetter pr. kategori, fx "A+ x2, B x1".
-  // Kræver at /api/admin/bookings sender feltet "Billetkategorier" med
-  // (Airtable felt-id fldXuocW3IneLzwnY) under nøglen ticketBreakdown.
+  // Nedbrydning af billetter pr. kategori, fx "A+ x2, B x1".
   ticketBreakdown: string;
 };
 
 const UKENDT_KATEGORI = "Ukendt kategori";
+
+// Antaget maks. antal personer pr. bord i salen (5-6 personer).
+// Sæt til 6 — algoritmen forsøger stadig at fylde borde effektivt,
+// selv når et bord reelt kun har plads til 5.
+const TABLE_CAPACITY = 6;
 
 // Bookingens primære (dyreste) kategori — det første segment i
 // ticketBreakdown, da checkout-koden allerede skriver kategorierne i
@@ -34,6 +37,74 @@ function primaryCategory(row: Row): string {
   const first = row.ticketBreakdown.split(",")[0]?.trim() ?? "";
   const match = first.match(/^(.+?)\s+x\d+$/);
   return match ? match[1].trim() : first || UKENDT_KATEGORI;
+}
+
+function normalize(s: string): string {
+  return s.trim().toLowerCase();
+}
+
+function interestTokens(s: string): string[] {
+  return normalize(s)
+    .split(/[,;/]| og /)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+// Hvor godt to bookinger passer sammen ved samme bord, baseret på de
+// frivillige matchsvar. Kun bookinger der har sagt ja til at blive
+// matchet, tæller med i scoren — resten placeres udelukkende efter
+// pladseffektivitet.
+function affinity(a: Row, b: Row): number {
+  if (!a.wantsMatching || !b.wantsMatching) return 0;
+  let score = 0;
+  if (a.ageGroup && a.ageGroup === b.ageGroup) score += 3;
+  if (a.location && normalize(a.location) === normalize(b.location)) score += 2;
+  if (
+    a.drinkPreference &&
+    a.drinkPreference === b.drinkPreference
+  )
+    score += 2;
+  const aInterests = interestTokens(a.interests);
+  const bInterests = interestTokens(b.interests);
+  const shared = aInterests.filter((t) => bInterests.includes(t));
+  score += Math.min(shared.length, 3);
+  return score;
+}
+
+type TableGroup = { table: number; category: string; rows: Row[] };
+
+// Pakker bookinger inden for én kategori ind i borde: største selskaber
+// først (for at udnytte pladsen bedst muligt), og for hvert selskab
+// vælges det bord, hvor det matcher bedst med dem, der allerede sidder
+// der (blandt de borde, der har plads). Et nyt bord åbnes kun, hvis
+// ingen eksisterende bord har plads.
+function packCategory(rows: Row[]): Row[][] {
+  const remaining = [...rows].sort((a, b) => b.ticketCount - a.ticketCount);
+  const bins: { rows: Row[]; used: number }[] = [];
+
+  for (const row of remaining) {
+    let bestBin: { rows: Row[]; used: number } | null = null;
+    let bestScore = -Infinity;
+    for (const bin of bins) {
+      const free = TABLE_CAPACITY - bin.used;
+      if (free < row.ticketCount) continue;
+      let score = 0;
+      for (const existing of bin.rows) score += affinity(row, existing);
+      // Let præference for borde der bliver fyldt godt op.
+      score += (TABLE_CAPACITY - free) * 0.01;
+      if (score > bestScore) {
+        bestScore = score;
+        bestBin = bin;
+      }
+    }
+    if (bestBin) {
+      bestBin.rows.push(row);
+      bestBin.used += row.ticketCount;
+    } else {
+      bins.push({ rows: [row], used: row.ticketCount });
+    }
+  }
+  return bins.map((b) => b.rows);
 }
 
 export default function AdminClient({
@@ -48,10 +119,13 @@ export default function AdminClient({
   const [showId, setShowId] = useState(shows[0]?.id ?? "");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
+  const [suggestion, setSuggestion] = useState<TableGroup[] | null>(null);
+  const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     if (!showId) return;
     setLoading(true);
+    setSuggestion(null);
     fetch(`/api/admin/bookings?showId=${showId}&key=${adminKey}`)
       .then((r) => r.json())
       .then((data) => setRows(data.rows || []))
@@ -102,7 +176,45 @@ export default function AdminClient({
     });
   }, [rows, categoryOrder]);
 
+  function generateSuggestion() {
+    const orderIndex = new Map(categoryOrder.map((c, i) => [c, i]));
+    const catsSorted = byCategory.map(([cat]) => cat).sort((a, b) => {
+      const ai = orderIndex.has(a) ? orderIndex.get(a)! : Infinity;
+      const bi = orderIndex.has(b) ? orderIndex.get(b)! : Infinity;
+      if (ai !== bi) return ai - bi;
+      return a.localeCompare(b);
+    });
+    let tableCounter = 1;
+    const result: TableGroup[] = [];
+    for (const cat of catsSorted) {
+      const catRows = byCategory.find(([c]) => c === cat)?.[1] ?? [];
+      const bins = packCategory(catRows);
+      for (const bin of bins) {
+        result.push({ table: tableCounter, category: cat, rows: bin });
+        tableCounter++;
+      }
+    }
+    setSuggestion(result);
+  }
+
+  async function applySuggestion() {
+    if (!suggestion) return;
+    setApplying(true);
+    try {
+      for (const group of suggestion) {
+        for (const row of group.rows) {
+          await saveTable(row.id, String(group.table));
+        }
+      }
+    } finally {
+      setApplying(false);
+    }
+  }
+
   const totalGuests = rows.reduce((sum, r) => sum + r.ticketCount, 0);
+  const suggestionTableCount = suggestion
+    ? new Set(suggestion.map((g) => g.table)).size
+    : 0;
 
   return (
     <div style={{ padding: "32px 40px", fontFamily: "sans-serif", color: "#1a1a16" }}>
@@ -120,7 +232,7 @@ export default function AdminClient({
           Bookingerne herunder står grupperet efter billetkategori, dyreste
           først.
         </p>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <select
             value={showId}
             onChange={(e) => setShowId(e.target.value)}
@@ -132,6 +244,21 @@ export default function AdminClient({
               </option>
             ))}
           </select>
+          <button
+            onClick={generateSuggestion}
+            disabled={loading || rows.length === 0}
+            style={{
+              padding: "8px 16px",
+              background: "#c9a227",
+              color: "#1a1a16",
+              border: "none",
+              borderRadius: 3,
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Foreslå bordplacering
+          </button>
           <button
             onClick={() => window.print()}
             style={{
@@ -152,6 +279,94 @@ export default function AdminClient({
       </div>
 
       {loading && <p>Henter...</p>}
+
+      {suggestion && (
+        <div
+          className="no-print"
+          style={{
+            marginBottom: 32,
+            padding: 20,
+            background: "#faf7ee",
+            border: "1px solid #c9a227",
+            borderRadius: 4,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 16 }}>
+                Forslag: {suggestionTableCount} borde
+              </h2>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#666" }}>
+                Størst selskaber og bedst pladsudnyttelse går forud; gæster der
+                har svaret på matchspørgsmålene, samles ud fra alder,
+                geografi, drikkepræference og interesser. Tjek forslaget
+                igennem, inden du bruger det — det overskriver de nuværende
+                bordnumre for denne visning.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={applySuggestion}
+                disabled={applying}
+                style={{
+                  padding: "8px 16px",
+                  background: "#0d3b2e",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 3,
+                  cursor: "pointer",
+                }}
+              >
+                {applying ? "Gemmer..." : "Brug dette forslag"}
+              </button>
+              <button
+                onClick={() => setSuggestion(null)}
+                style={{
+                  padding: "8px 16px",
+                  background: "transparent",
+                  color: "#666",
+                  border: "1px solid #ccc",
+                  borderRadius: 3,
+                  cursor: "pointer",
+                }}
+              >
+                Kassér
+              </button>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+            {suggestion.map((g) => {
+              const used = g.rows.reduce((s, r) => s + r.ticketCount, 0);
+              return (
+                <div
+                  key={g.table}
+                  style={{
+                    background: "white",
+                    border: "1px solid #e5e0d0",
+                    borderRadius: 4,
+                    padding: 12,
+                    fontSize: 13,
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                    Bord {g.table} · {g.category}
+                    <span style={{ color: "#999", fontWeight: 400 }}>
+                      {" "}
+                      ({used}/{TABLE_CAPACITY})
+                    </span>
+                  </div>
+                  {g.rows.map((r) => (
+                    <div key={r.id} style={{ color: "#555", marginBottom: 2 }}>
+                      {r.customerName} — {r.ticketCount} pers.
+                      {r.wantsMatching && r.ageGroup ? ` · ${r.ageGroup}` : ""}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="no-print">
         <h2>Tildel borde</h2>
