@@ -1,13 +1,13 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap");
 
 :root {
-  --bh-green: #0d3b2e;
-  --bh-green-deep: #082921;
+  --bh-navy: #0f1f33;
+  --bh-navy-deep: #0a1526;
   --bh-gold: #c9a227;
-  --bh-red: #8a1f2b;
   --bh-cream: #f6f1e4;
   --bh-ink: #1a1a16;
-  --bh-line: rgba(13, 59, 46, 0.18);
+  --bh-red: #8a1f2b;
+  --bh-line: rgba(246, 241, 228, 0.16);
   --radius: 2px;
 }
 
@@ -18,7 +18,7 @@
   font-weight: 700;
   margin: 0;
   letter-spacing: -0.01em;
-  color: var(--bh-ink);
+  color: var(--bh-cream);
 }
 
 .page .mono {
@@ -29,46 +29,20 @@
   font-family: inherit;
 }
 
-/* Perforeret billet-kant — det visuelle signatur-element */
-.page .ticket-edge {
-  position: relative;
-}
-.page .ticket-edge::before,
-.page .ticket-edge::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 22px;
-  background-image: radial-gradient(
-    circle at 11px 0,
-    transparent 10px,
-    var(--bh-cream) 10.5px
-  );
-  background-size: 22px 22px;
-  background-repeat: repeat-y;
-}
-.page .ticket-edge::before {
-  left: -1px;
-}
-.page .ticket-edge::after {
-  right: -1px;
-  transform: scaleX(-1);
-}
-
 .page ::selection {
   background: var(--bh-gold);
-  color: var(--bh-ink);
+  color: var(--bh-navy-deep);
 }
 
 .page {
-  max-width: 1040px;
+  max-width: 980px;
   margin: 0 auto;
-  padding: 48px 24px 120px;
-  background: var(--bh-cream);
+  padding: 0 24px 120px;
+  background: var(--bh-navy);
   min-height: 100vh;
-  color: var(--bh-ink);
+  color: var(--bh-cream);
   font-family: "Inter", system-ui, sans-serif;
+  overflow-x: hidden;
 }
 
 .page a {
@@ -77,46 +51,44 @@
 
 .eyebrow {
   font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
-  letter-spacing: 0.14em;
+  font-size: 15px;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--bh-green);
-  opacity: 0.75;
+  color: var(--bh-gold);
 }
 
-/* --- Hero: billet-stub --- */
-.hero {
-  background: var(--bh-green);
-  color: var(--bh-cream);
-  border-radius: var(--radius);
-  padding: 40px 44px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 24px;
-  align-items: center;
+/* --- Hero: bred, åben, fotobaggrund --- */
+.book-hero {
   position: relative;
+  padding: 72px 40px 40px;
+  margin: 0 -24px;
   overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(10, 21, 38, 0.72), rgba(10, 21, 38, 0.94)),
+    url("/dot-vintage-1.jpg");
+  background-size: cover;
+  background-position: center 22%;
 }
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    115deg,
-    rgba(201, 162, 39, 0.05) 0px,
-    rgba(201, 162, 39, 0.05) 1px,
-    transparent 1px,
-    transparent 34px
-  );
-  pointer-events: none;
+.book-hero--compact {
+  padding: 48px 40px 34px;
 }
-.hero-title {
-  font-size: clamp(28px, 4vw, 42px);
-  color: var(--bh-cream);
-  line-height: 1.05;
+.jubilee-title {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: clamp(32px, 5vw, 48px);
+  color: var(--bh-gold);
+  line-height: 1.08;
+  margin: 16px 0 10px;
+}
+.book-helper {
+  font-size: 14px;
+  color: rgba(246, 241, 228, 0.75);
+  max-width: 480px;
+  margin: 0 0 34px;
 }
 .hero-meta {
-  margin-top: 14px;
+  margin-top: 12px;
   display: flex;
   gap: 22px;
   flex-wrap: wrap;
@@ -127,42 +99,94 @@
   color: var(--bh-gold);
   font-weight: 600;
 }
-.hero-stub {
-  text-align: right;
-  border-left: 1px dashed rgba(246, 241, 228, 0.35);
-  padding-left: 24px;
-}
-.hero-stub .mono {
-  font-size: 12px;
-  color: rgba(246, 241, 228, 0.6);
-}
-.hero-stub .stub-since {
-  font-size: 30px;
+.change-date-link {
+  margin-top: 16px;
+  background: none;
+  border: none;
   color: var(--bh-gold);
-  font-family: "Fraunces", serif;
-  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
 }
 
 .notice {
-  margin-top: 18px;
+  margin: 24px 0 0;
   font-size: 13px;
   background: rgba(201, 162, 39, 0.1);
   border: 1px solid rgba(201, 162, 39, 0.35);
   padding: 12px 16px;
   border-radius: var(--radius);
-  color: var(--bh-green-deep);
+  color: var(--bh-cream);
+}
+
+/* --- Trinindikator --- */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  margin-top: 26px;
+  flex-wrap: wrap;
+  gap: 0;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.step-dot {
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  flex-shrink: 0;
+  border: 1px solid rgba(246, 241, 228, 0.35);
+  color: rgba(246, 241, 228, 0.5);
+}
+.step-dot.step-active {
+  background: var(--bh-gold);
+  border-color: var(--bh-gold);
+  color: var(--bh-navy-deep);
+  font-weight: 600;
+}
+.step-dot.step-done {
+  background: transparent;
+  border-color: var(--bh-gold);
+  color: var(--bh-gold);
+}
+.step-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: rgba(246, 241, 228, 0.5);
+}
+.step-label-active {
+  color: var(--bh-cream);
+  font-weight: 600;
+}
+.step-label-done {
+  color: rgba(246, 241, 228, 0.75);
+}
+.step-connector {
+  width: 32px;
+  height: 1px;
+  background: rgba(246, 241, 228, 0.25);
+  margin: 0 12px;
 }
 
 /* --- Sections --- */
 .section {
-  margin-top: 56px;
+  margin-top: 52px;
 }
 .section-title {
   font-size: 22px;
   margin-bottom: 4px;
 }
 .section-sub {
-  color: rgba(26, 26, 22, 0.6);
+  color: rgba(246, 241, 228, 0.65);
   font-size: 14px;
   margin-bottom: 20px;
 }
@@ -180,11 +204,12 @@
 }
 .ticket-name {
   font-weight: 600;
+  color: var(--bh-cream);
 }
 .ticket-price {
   font-family: "IBM Plex Mono", monospace;
   font-size: 14px;
-  color: rgba(26, 26, 22, 0.7);
+  color: rgba(246, 241, 228, 0.7);
   min-width: 90px;
   text-align: right;
 }
@@ -198,12 +223,15 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 1px solid var(--bh-green);
+  border: 1px solid var(--bh-gold);
   background: transparent;
-  color: var(--bh-green);
+  color: var(--bh-gold);
   font-size: 16px;
   cursor: pointer;
   line-height: 1;
+}
+.stepper button:hover:not(:disabled) {
+  background: rgba(201, 162, 39, 0.14);
 }
 .stepper button:disabled {
   opacity: 0.3;
@@ -224,7 +252,7 @@
   font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--bh-red);
+  color: var(--bh-gold);
   margin: 0 0 10px;
 }
 .addon-item {
@@ -243,7 +271,7 @@
 }
 .addon-price {
   font-family: "IBM Plex Mono", monospace;
-  color: rgba(26, 26, 22, 0.65);
+  color: rgba(246, 241, 228, 0.65);
 }
 
 .form-grid {
@@ -261,99 +289,88 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   margin-bottom: 6px;
-  color: rgba(26, 26, 22, 0.6);
+  color: rgba(246, 241, 228, 0.6);
 }
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid var(--bh-line);
   border-radius: var(--radius);
-  background: #fff;
+  background: rgba(246, 241, 228, 0.06);
+  color: var(--bh-cream);
   font-family: "Inter", sans-serif;
   font-size: 14px;
 }
+.field input::placeholder,
+.field textarea::placeholder {
+  color: rgba(246, 241, 228, 0.35);
+}
 .field input:focus,
-.field textarea:focus {
-  outline: 2px solid var(--bh-gold);
+.field textarea:focus,
+.field select:focus {
+  outline: 3px solid var(--bh-gold);
   outline-offset: 1px;
 }
 
-/* --- Datovælger: fortsætter billetten fra hero'en, samme kort --- */
-.date-picker-card {
-  background: var(--bh-green);
-  border-radius: var(--radius);
-  position: relative;
-  overflow: hidden;
-}
-.date-picker-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    115deg,
-    rgba(201, 162, 39, 0.05) 0px,
-    rgba(201, 162, 39, 0.05) 1px,
-    transparent 1px,
-    transparent 34px
-  );
-  pointer-events: none;
-}
-.date-picker-hero {
-  padding: 40px 44px 22px;
-  position: relative;
-  z-index: 1;
-}
+/* --- Datovælger --- */
 .date-picker-panel {
-  position: relative;
-  z-index: 1;
-  padding: 8px 44px 40px;
+  padding-top: 8px;
 }
 .date-picker-month {
-  padding-top: 28px;
-  border-top: 1px dashed rgba(246, 241, 228, 0.2);
-  margin-top: 28px;
+  margin-top: 44px;
 }
 .date-picker-month:first-child {
-  border-top: none;
-  margin-top: 0;
+  margin-top: 8px;
 }
 .date-picker-month-title {
   font-family: "Fraunces", serif;
   font-style: italic;
   font-weight: 600;
-  font-size: 21px;
+  font-size: 24px;
   color: var(--bh-gold);
   text-transform: capitalize;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .date-picker-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+}
+@media (max-width: 900px) {
+  .date-picker-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .date-picker-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .date-picker-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
-  padding: 12px 14px;
-  background: rgba(246, 241, 228, 0.05);
+  gap: 4px;
+  padding: 16px 18px;
+  background: rgba(246, 241, 228, 0.04);
   border: 1px solid rgba(201, 162, 39, 0.3);
-  border-radius: var(--radius);
+  border-radius: 4px;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
-.date-picker-btn:hover {
-  background: rgba(201, 162, 39, 0.14);
+.date-picker-btn:hover:not(:disabled) {
+  background: rgba(201, 162, 39, 0.12);
   border-color: var(--bh-gold);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 .date-picker-day {
   font-family: "Inter", sans-serif;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--bh-cream);
   text-transform: capitalize;
 }
@@ -362,208 +379,33 @@
   font-size: 12px;
   color: rgba(246, 241, 228, 0.6);
 }
-
-.date-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
-}
-.date-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 14px 16px;
-  background: #fff;
-  border: 1px solid var(--bh-line);
-  border-radius: var(--radius);
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.15s ease, transform 0.1s ease;
-}
-.date-btn:hover {
-  border-color: var(--bh-green);
-  transform: translateY(-1px);
-}
-.date-btn-day {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--bh-ink);
-  text-transform: capitalize;
-}
-.date-btn-time {
+.date-picker-go {
   font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
-  color: rgba(26, 26, 22, 0.6);
-}
-
-/* --- Summary bar --- */
-.summary {
-  position: sticky;
-  bottom: 20px;
-  margin-top: 48px;
-  background: var(--bh-ink);
-  color: var(--bh-cream);
-  border-radius: var(--radius);
-  padding: 20px 26px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
-}
-.summary-total {
-  font-family: "Fraunces", serif;
-  font-size: 24px;
+  font-size: 11px;
   color: var(--bh-gold);
+  opacity: 0;
+  margin-top: 2px;
+  transition: opacity 0.15s ease;
 }
-.summary-count {
-  font-size: 12px;
-  color: rgba(246, 241, 228, 0.6);
-  font-family: "IBM Plex Mono", monospace;
-}
-.submit-btn {
-  background: var(--bh-red);
-  color: var(--bh-cream);
-  border: none;
-  padding: 13px 26px;
-  border-radius: var(--radius);
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 14px;
-  letter-spacing: 0.02em;
-}
-.submit-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.submit-btn:hover:not(:disabled) {
-  background: #a4283a;
+.date-picker-btn:hover:not(:disabled) .date-picker-go {
+  opacity: 1;
 }
 
-.confirmation {
-  margin-top: 48px;
-  padding: 32px;
-  background: var(--bh-green);
-  color: var(--bh-cream);
-  text-align: center;
-  border-radius: var(--radius);
-}
-.confirmation .mono {
-  color: var(--bh-gold);
-  font-size: 18px;
-}
-
-.error-msg {
-  margin-top: 16px;
-  color: var(--bh-red);
-  font-size: 13px;
-}
-
-@media (max-width: 640px) {
-  .hero {
-    grid-template-columns: 1fr;
-  }
-  .hero-stub {
-    border-left: none;
-    border-top: 1px dashed rgba(246, 241, 228, 0.35);
-    padding-left: 0;
-    padding-top: 16px;
-    text-align: left;
-  }
-  .date-picker-panel {
-    padding-left: 24px;
-    padding-right: 24px;
-  }
-  .date-picker-hero {
-    padding-left: 24px;
-    padding-right: 24px;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  .summary {
-    flex-direction: column;
-    gap: 14px;
-    align-items: stretch;
-  }
-}
-
-/* --- Trinindikator (Dato → Billetter → Betaling) --- */
-.step-indicator {
-  display: flex;
-  align-items: center;
-  margin-top: 22px;
-  flex-wrap: wrap;
-  gap: 0;
-}
-.step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.step-dot {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
-  flex-shrink: 0;
-  border: 1px solid rgba(246, 241, 228, 0.35);
-  color: rgba(246, 241, 228, 0.5);
-}
-.step-dot.step-active {
-  background: var(--bh-gold);
-  border-color: var(--bh-gold);
-  color: var(--bh-green-deep);
-  font-weight: 600;
-}
-.step-dot.step-done {
-  background: transparent;
-  border-color: var(--bh-gold);
-  color: var(--bh-gold);
-}
-.step-label {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: rgba(246, 241, 228, 0.5);
-}
-.step-label-active {
-  color: var(--bh-cream);
-  font-weight: 600;
-}
-.step-label-done {
-  color: rgba(246, 241, 228, 0.75);
-}
-.step-connector {
-  width: 28px;
-  height: 1px;
-  background: rgba(246, 241, 228, 0.25);
-  margin: 0 10px;
-}
-
-/* --- Datokort: badge, valgt-tilstand, hover, animation --- */
-.date-picker-btn {
-  position: relative;
-}
 .date-picker-badge {
   position: absolute;
   top: -9px;
-  right: 8px;
+  right: 10px;
   font-family: "IBM Plex Mono", monospace;
   font-size: 10px;
   letter-spacing: 0.04em;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   text-transform: uppercase;
   line-height: 1.6;
 }
 .badge-premiere {
   background: var(--bh-gold);
-  color: var(--bh-green-deep);
+  color: var(--bh-navy-deep);
 }
 .badge-few {
   background: var(--bh-cream);
@@ -572,15 +414,8 @@
 }
 .badge-soldout {
   background: rgba(246, 241, 228, 0.15);
-  color: rgba(246, 241, 228, 0.65);
+  color: rgba(246, 241, 228, 0.7);
   border: 1px solid rgba(246, 241, 228, 0.3);
-}
-
-.date-picker-btn:hover:not(:disabled) {
-  background: rgba(201, 162, 39, 0.16);
-  border-color: var(--bh-gold);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
 }
 
 .date-picker-btn.is-selected {
@@ -589,17 +424,17 @@
   animation: select-pulse 0.28s ease;
 }
 .date-picker-btn.is-selected .date-picker-day {
-  color: var(--bh-green-deep);
+  color: var(--bh-navy-deep);
 }
 .date-picker-btn.is-selected .date-picker-time {
-  color: rgba(8, 41, 33, 0.7);
+  color: rgba(10, 21, 38, 0.7);
 }
 @keyframes select-pulse {
   0% {
     transform: scale(1);
   }
   40% {
-    transform: scale(1.05);
+    transform: scale(1.04);
   }
   100% {
     transform: scale(1);
@@ -613,79 +448,117 @@
   transform: none !important;
 }
 .date-picker-btn.is-soldout:hover {
-  background: rgba(246, 241, 228, 0.05);
+  background: rgba(246, 241, 228, 0.04);
   border-color: rgba(201, 162, 39, 0.3);
-  box-shadow: none;
 }
 
-/* --- CTA --- */
 .date-picker-cta {
-  position: relative;
-  z-index: 1;
-  padding: 0 44px 40px;
+  margin-top: 40px;
   display: flex;
   justify-content: flex-end;
 }
-.date-picker-confirm {
-  min-width: 200px;
-  text-align: center;
+
+/* --- Summary bar --- */
+.summary {
+  position: sticky;
+  bottom: 20px;
+  margin-top: 48px;
+  background: var(--bh-navy-deep);
+  color: var(--bh-cream);
+  border-radius: var(--radius);
+  padding: 20px 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--bh-line);
 }
-.date-picker-confirm:disabled {
+.summary-total {
+  font-family: "Fraunces", serif;
+  font-size: 24px;
+  color: var(--bh-gold);
+}
+.summary-count {
+  font-size: 12px;
+  color: rgba(246, 241, 228, 0.6);
+  font-family: "IBM Plex Mono", monospace;
+}
+.submit-btn {
+  background: var(--bh-gold);
+  color: var(--bh-navy-deep);
+  border: none;
+  padding: 13px 26px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.submit-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
+.submit-btn:hover:not(:disabled) {
+  background: #dab637;
+}
 
-/* --- Tilgængelighed: tydelig keyboard-fokus i hele bookingflowet --- */
+.confirmation {
+  margin-top: 48px;
+  padding: 32px;
+  background: var(--bh-navy-deep);
+  color: var(--bh-cream);
+  text-align: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--bh-line);
+}
+.confirmation .mono {
+  color: var(--bh-gold);
+  font-size: 18px;
+}
+
+.error-msg {
+  margin-top: 16px;
+  color: #e8828f;
+  font-size: 13px;
+}
+
+/* --- Tilgængelighed --- */
 .date-picker-btn:focus-visible,
-.date-picker-confirm:focus-visible,
+.date-picker-cta button:focus-visible,
 .submit-btn:focus-visible,
 .stepper button:focus-visible,
-.field input:focus-visible,
-.field textarea:focus-visible,
-.field select:focus-visible {
+.change-date-link:focus-visible {
   outline: 3px solid var(--bh-gold);
   outline-offset: 2px;
 }
 
-@media (max-width: 640px) {
-  .date-picker-cta {
-    padding-left: 24px;
-    padding-right: 24px;
-    justify-content: stretch;
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
   }
-  .date-picker-confirm {
-    width: 100%;
+  .date-picker-btn:hover:not(:disabled) {
+    transform: none !important;
   }
 }
 
-/* --- Jubilæumsstribe: erstatter den lille meta-linje med noget elegant --- */
-.jubilee-block {
-  margin-top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.jubilee-block::before {
-  content: "";
-  display: block;
-  width: 52px;
-  height: 1px;
-  background: var(--bh-gold);
-  margin-bottom: 14px;
-  opacity: 0.7;
-}
-.jubilee-title {
-  font-family: "Fraunces", serif;
-  font-style: italic;
-  font-weight: 600;
-  font-size: clamp(19px, 2.6vw, 25px);
-  color: var(--bh-gold);
-  line-height: 1.2;
-}
-.jubilee-sub {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(246, 241, 228, 0.55);
+@media (max-width: 640px) {
+  .book-hero {
+    padding: 48px 24px 30px;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .summary {
+    flex-direction: column;
+    gap: 14px;
+    align-items: stretch;
+  }
+  .date-picker-cta {
+    justify-content: stretch;
+  }
+  .date-picker-cta button {
+    width: 100%;
+  }
 }
