@@ -70,7 +70,7 @@
   background-position: center 22%;
 }
 .book-hero--compact {
-  padding: 48px 40px 34px;
+  padding: 40px 40px 24px;
 }
 .jubilee-title {
   font-family: "Fraunces", serif;
@@ -179,7 +179,7 @@
 
 /* --- Sections --- */
 .section {
-  margin-top: 52px;
+  margin-top: 28px;
 }
 .section-title {
   font-size: 22px;
@@ -188,7 +188,7 @@
 .section-sub {
   color: rgba(246, 241, 228, 0.65);
   font-size: 14px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .ticket-row {
@@ -263,15 +263,19 @@
   border-bottom: 1px dotted var(--bh-line);
   font-size: 14px;
 }
-.addon-item label {
+.addon-name {
+  color: var(--bh-cream);
+}
+.addon-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
-  cursor: pointer;
+  gap: 16px;
 }
 .addon-price {
   font-family: "IBM Plex Mono", monospace;
   color: rgba(246, 241, 228, 0.65);
+  min-width: 60px;
+  text-align: right;
 }
 
 .form-grid {
@@ -418,29 +422,6 @@
   border: 1px solid rgba(246, 241, 228, 0.3);
 }
 
-.date-picker-btn.is-selected {
-  background: var(--bh-gold);
-  border-color: var(--bh-gold);
-  animation: select-pulse 0.28s ease;
-}
-.date-picker-btn.is-selected .date-picker-day {
-  color: var(--bh-navy-deep);
-}
-.date-picker-btn.is-selected .date-picker-time {
-  color: rgba(10, 21, 38, 0.7);
-}
-@keyframes select-pulse {
-  0% {
-    transform: scale(1);
-  }
-  40% {
-    transform: scale(1.04);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
 .date-picker-btn.is-soldout,
 .date-picker-btn:disabled {
   opacity: 0.45;
@@ -450,12 +431,6 @@
 .date-picker-btn.is-soldout:hover {
   background: rgba(246, 241, 228, 0.04);
   border-color: rgba(201, 162, 39, 0.3);
-}
-
-.date-picker-cta {
-  margin-top: 40px;
-  display: flex;
-  justify-content: flex-end;
 }
 
 /* --- Summary bar --- */
@@ -525,7 +500,6 @@
 
 /* --- Tilgængelighed --- */
 .date-picker-btn:focus-visible,
-.date-picker-cta button:focus-visible,
 .submit-btn:focus-visible,
 .stepper button:focus-visible,
 .change-date-link:focus-visible {
@@ -555,10 +529,131 @@
     gap: 14px;
     align-items: stretch;
   }
-  .date-picker-cta {
-    justify-content: stretch;
+}
+
+/* --- Delt header/footer for bookingflowet --- */
+.bh-header {
+  background: var(--bh-navy-deep);
+  border-bottom: 1px solid var(--bh-line);
+  position: relative;
+}
+.bh-header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bh-logo {
+  font-family: "Fraunces", serif;
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: 0.01em;
+  color: var(--bh-cream);
+  text-decoration: none;
+}
+.bh-logo-accent {
+  color: var(--bh-gold);
+}
+.bh-navlinks {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+.bh-navlinks a {
+  color: var(--bh-cream);
+  opacity: 0.75;
+  text-decoration: none;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.bh-navlinks a:hover {
+  opacity: 1;
+}
+.bh-nav-active {
+  opacity: 1 !important;
+  color: var(--bh-gold) !important;
+  border-bottom: 1px solid var(--bh-gold);
+  padding-bottom: 4px;
+}
+.bh-nav-cta {
+  background: var(--bh-gold);
+  color: var(--bh-navy-deep) !important;
+  opacity: 1 !important;
+  padding: 9px 18px;
+  border-radius: 2px;
+  font-weight: 600;
+  border-bottom: none !important;
+}
+.bh-nav-cta:hover {
+  background: #dab637;
+}
+.bh-nav-toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--bh-line);
+  color: var(--bh-cream);
+  width: 38px;
+  height: 38px;
+  border-radius: 2px;
+  font-size: 18px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+.bh-mobile-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 24px 20px;
+  background: var(--bh-navy-deep);
+  border-bottom: 1px solid var(--bh-line);
+}
+.bh-mobile-panel a {
+  color: var(--bh-cream);
+  text-decoration: none;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--bh-line);
+}
+.bh-mobile-panel a:last-child {
+  border-bottom: none;
+}
+.bh-mobile-panel .bh-nav-active {
+  border-bottom: 1px solid var(--bh-line);
+}
+
+.bh-footer {
+  background: var(--bh-navy-deep);
+  border-top: 1px solid var(--bh-line);
+  text-align: center;
+  padding: 40px 20px;
+}
+.bh-footer-brand {
+  font-family: "Fraunces", serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.05em;
+  color: var(--bh-cream);
+  margin-bottom: 6px;
+}
+.bh-footer-meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: rgba(246, 241, 228, 0.55);
+}
+
+@media (max-width: 760px) {
+  .bh-navlinks {
+    display: none;
   }
-  .date-picker-cta button {
-    width: 100%;
+  .bh-nav-toggle {
+    display: flex;
   }
 }
