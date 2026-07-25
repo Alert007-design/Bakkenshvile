@@ -106,6 +106,238 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
   );
 }
 
+function SeatingChart() {
+  const seat = (
+    x: number,
+    y: number,
+    fill: string,
+    textColor: string
+  ) => (
+    <rect
+      key={`${x}-${y}`}
+      x={x}
+      y={y}
+      width={34}
+      height={34}
+      rx={5}
+      fill={fill}
+      stroke={textColor}
+      strokeOpacity={0.15}
+    />
+  );
+
+  const row = (
+    count: number,
+    y: number,
+    fill: string,
+    textColor: string
+  ) => {
+    const width = count * 34 + (count - 1) * 10;
+    const startX = 230 - width / 2;
+    return Array.from({ length: count }, (_, i) =>
+      seat(startX + i * 44, y, fill, textColor)
+    );
+  };
+
+  const gold = "var(--bh-gold)";
+  const cream = "var(--bh-cream)";
+  const wine = "#7a2230";
+  const navyDeep = "var(--bh-navy-deep)";
+
+  return (
+    <svg
+      viewBox="0 0 460 700"
+      style={{ width: "100%", maxWidth: 420, display: "block", margin: "0 auto" }}
+      role="img"
+      aria-label="Pladstegning over salen: kategori A+ nærmest scenen, A i midten, B nærmest indgangen"
+    >
+      <rect
+        x={90}
+        y={16}
+        width={280}
+        height={48}
+        rx={4}
+        fill={navyDeep}
+        stroke={gold}
+        strokeOpacity={0.3}
+      />
+      <text
+        x={230}
+        y={48}
+        textAnchor="middle"
+        fontFamily="Fraunces, serif"
+        fontStyle="italic"
+        fontWeight={600}
+        fontSize={22}
+        fill={gold}
+      >
+        Scene
+      </text>
+
+      {row(4, 96, gold, navyDeep)}
+      {row(5, 142, gold, navyDeep)}
+      {row(5, 188, gold, navyDeep)}
+      {row(5, 234, gold, navyDeep)}
+      <line
+        x1={100}
+        y1={278}
+        x2={360}
+        y2={278}
+        stroke={cream}
+        strokeOpacity={0.25}
+      />
+      <text
+        x={230}
+        y={298}
+        textAnchor="middle"
+        fontFamily="IBM Plex Mono, monospace"
+        fontSize={11}
+        fill={cream}
+        fillOpacity={0.55}
+      >
+        Mellemgang · plads til 2-3 kørestole
+      </text>
+      {row(4, 314, gold, navyDeep)}
+
+      <line
+        x1={100}
+        y1={362}
+        x2={360}
+        y2={362}
+        stroke={cream}
+        strokeOpacity={0.3}
+        strokeDasharray="4 4"
+      />
+      <rect x={145} y={358} width={8} height={8} fill={cream} fillOpacity={0.4} />
+      <rect x={307} y={358} width={8} height={8} fill={cream} fillOpacity={0.4} />
+      <text
+        x={375}
+        y={366}
+        fontFamily="IBM Plex Mono, monospace"
+        fontSize={10}
+        fill={cream}
+        fillOpacity={0.55}
+      >
+        Forhøjning
+      </text>
+      <text
+        x={375}
+        y={380}
+        fontFamily="IBM Plex Mono, monospace"
+        fontSize={10}
+        fill={cream}
+        fillOpacity={0.55}
+      >
+        1 trin
+      </text>
+
+      {row(5, 378, cream, navyDeep)}
+
+      <line
+        x1={100}
+        y1={424}
+        x2={360}
+        y2={424}
+        stroke={cream}
+        strokeOpacity={0.3}
+        strokeDasharray="4 4"
+      />
+      <rect x={145} y={420} width={8} height={8} fill={cream} fillOpacity={0.4} />
+      <text
+        x={375}
+        y={438}
+        fontFamily="IBM Plex Mono, monospace"
+        fontSize={10}
+        fill={cream}
+        fillOpacity={0.55}
+      >
+        2 trin
+      </text>
+
+      {row(5, 440, cream, navyDeep)}
+
+      {row(2, 498, wine, cream)}
+      <rect
+        x={280}
+        y={498}
+        width={90}
+        height={34}
+        rx={4}
+        fill={cream}
+        fillOpacity={0.08}
+        stroke={cream}
+        strokeOpacity={0.25}
+      />
+      <text
+        x={325}
+        y={519}
+        textAnchor="middle"
+        fontFamily="IBM Plex Mono, monospace"
+        fontSize={10}
+        fill={cream}
+        fillOpacity={0.7}
+      >
+        Billetsalg
+      </text>
+
+      <text
+        x={230}
+        y={560}
+        textAnchor="middle"
+        fontFamily="IBM Plex Mono, monospace"
+        fontSize={10}
+        fill={cream}
+        fillOpacity={0.5}
+      >
+        ↑ Indgang
+      </text>
+
+      <text
+        x={40}
+        y={200}
+        fontFamily="Fraunces, serif"
+        fontWeight={700}
+        fontSize={30}
+        fill={gold}
+      >
+        A+
+      </text>
+      <text
+        x={40}
+        y={412}
+        fontFamily="Fraunces, serif"
+        fontWeight={700}
+        fontSize={30}
+        fill={cream}
+      >
+        A
+      </text>
+      <text
+        x={40}
+        y={520}
+        fontFamily="Fraunces, serif"
+        fontWeight={700}
+        fontSize={30}
+        fill={wine}
+      >
+        B
+      </text>
+
+      <rect x={20} y={670} width={8} height={8} fill={cream} fillOpacity={0.4} />
+      <text
+        x={34}
+        y={678}
+        fontFamily="IBM Plex Mono, monospace"
+        fontSize={10}
+        fill={cream}
+        fillOpacity={0.5}
+      >
+        = stolpe
+      </text>
+    </svg>
+  );
+}
+
 export default function BookingClient({
   showDates,
   tickets,
@@ -137,6 +369,7 @@ export default function BookingClient({
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSeatingChart, setShowSeatingChart] = useState(false);
 
   const selectedShow = showDates.find((s) => s.id === selectedId) ?? null;
 
@@ -339,6 +572,19 @@ export default function BookingClient({
       <div className="section">
         <div className="section-title">Vælg billetter</div>
         <div className="section-sub">Alle priser er inkl. moms og gebyr</div>
+        <button
+          type="button"
+          className="seating-chart-toggle"
+          onClick={() => setShowSeatingChart((v) => !v)}
+          aria-expanded={showSeatingChart}
+        >
+          {showSeatingChart ? "Skjul pladsoversigt" : "Se pladsoversigt i salen"}
+        </button>
+        {showSeatingChart && (
+          <div className="seating-chart-wrap">
+            <SeatingChart />
+          </div>
+        )}
         {sortedTickets.map((t) => (
           <div className="ticket-row" key={t.id}>
             <div className="ticket-name">{t.category}</div>
