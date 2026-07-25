@@ -211,25 +211,87 @@ export default function BookingClient({
           </div>
         </div>
 
-        {groupedByMonth.map(([month, shows]) => (
-          <div className="section" key={month}>
-            <div className="section-title" style={{ textTransform: "capitalize" }}>
-              {month}
+        <div className="date-picker-panel">
+          {groupedByMonth.map(([month, shows]) => (
+            <div className="date-picker-month" key={month}>
+              <div className="date-picker-month-title">{month}</div>
+              <div className="date-picker-grid">
+                {shows.map((s) => (
+                  <button
+                    key={s.id}
+                    className="date-picker-btn"
+                    onClick={() => setSelectedId(s.id)}
+                  >
+                    <span className="date-picker-day">
+                      {formatShortDate(s.date)}
+                    </span>
+                    <span className="date-picker-time">kl. {s.time}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="date-grid">
-              {shows.map((s) => (
-                <button
-                  key={s.id}
-                  className="date-btn"
-                  onClick={() => setSelectedId(s.id)}
-                >
-                  <span className="date-btn-day">{formatShortDate(s.date)}</span>
-                  <span className="date-btn-time">kl. {s.time}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
+
+        <style jsx>{`
+          .date-picker-panel {
+            background: var(--bh-dark, #10241f);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            border-radius: var(--radius, 8px);
+            padding: 28px 24px;
+            margin-top: 4px;
+          }
+          .date-picker-month {
+            margin-bottom: 22px;
+          }
+          .date-picker-month:last-child {
+            margin-bottom: 0;
+          }
+          .date-picker-month-title {
+            font-family: Georgia, "Times New Roman", serif;
+            font-style: italic;
+            font-size: 20px;
+            color: var(--bh-gold, #d4af37);
+            text-transform: capitalize;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+          }
+          .date-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px;
+          }
+          .date-picker-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 3px;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+            text-align: left;
+          }
+          .date-picker-btn:hover {
+            background: rgba(212, 175, 55, 0.12);
+            border-color: var(--bh-gold, #d4af37);
+          }
+          .date-picker-day {
+            font-family: Inter, sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: #f5efe0;
+            text-transform: capitalize;
+          }
+          .date-picker-time {
+            font-family: Inter, sans-serif;
+            font-size: 12px;
+            color: rgba(245, 239, 224, 0.65);
+          }
+        `}</style>
       </div>
     );
   }
@@ -403,11 +465,13 @@ export default function BookingClient({
       </div>
 
       <div className="section">
-        <div className="section-title">Hjælp os sætte jer godt</div>
+        <div className="section-title">Om bordplaceringen</div>
         <div className="section-sub">
-          Hvis salen er udsolgt, sætter vi gæster ved fælles borde. Svar
-          gerne på et par valgfrie spørgsmål, så vi kan sætte jer sammen med
-          andre, I passer godt med — helt frivilligt.
+          Ved udsolgte shows sættes gæster ved borde inden for den
+          billetkategori, I har købt. Bordene i salen rummer 5-6 personer, og
+          jeres selskab kan derfor komme til at dele bord med andre gæster.
+          Vi opfordrer jer til at udfylde spørgsmålene herunder — de hjælper
+          os med at sætte selskaber sammen, der passer godt til hinanden.
         </div>
         <label
           style={{
