@@ -116,7 +116,6 @@ export default function BookingClient({
   addons: AddOn[];
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [pendingDateId, setPendingDateId] = useState<string | null>(null);
   const [ticketQty, setTicketQty] = useState<Record<string, number>>({});
   const [addonQty, setAddonQty] = useState<Record<string, number>>({});
   const [customer, setCustomer] = useState({
@@ -165,6 +164,12 @@ export default function BookingClient({
     return Array.from(map.entries());
   }, [addons]);
 
+  const sortedTickets = useMemo(() => {
+    return [...tickets].sort(
+      (a, b) => b.price + b.fee - (a.price + a.fee)
+    );
+  }, [tickets]);
+
   const totalTickets = Object.values(ticketQty).reduce((a, b) => a + b, 0);
 
   const total = useMemo(() => {
@@ -186,11 +191,6 @@ export default function BookingClient({
       const next = Math.max(0, (prev[id] || 0) + delta);
       return { ...prev, [id]: next };
     });
-  }
-
-  function confirmDate() {
-    if (!pendingDateId) return;
-    setSelectedId(pendingDateId);
   }
 
   async function submit() {
@@ -269,18 +269,16 @@ export default function BookingClient({
               <div className="date-picker-grid">
                 {shows.map((s) => {
                   const badge = getBadge(s, s.id === earliestId);
-                  const isSelected = pendingDateId === s.id;
                   const isSoldOut = badge?.type === "soldout";
                   return (
                     <button
                       key={s.id}
                       type="button"
                       className={`date-picker-btn${
-                        isSelected ? " is-selected" : ""
-                      }${isSoldOut ? " is-soldout" : ""}`}
-                      onClick={() => !isSoldOut && setPendingDateId(s.id)}
+                        isSoldOut ? " is-soldout" : ""
+                      }`}
+                      onClick={() => !isSoldOut && setSelectedId(s.id)}
                       disabled={isSoldOut}
-                      aria-pressed={isSelected}
                       aria-label={`${formatShortDate(s.date)} kl. ${s.time}${
                         badge ? ", " + badge.label : ""
                       }`}
@@ -305,17 +303,6 @@ export default function BookingClient({
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="date-picker-cta">
-          <button
-            type="button"
-            className="submit-btn"
-            onClick={confirmDate}
-            disabled={!pendingDateId}
-          >
-            Vælg spilledag
-          </button>
         </div>
       </div>
     );
@@ -342,10 +329,7 @@ export default function BookingClient({
         <StepIndicator current={2} />
         <button
           className="change-date-link"
-          onClick={() => {
-            setSelectedId(null);
-            setPendingDateId(selectedShow.id);
-          }}
+          onClick={() => setSelectedId(null)}
         >
           Skift dato
         </button>
@@ -355,7 +339,7 @@ export default function BookingClient({
       <div className="section">
         <div className="section-title">Vælg billetter</div>
         <div className="section-sub">Alle priser er inkl. moms og gebyr</div>
-        {tickets.map((t) => (
+        {sortedTickets.map((t) => (
           <div className="ticket-row" key={t.id}>
             <div className="ticket-name">{t.category}</div>
             <div className="ticket-price">{kr(t.price + t.fee)}</div>
@@ -389,17 +373,26 @@ export default function BookingClient({
                 <h4>{category}</h4>
                 {items.map((a) => (
                   <div className="addon-item" key={a.id}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={!!addonQty[a.id]}
-                        onChange={() =>
-                          setAddon(a.id, addonQty[a.id] ? -addonQty[a.id] : 1)
-                        }
-                      />
-                      {a.name}
-                    </label>
-                    <span className="addon-price">{kr(a.price)}</span>
+                    <span className="addon-name">{a.name}</span>
+                    <div className="addon-controls">
+                      <span className="addon-price">{kr(a.price)}</span>
+                      <div className="stepper">
+                        <button
+                          onClick={() => setAddon(a.id, -1)}
+                          disabled={!addonQty[a.id]}
+                          aria-label={`Fjern ${a.name}`}
+                        >
+                          −
+                        </button>
+                        <span>{addonQty[a.id] || 0}</span>
+                        <button
+                          onClick={() => setAddon(a.id, 1)}
+                          aria-label={`Tilføj ${a.name}`}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
