@@ -106,28 +106,6 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
   );
 }
 
-function PracticalInfo() {
-  return (
-    <div className="practical-info">
-      <div className="practical-item">
-        <span className="practical-label">Adresse</span>
-        {/* TODO: indsæt korrekt/officiel adresse-ordlyd */}
-        <span className="practical-value">[Indsæt adresse]</span>
-      </div>
-      <div className="practical-item">
-        <span className="practical-label">Varighed</span>
-        {/* TODO: bekræft standardvarighed */}
-        <span className="practical-value">[Indsæt ca. varighed]</span>
-      </div>
-      <div className="practical-item">
-        <span className="practical-label">Servering</span>
-        {/* TODO: bekræft ordlyd for servering */}
-        <span className="practical-value">[Indsæt info om servering]</span>
-      </div>
-    </div>
-  );
-}
-
 export default function BookingClient({
   showDates,
   tickets,
@@ -277,25 +255,18 @@ export default function BookingClient({
       <div className="page">
         <div className="ticket-edge date-picker-card">
           <div className="date-picker-hero">
-            <div>
-              <div className="eyebrow" style={{ color: "var(--bh-gold)" }}>
-                Bakkens Hvile · Underholdning siden 1877
-              </div>
-              <h1 className="hero-title">Vælg en dato</h1>
-              <div className="hero-meta">
-                <span>150 års jubilæumsshow · Maj–september 2027</span>
-              </div>
-              <StepIndicator current={1} />
+            <div className="eyebrow" style={{ color: "var(--bh-gold)" }}>
+              Bakkens Hvile · Underholdning siden 1877
             </div>
-            <div className="hero-stub">
-              <div className="mono">BILLET</div>
-              <div className="stub-since">Nr. 150</div>
+            <h1 className="hero-title">Vælg en dato</h1>
+            <div className="jubilee-block">
+              <span className="jubilee-title">150 års jubilæumsshow</span>
+              <span className="jubilee-sub">Maj–september 2027</span>
             </div>
+            <StepIndicator current={1} />
           </div>
 
           <div className="date-picker-panel">
-            <PracticalInfo />
-
             {groupedByMonth.map(([month, shows]) => (
               <div className="date-picker-month" key={month}>
                 <div className="date-picker-month-title">{month}</div>
