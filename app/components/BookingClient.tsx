@@ -18,6 +18,8 @@ type AddOn = {
   category: string;
 };
 
+type ShowStatus = "few" | "soldout" | "premiere";
+
 type ShowDate = {
   id: string;
   title: string;
@@ -25,6 +27,11 @@ type ShowDate = {
   time: string;
   duration: string;
   notes: string;
+  // Valgfrit felt — findes ikke i Airtable/page.tsx endnu.
+  // Tilføj et "Status"-felt i Events-tabellen (fx single-select med
+  // værdierne "few" / "soldout" / "premiere") og send det med fra
+  // page.tsx, så virker badges "Få pladser" og "Udsolgt" automatisk.
+  status?: ShowStatus;
 };
 
 function kr(n: number) {
@@ -59,6 +66,68 @@ function monthLabel(iso: string) {
   return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+function getBadge(
+  show: ShowDate,
+  isEarliest: boolean
+): { type: ShowStatus; label: string } | null {
+  if (show.status === "soldout") return { type: "soldout", label: "Udsolgt" };
+  if (show.status === "few") return { type: "few", label: "Få pladser" };
+  if (show.status === "premiere" || isEarliest)
+    return { type: "premiere", label: "Premiere" };
+  return null;
+}
+
+function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
+  const steps = ["Dato", "Billetter", "Betaling"];
+  return (
+    <div className="step-indicator" role="list" aria-label="Bestillingstrin">
+      {steps.map((label, i) => {
+        const stepNum = i + 1;
+        const state =
+          stepNum < current ? "done" : stepNum === current ? "active" : "upcoming";
+        return (
+          <div
+            className="step"
+            role="listitem"
+            key={label}
+            aria-current={state === "active" ? "step" : undefined}
+          >
+            <span className={`step-dot step-${state}`}>
+              {state === "done" ? "✓" : stepNum}
+            </span>
+            <span className={`step-label step-label-${state}`}>{label}</span>
+            {stepNum < steps.length && (
+              <span className="step-connector" aria-hidden="true" />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PracticalInfo() {
+  return (
+    <div className="practical-info">
+      <div className="practical-item">
+        <span className="practical-label">Adresse</span>
+        {/* TODO: indsæt korrekt/officiel adresse-ordlyd */}
+        <span className="practical-value">[Indsæt adresse]</span>
+      </div>
+      <div className="practical-item">
+        <span className="practical-label">Varighed</span>
+        {/* TODO: bekræft standardvarighed */}
+        <span className="practical-value">[Indsæt ca. varighed]</span>
+      </div>
+      <div className="practical-item">
+        <span className="practical-label">Servering</span>
+        {/* TODO: bekræft ordlyd for servering */}
+        <span className="practical-value">[Indsæt info om servering]</span>
+      </div>
+    </div>
+  );
+}
+
 export default function BookingClient({
   showDates,
   tickets,
@@ -69,6 +138,7 @@ export default function BookingClient({
   addons: AddOn[];
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pendingDateId, setPendingDateId] = useState<string | null>(null);
   const [ticketQty, setTicketQty] = useState<Record<string, number>>({});
   const [addonQty, setAddonQty] = useState<Record<string, number>>({});
   const [customer, setCustomer] = useState({
@@ -92,6 +162,11 @@ export default function BookingClient({
   const [error, setError] = useState<string | null>(null);
 
   const selectedShow = showDates.find((s) => s.id === selectedId) ?? null;
+
+  const earliestId = useMemo(() => {
+    if (showDates.length === 0) return null;
+    return [...showDates].sort((a, b) => a.date.localeCompare(b.date))[0].id;
+  }, [showDates]);
 
   const groupedByMonth = useMemo(() => {
     const map = new Map<string, ShowDate[]>();
@@ -133,6 +208,11 @@ export default function BookingClient({
       const next = Math.max(0, (prev[id] || 0) + delta);
       return { ...prev, [id]: next };
     });
+  }
+
+  function confirmDate() {
+    if (!pendingDateId) return;
+    setSelectedId(pendingDateId);
   }
 
   async function submit() {
@@ -195,103 +275,77 @@ export default function BookingClient({
   if (!selectedShow) {
     return (
       <div className="page">
-        <div className="hero ticket-edge">
-          <div>
-            <div className="eyebrow" style={{ color: "var(--bh-gold)" }}>
-              Bakkens Hvile · Underholdning siden 1877
-            </div>
-            <h1 className="hero-title">Vælg en dato</h1>
-            <div className="hero-meta">
-              <span>150 års jubilæumsshow · Maj–september 2027</span>
-            </div>
-          </div>
-          <div className="hero-stub">
-            <div className="mono">BILLET</div>
-            <div className="stub-since">Nr. 150</div>
-          </div>
-        </div>
-
-        <div className="date-picker-panel">
-          {groupedByMonth.map(([month, shows]) => (
-            <div className="date-picker-month" key={month}>
-              <div className="date-picker-month-title">{month}</div>
-              <div className="date-picker-grid">
-                {shows.map((s) => (
-                  <button
-                    key={s.id}
-                    className="date-picker-btn"
-                    onClick={() => setSelectedId(s.id)}
-                  >
-                    <span className="date-picker-day">
-                      {formatShortDate(s.date)}
-                    </span>
-                    <span className="date-picker-time">kl. {s.time}</span>
-                  </button>
-                ))}
+        <div className="ticket-edge date-picker-card">
+          <div className="date-picker-hero">
+            <div>
+              <div className="eyebrow" style={{ color: "var(--bh-gold)" }}>
+                Bakkens Hvile · Underholdning siden 1877
               </div>
+              <h1 className="hero-title">Vælg en dato</h1>
+              <div className="hero-meta">
+                <span>150 års jubilæumsshow · Maj–september 2027</span>
+              </div>
+              <StepIndicator current={1} />
             </div>
-          ))}
-        </div>
+            <div className="hero-stub">
+              <div className="mono">BILLET</div>
+              <div className="stub-since">Nr. 150</div>
+            </div>
+          </div>
 
-        <style jsx>{`
-          .date-picker-panel {
-            background: var(--bh-dark, #10241f);
-            border: 1px solid rgba(212, 175, 55, 0.25);
-            border-radius: var(--radius, 8px);
-            padding: 28px 24px;
-            margin-top: 4px;
-          }
-          .date-picker-month {
-            margin-bottom: 22px;
-          }
-          .date-picker-month:last-child {
-            margin-bottom: 0;
-          }
-          .date-picker-month-title {
-            font-family: Georgia, "Times New Roman", serif;
-            font-style: italic;
-            font-size: 20px;
-            color: var(--bh-gold, #d4af37);
-            text-transform: capitalize;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-          }
-          .date-picker-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 8px;
-          }
-          .date-picker-btn {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 3px;
-            padding: 10px 14px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.15s ease, border-color 0.15s ease;
-            text-align: left;
-          }
-          .date-picker-btn:hover {
-            background: rgba(212, 175, 55, 0.12);
-            border-color: var(--bh-gold, #d4af37);
-          }
-          .date-picker-day {
-            font-family: Inter, sans-serif;
-            font-size: 13px;
-            font-weight: 600;
-            color: #f5efe0;
-            text-transform: capitalize;
-          }
-          .date-picker-time {
-            font-family: Inter, sans-serif;
-            font-size: 12px;
-            color: rgba(245, 239, 224, 0.65);
-          }
-        `}</style>
+          <div className="date-picker-panel">
+            <PracticalInfo />
+
+            {groupedByMonth.map(([month, shows]) => (
+              <div className="date-picker-month" key={month}>
+                <div className="date-picker-month-title">{month}</div>
+                <div className="date-picker-grid">
+                  {shows.map((s) => {
+                    const badge = getBadge(s, s.id === earliestId);
+                    const isSelected = pendingDateId === s.id;
+                    const isSoldOut = badge?.type === "soldout";
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`date-picker-btn${
+                          isSelected ? " is-selected" : ""
+                        }${isSoldOut ? " is-soldout" : ""}`}
+                        onClick={() => !isSoldOut && setPendingDateId(s.id)}
+                        disabled={isSoldOut}
+                        aria-pressed={isSelected}
+                        aria-label={`${formatShortDate(s.date)} kl. ${
+                          s.time
+                        }${badge ? ", " + badge.label : ""}`}
+                      >
+                        {badge && (
+                          <span className={`date-picker-badge badge-${badge.type}`}>
+                            {badge.label}
+                          </span>
+                        )}
+                        <span className="date-picker-day">
+                          {formatShortDate(s.date)}
+                        </span>
+                        <span className="date-picker-time">kl. {s.time}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="date-picker-cta">
+            <button
+              type="button"
+              className="submit-btn date-picker-confirm"
+              onClick={confirmDate}
+              disabled={!pendingDateId}
+            >
+              Vælg spilledag
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -315,8 +369,12 @@ export default function BookingClient({
               <b>Varighed</b> {selectedShow.duration}
             </span>
           </div>
+          <StepIndicator current={2} />
           <button
-            onClick={() => setSelectedId(null)}
+            onClick={() => {
+              setSelectedId(null);
+              setPendingDateId(selectedShow.id);
+            }}
             style={{
               marginTop: 14,
               background: "none",
