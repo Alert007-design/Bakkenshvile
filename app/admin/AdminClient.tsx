@@ -18,14 +18,32 @@ type Row = {
   note: string;
   customerName: string;
   customerPhone: string;
+  // Nyt felt — nedbrydning af billetter pr. kategori, fx "A+ x2, B x1".
+  // Kræver at /api/admin/bookings sender feltet "Billetkategorier" med
+  // (Airtable felt-id fldXuocW3IneLzwnY) under nøglen ticketBreakdown.
+  ticketBreakdown: string;
 };
+
+const UKENDT_KATEGORI = "Ukendt kategori";
+
+// Bookingens primære (dyreste) kategori — det første segment i
+// ticketBreakdown, da checkout-koden allerede skriver kategorierne i
+// dyreste-først-rækkefølge.
+function primaryCategory(row: Row): string {
+  if (!row.ticketBreakdown) return UKENDT_KATEGORI;
+  const first = row.ticketBreakdown.split(",")[0]?.trim() ?? "";
+  const match = first.match(/^(.+?)\s+x\d+$/);
+  return match ? match[1].trim() : first || UKENDT_KATEGORI;
+}
 
 export default function AdminClient({
   shows,
   adminKey,
+  categoryOrder,
 }: {
   shows: Show[];
   adminKey: string;
+  categoryOrder: string[];
 }) {
   const [showId, setShowId] = useState(shows[0]?.id ?? "");
   const [rows, setRows] = useState<Row[]>([]);
@@ -65,6 +83,25 @@ export default function AdminClient({
     });
   }, [rows]);
 
+  // Bookinger grupperet efter billetkategori, i samme rækkefølge som
+  // kategorierne er prissat (dyreste først). Ukendte/blandede kategorier
+  // havner sidst.
+  const byCategory = useMemo(() => {
+    const map = new Map<string, Row[]>();
+    for (const r of rows) {
+      const key = primaryCategory(r);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    const orderIndex = new Map(categoryOrder.map((c, i) => [c, i]));
+    return Array.from(map.entries()).sort(([a], [b]) => {
+      const ai = orderIndex.has(a) ? orderIndex.get(a)! : Infinity;
+      const bi = orderIndex.has(b) ? orderIndex.get(b)! : Infinity;
+      if (ai !== bi) return ai - bi;
+      return a.localeCompare(b);
+    });
+  }, [rows, categoryOrder]);
+
   const totalGuests = rows.reduce((sum, r) => sum + r.ticketCount, 0);
 
   return (
@@ -80,6 +117,8 @@ export default function AdminClient({
         <h1 style={{ marginBottom: 4 }}>Bordplan</h1>
         <p style={{ color: "#666", marginTop: 0 }}>
           Vælg en visning, tildel bordnumre, og print planen inden showet.
+          Bookingerne herunder står grupperet efter billetkategori, dyreste
+          først.
         </p>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <select
@@ -116,53 +155,73 @@ export default function AdminClient({
 
       <div className="no-print">
         <h2>Tildel borde</h2>
-        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "2px solid #ccc" }}>
-              <th style={{ padding: 8 }}>Booking</th>
-              <th style={{ padding: 8 }}>Kunde</th>
-              <th style={{ padding: 8 }}>Antal</th>
-              <th style={{ padding: 8 }}>Match-info</th>
-              <th style={{ padding: 8 }}>Bord</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={{ padding: 8 }}>{r.bookingNo}</td>
-                <td style={{ padding: 8 }}>
-                  {r.customerName}
-                  <br />
-                  <span style={{ color: "#999", fontSize: 12 }}>
-                    {r.customerPhone}
-                  </span>
-                </td>
-                <td style={{ padding: 8 }}>{r.ticketCount}</td>
-                <td style={{ padding: 8, fontSize: 12, color: "#555" }}>
-                  {r.wantsMatching ? (
-                    <>
-                      {r.ageGroup && <div>Alder: {r.ageGroup}</div>}
-                      {r.location && <div>Fra: {r.location}</div>}
-                      {r.drinkPreference && <div>Drik: {r.drinkPreference}</div>}
-                      {r.interests && <div>Interesser: {r.interests}</div>}
-                      {r.note && <div>Note: {r.note}</div>}
-                    </>
-                  ) : (
-                    <span style={{ color: "#bbb" }}>—</span>
-                  )}
-                </td>
-                <td style={{ padding: 8 }}>
-                  <input
-                    defaultValue={r.tableNumber}
-                    placeholder="fx 1"
-                    style={{ width: 60, padding: 4 }}
-                    onBlur={(e) => saveTable(r.id, e.target.value)}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {byCategory.map(([category, categoryRows]) => (
+          <div key={category} style={{ marginBottom: 28 }}>
+            <h3
+              style={{
+                marginBottom: 8,
+                fontSize: 15,
+                color: "#0d3b2e",
+                borderBottom: "2px solid #c9a227",
+                paddingBottom: 4,
+                display: "inline-block",
+              }}
+            >
+              {category}
+            </h3>
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #ccc" }}>
+                  <th style={{ padding: 8 }}>Booking</th>
+                  <th style={{ padding: 8 }}>Kunde</th>
+                  <th style={{ padding: 8 }}>Billetter</th>
+                  <th style={{ padding: 8 }}>Antal gæster</th>
+                  <th style={{ padding: 8 }}>Match-info</th>
+                  <th style={{ padding: 8 }}>Bord</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categoryRows.map((r) => (
+                  <tr key={r.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: 8 }}>{r.bookingNo}</td>
+                    <td style={{ padding: 8 }}>
+                      {r.customerName}
+                      <br />
+                      <span style={{ color: "#999", fontSize: 12 }}>
+                        {r.customerPhone}
+                      </span>
+                    </td>
+                    <td style={{ padding: 8, fontSize: 12, color: "#555" }}>
+                      {r.ticketBreakdown || "—"}
+                    </td>
+                    <td style={{ padding: 8 }}>{r.ticketCount}</td>
+                    <td style={{ padding: 8, fontSize: 12, color: "#555" }}>
+                      {r.wantsMatching ? (
+                        <>
+                          {r.ageGroup && <div>Alder: {r.ageGroup}</div>}
+                          {r.location && <div>Fra: {r.location}</div>}
+                          {r.drinkPreference && <div>Drik: {r.drinkPreference}</div>}
+                          {r.interests && <div>Interesser: {r.interests}</div>}
+                          {r.note && <div>Note: {r.note}</div>}
+                        </>
+                      ) : (
+                        <span style={{ color: "#bbb" }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: 8 }}>
+                      <input
+                        defaultValue={r.tableNumber}
+                        placeholder="fx 1"
+                        style={{ width: 60, padding: 4 }}
+                        onBlur={(e) => saveTable(r.id, e.target.value)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
       </div>
 
       <div style={{ marginTop: 40 }}>
@@ -176,7 +235,8 @@ export default function AdminClient({
               {guests.map((g) => (
                 <li key={g.id}>
                   {g.customerName} — {g.ticketCount} pers.
-                  {g.wantsMatching && g.note ? ` (${g.note})` : ""}
+                  {g.ticketBreakdown ? ` (${g.ticketBreakdown})` : ""}
+                  {g.wantsMatching && g.note ? ` — ${g.note}` : ""}
                 </li>
               ))}
             </ul>
