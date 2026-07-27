@@ -57,6 +57,7 @@ export const FIELDS = {
     interests: "fldqeD4BMprejPZrC",
     drinkPreference: "fldTUUh4pZHpvakeb",
     matchNote: "fldiOj5VZFyDT4Wlo",
+    discount: "fldyvk9ctBK7yyYrn",
   },
 } as const;
 
