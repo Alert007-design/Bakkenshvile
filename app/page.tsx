@@ -1,5 +1,7 @@
 import Link from "next/link";
+import Image from "next/image";
 import BookingForm from "./BookingForm";
+import { billeder, type Billede } from "@/lib/billeder";
 
 const NAV_LINKS = [
   { href: "#om-os", label: "Om os" },
@@ -9,23 +11,28 @@ const NAV_LINKS = [
   { href: "#kontakt", label: "Kontakt" },
 ];
 
-const SINGERS = [
-  {
-    name: "Tina Grunwald",
-    img: "https://bakkenshvile.dk/wp-content/uploads/2022/02/Tina_8-scaled-e1741510102102-996x1024.jpg",
-  },
-  {
-    name: "Sus Mathiasen",
-    img: "https://bakkenshvile.dk/wp-content/uploads/2022/02/Sus_8-2-scaled-e1741510084624-954x1024.jpg",
-  },
-  {
-    name: "Dot Wessman",
-    img: "https://bakkenshvile.dk/wp-content/uploads/2022/02/Dot_13-1-scaled-e1741510063380-1024x1015.jpg",
-  },
-  {
-    name: "Ann Farholt",
-    img: "https://bakkenshvile.dk/wp-content/uploads/2022/02/01-scaled-e1741510040457-912x1024.jpg",
-  },
+// Navngivne portrætter. Ann, Tina og Dot har bekræftede fotos i kataloget;
+// der findes endnu ikke et foto identificeret som Sus Mathiasen — hendes kort
+// vises som et pænt "foto følger"-felt, indtil huset leverer et billede.
+const SINGERS: { name: string; billede: Billede | null }[] = [
+  { name: "Tina Grunwald", billede: billeder.tinaIGarderoben },
+  { name: "Sus Mathiasen", billede: null },
+  { name: "Dot Wessman", billede: billeder.dotPaaRaekvaerket },
+  { name: "Ann Farholt", billede: billeder.annPortraet },
+];
+
+// Portrætmosaik til galleriet. Første element er featuren (2×2).
+// object-position skubber årstalsskiltet i BH (6) ud af beskæringen.
+const GALLERI: { billede: Billede; objectPosition: string }[] = [
+  { billede: billeder.denTommeSal, objectPosition: "center 55%" },
+  { billede: billeder.denTommeGarderobe, objectPosition: "center" },
+  { billede: billeder.blomstersangen, objectPosition: "72% 70%" },
+  { billede: billeder.dotAleneMedRose, objectPosition: "center 30%" },
+  { billede: billeder.salenMedPjerrot, objectPosition: "center" },
+  { billede: billeder.roserTilScenen, objectPosition: "center 40%" },
+  { billede: billeder.garderobenFoerShow, objectPosition: "center 35%" },
+  { billede: billeder.firePigerVedTaeppet, objectPosition: "center 28%" },
+  { billede: billeder.trePigerVedTaeppet, objectPosition: "center 28%" },
 ];
 
 const JUBILEE = {
@@ -36,6 +43,7 @@ const JUBILEE = {
 
 export default function Home() {
   const year = new Date().getFullYear();
+  const [feature, ...galleryRest] = GALLERI;
 
   return (
     <main>
@@ -57,10 +65,14 @@ export default function Home() {
 
       <section id="forside" className="hero">
         <div className="heroBg">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/dot-vintage-1.jpg"
-            alt="Bakkesangerinderne på scenen"
+          <Image
+            src={billeder.syngepigerFloejlstaepper.src}
+            alt={billeder.syngepigerFloejlstaepper.alt}
+            width={billeder.syngepigerFloejlstaepper.bredde}
+            height={billeder.syngepigerFloejlstaepper.hoejde}
+            priority
+            sizes="100vw"
+            style={{ objectPosition: "center 25%" }}
           />
           <div className="heroScrim" />
         </div>
@@ -109,7 +121,15 @@ export default function Home() {
             </p>
           </div>
           <div className="aboutPhoto">
-            <div className="placeholder" style={{ width: "100%", height: "100%" }} />
+            <Image
+              src={billeder.dotUngdomMedRoser.src}
+              alt={billeder.dotUngdomMedRoser.alt}
+              width={billeder.dotUngdomMedRoser.bredde}
+              height={billeder.dotUngdomMedRoser.hoejde}
+              loading="lazy"
+              sizes="(max-width: 900px) 100vw, 528px"
+              style={{ objectPosition: "center 30%" }}
+            />
           </div>
         </div>
       </section>
@@ -124,8 +144,19 @@ export default function Home() {
             {SINGERS.map((singer) => (
               <div className="singerCard" key={singer.name}>
                 <div className="singerPhoto">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={singer.img} alt={singer.name} />
+                  {singer.billede ? (
+                    <Image
+                      src={singer.billede.src}
+                      alt={singer.billede.alt}
+                      width={singer.billede.bredde}
+                      height={singer.billede.hoejde}
+                      loading="lazy"
+                      sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 276px"
+                      style={{ objectPosition: "center 25%" }}
+                    />
+                  ) : (
+                    <div className="singerPhotoPending">Foto følger</div>
+                  )}
                 </div>
                 <p className="singerName">{singer.name}</p>
               </div>
@@ -165,32 +196,28 @@ export default function Home() {
           <h2 className="sectionTitle">Billedgalleri</h2>
           <div className="galleryGrid">
             <div className="galleryFeature">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/dot-vintage-1.jpg"
-                alt="Bakkesangerinde i historisk kostume"
+              <Image
+                src={feature.billede.src}
+                alt={feature.billede.alt}
+                width={feature.billede.bredde}
+                height={feature.billede.hoejde}
+                loading="lazy"
+                sizes="(max-width: 560px) 100vw, (max-width: 900px) 66vw, 790px"
+                style={{ objectPosition: feature.objectPosition }}
               />
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/dot-vintage-2.jpg"
-              alt="Bakkesangerinde foran malet kulisse"
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/ensemble-1.jpg"
-              alt="Bakkesangerinderne griner sammen i kulisserne"
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/ensemble-2.jpg"
-              alt="Bakkesangerinderne synger på scenen"
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/ensemble-3.jpg"
-              alt="Bakkesangerinderne synger på scenen"
-            />
+            {galleryRest.map(({ billede, objectPosition }) => (
+              <Image
+                key={billede.src}
+                src={billede.src}
+                alt={billede.alt}
+                width={billede.bredde}
+                height={billede.hoejde}
+                loading="lazy"
+                sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 387px"
+                style={{ objectPosition }}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -258,9 +285,15 @@ export default function Home() {
             </div>
           </div>
           <div className="contactPhoto">
-            <div className="placeholder" style={{ width: "100%", height: "100%" }}>
-              Kort over Dyrehavsbakken / vejvisning
-            </div>
+            <Image
+              src={billeder.facaden.src}
+              alt={billeder.facaden.alt}
+              width={billeder.facaden.bredde}
+              height={billeder.facaden.hoejde}
+              loading="lazy"
+              sizes="(max-width: 900px) 100vw, 528px"
+              style={{ objectPosition: "center" }}
+            />
           </div>
         </div>
       </section>

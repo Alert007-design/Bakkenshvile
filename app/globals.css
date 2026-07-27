@@ -309,6 +309,26 @@ button {
   display: block;
 }
 
+.singerPhotoPending {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(
+    45deg,
+    oklch(0.26 0.045 265),
+    oklch(0.26 0.045 265) 10px,
+    oklch(0.29 0.045 265) 10px,
+    oklch(0.29 0.045 265) 20px
+  );
+  font-family: monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .singerName {
   font-family: var(--font-display);
   font-style: italic;
@@ -590,6 +610,13 @@ button {
 .contactPhoto .placeholder {
   width: 100%;
   height: 100%;
+}
+
+.contactPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 /* ---------- footer ---------- */
