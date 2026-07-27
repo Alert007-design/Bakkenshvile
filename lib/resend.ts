@@ -1,5 +1,11 @@
 const RESEND_URL = "https://api.resend.com/emails";
 
+// Afsenderadresse for alle udgående mails. Domænet send.bakkenshvile.dk er
+// verificeret i Resend. Adressen ligger ét sted, så den kun skal rettes her —
+// også når varselsmailen senere kommer til. Kan overstyres med EMAIL_FROM.
+export const EMAIL_FROM =
+  "Bakkens Hvile <billetter@send.bakkenshvile.dk>";
+
 export async function sendMail({
   to,
   subject,
@@ -14,7 +20,7 @@ export async function sendMail({
     console.error("RESEND_API_KEY mangler — mail blev ikke sendt");
     return;
   }
-  const from = process.env.EMAIL_FROM || "Bakkens Hvile <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM || EMAIL_FROM;
 
   const res = await fetch(RESEND_URL, {
     method: "POST",
