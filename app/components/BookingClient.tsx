@@ -70,14 +70,18 @@ function monthLabel(iso: string) {
   return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function getBadge(
-  show: ShowDate,
-  isEarliest: boolean
-): { type: ShowStatus; label: string } | null {
+type BadgeType = ShowStatus | "forpremiere";
+
+function getBadge(show: ShowDate): { type: BadgeType; label: string } | null {
   if (show.soldOut || show.status === "soldout")
     return { type: "soldout", label: "Udsolgt" };
   if (show.status === "few") return { type: "few", label: "Få pladser" };
-  if (show.status === "premiere" || isEarliest)
+  // Mærket udledes af titlen, ikke af datoens placering i sæsonen — så det
+  // bliver ved med at være rigtigt, uanset om datoer tilføjes eller fjernes.
+  const title = show.title.trim().toLowerCase();
+  if (title.startsWith("forpremiere"))
+    return { type: "forpremiere", label: "Forpremiere" };
+  if (title.startsWith("premiere"))
     return { type: "premiere", label: "Premiere" };
   return null;
 }
@@ -448,11 +452,6 @@ export default function BookingClient({
 
   const selectedShow = showDates.find((s) => s.id === selectedId) ?? null;
 
-  const earliestId = useMemo(() => {
-    if (showDates.length === 0) return null;
-    return [...showDates].sort((a, b) => a.date.localeCompare(b.date))[0].id;
-  }, [showDates]);
-
   const groupedByMonth = useMemo(() => {
     const map = new Map<string, ShowDate[]>();
     for (const s of showDates) {
@@ -591,7 +590,7 @@ export default function BookingClient({
               <div className="date-picker-month-title">{month}</div>
               <div className="date-picker-grid">
                 {shows.map((s) => {
-                  const badge = getBadge(s, s.id === earliestId);
+                  const badge = getBadge(s);
                   const isSoldOut = badge?.type === "soldout";
                   return (
                     <button

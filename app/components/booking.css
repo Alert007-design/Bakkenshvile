@@ -415,6 +415,11 @@
   background: var(--bh-gold);
   color: var(--bh-navy-deep);
 }
+.badge-forpremiere {
+  background: transparent;
+  color: var(--bh-gold);
+  border: 1px solid var(--bh-gold);
+}
 .badge-few {
   background: var(--bh-cream);
   color: var(--bh-red);
