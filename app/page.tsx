@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import BookingForm from "./BookingForm";
+import HeroMedia from "./components/HeroMedia";
 import { billeder, type Billede } from "@/lib/billeder";
 
 const NAV_LINKS = [
@@ -65,15 +66,7 @@ export default function Home() {
 
       <section id="forside" className="hero">
         <div className="heroBg">
-          <Image
-            src={billeder.syngepigerFloejlstaepper.src}
-            alt={billeder.syngepigerFloejlstaepper.alt}
-            width={billeder.syngepigerFloejlstaepper.bredde}
-            height={billeder.syngepigerFloejlstaepper.hoejde}
-            priority
-            sizes="100vw"
-            style={{ objectPosition: "center 25%" }}
-          />
+          <HeroMedia />
           <div className="heroScrim" />
         </div>
         <div className="heroInner">
