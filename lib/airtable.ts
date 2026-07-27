@@ -22,6 +22,7 @@ export const FIELDS = {
     seatingLink: "fldfK75vTcpcpZx9d",
     priceGroup: "fldXSAvVkLrg5HZk0",
     soldOut: "fld3Cwq5W7lP8xaHE",
+    bookings: "fldCRUAQ0zuJxyWq9",
   },
   ticketType: {
     category: "fldjmx1vfbTgxlDn0",
@@ -62,6 +63,7 @@ export const FIELDS = {
     key: "fldxkPBhklx1pv3ng",
     addons: "fldmL8WJLs0OHLPd3",
     totalPaid: "fldfamJJegkmOLm1q",
+    varselSent: "fldOjgNoFV98SFA5m",
   },
 } as const;
 
