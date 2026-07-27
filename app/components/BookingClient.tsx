@@ -1,6 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+  addonDiscountKr,
+  discountedAddonUnitKr,
+  ADDON_DISCOUNT_LABEL,
+} from "@/lib/pricing";
 import "./booking.css";
 
 type Ticket = {
@@ -488,12 +493,23 @@ export default function BookingClient({
 
   const totalTickets = Object.values(ticketQty).reduce((a, b) => a + b, 0);
 
-  const total = useMemo(() => {
+  const ticketsTotal = useMemo(() => {
     let sum = 0;
     for (const t of visibleTickets) sum += (ticketQty[t.id] || 0) * (t.price + t.fee);
+    return sum;
+  }, [visibleTickets, ticketQty]);
+
+  const addonSubtotal = useMemo(() => {
+    let sum = 0;
     for (const a of addons) sum += (addonQty[a.id] || 0) * a.price;
     return sum;
-  }, [visibleTickets, addons, ticketQty, addonQty]);
+  }, [addons, addonQty]);
+
+  // Rabatten beregnes på summen af tilvalg (ikke pr. linje) via den delte
+  // hjælpefunktion — nøjagtig samme tal som Stripe-checkout bruger.
+  const discount = useMemo(() => addonDiscountKr(addonSubtotal), [addonSubtotal]);
+
+  const total = ticketsTotal + addonSubtotal - discount;
 
   // Skift dato: nulstil billetantal, så mængder fra en anden prisgruppe
   // aldrig følger med over på den nye dato.
@@ -545,6 +561,7 @@ export default function BookingClient({
             name: `Billet: ${t.category} — ${showLabel}`,
             unitAmount: t.price + t.fee,
             quantity: ticketQty[t.id],
+            kind: "ticket" as const,
           })),
         ...addons
           .filter((a) => addonQty[a.id])
@@ -552,6 +569,7 @@ export default function BookingClient({
             name: a.name,
             unitAmount: a.price,
             quantity: addonQty[a.id],
+            kind: "addon" as const,
           })),
       ];
 
@@ -725,7 +743,9 @@ export default function BookingClient({
       {groupedAddons.length > 0 && (
         <div className="section">
           <div className="section-title">Tilvalg</div>
-          <div className="section-sub">Drikkevarer og snacks til bordet</div>
+          <div className="section-sub">
+            Drikkevarer og snacks til bordet — 10% onlinerabat er trukket fra
+          </div>
           <div className="addon-groups">
             {groupedAddons.map(([category, items]) => (
               <div className="addon-group" key={category}>
@@ -734,7 +754,12 @@ export default function BookingClient({
                   <div className="addon-item" key={a.id}>
                     <span className="addon-name">{a.name}</span>
                     <div className="addon-controls">
-                      <span className="addon-price">{kr(a.price)}</span>
+                      <span className="addon-price">
+                        <span className="addon-price-full">{kr(a.price)}</span>{" "}
+                        <span className="addon-price-discounted">
+                          {kr(discountedAddonUnitKr(a.price))}
+                        </span>
+                      </span>
                       <div className="stepper">
                         <button
                           onClick={() => setAddon(a.id, -1)}
@@ -946,6 +971,12 @@ export default function BookingClient({
 
       <div className="summary">
         <div>
+          {discount > 0 && (
+            <div className="summary-discount">
+              <span>{ADDON_DISCOUNT_LABEL}</span>
+              <span className="summary-discount-amount">−{kr(discount)}</span>
+            </div>
+          )}
           <div className="summary-total">{kr(total)}</div>
           <div className="summary-count">
             {totalTickets} billet{totalTickets === 1 ? "" : "ter"}

@@ -2,15 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { updateRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { sendMail } from "@/lib/resend";
+import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
 import Stripe from "stripe";
 
 function ticketEmailHtml(params: {
   bookingNo: string;
   customerName: string;
   lineItems: Stripe.LineItem[];
+  discountKr: number;
   total: string;
 }) {
-  const { bookingNo, customerName, lineItems, total } = params;
+  const { bookingNo, customerName, lineItems, discountKr, total } = params;
+  const discountRow =
+    discountKr > 0
+      ? `
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;">${ADDON_DISCOUNT_LABEL}</td>
+        <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;text-align:center;"></td>
+        <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;text-align:right;color:#c9a227;">−${discountKr} kr.</td>
+      </tr>`
+      : "";
   const rows = lineItems
     .map(
       (li) => `
@@ -41,7 +52,7 @@ function ticketEmailHtml(params: {
             <th style="text-align:right;padding-bottom:8px;border-bottom:2px solid #c9a227;font-size:12px;letter-spacing:0.05em;text-transform:uppercase;">Pris</th>
           </tr>
         </thead>
-        <tbody>${rows}</tbody>
+        <tbody>${rows}${discountRow}</tbody>
       </table>
 
       <p style="text-align:right;margin-top:16px;font-size:18px;color:#c9a227;">I alt: ${total}</p>
@@ -94,6 +105,11 @@ export async function POST(req: NextRequest) {
         const total = session.amount_total
           ? `${(session.amount_total / 100).toFixed(0)} kr.`
           : "";
+        // Rabatten aflæses direkte på Stripe-sessionen, så mailen viser
+        // nøjagtig det beløb, kunden fik trukket via couponen.
+        const discountKr = Math.round(
+          (session.total_details?.amount_discount ?? 0) / 100
+        );
         await sendMail({
           to: email,
           subject: `Dine billetter til Bakkens Hvile — ${bookingNo}`,
@@ -101,6 +117,7 @@ export async function POST(req: NextRequest) {
             bookingNo,
             customerName: session.customer_details?.name || "",
             lineItems: lineItems.data,
+            discountKr,
             total,
           }),
         });

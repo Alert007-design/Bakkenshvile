@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRecord, getRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { getStripe } from "@/lib/stripe";
+import { addonDiscountKr, ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
 
-type LineItem = { name: string; unitAmount: number; quantity: number };
+type LineItem = {
+  name: string;
+  unitAmount: number;
+  quantity: number;
+  kind?: "ticket" | "addon";
+};
 
 // Trækker billetkategorierne ud af lineItems og opsummerer antal pr.
 // kategori, fx "A+ x2, B x1". Kun linjer der matcher det navneformat,
@@ -86,11 +92,21 @@ export async function POST(req: NextRequest) {
     });
     const bookingNo = `BH-${Date.now().toString().slice(-8)}`;
     const ticketBreakdown = summarizeTicketCategories(lineItems);
+
+    // Onlinerabat: 10% på tilvalg. Beregnes serverside på summen af tilvalg
+    // via den delte hjælpefunktion — nøjagtig samme tal som frontend viser,
+    // så det viste og det trukne aldrig kan afvige.
+    const addonSubtotal = lineItems
+      .filter((li) => li.kind === "addon")
+      .reduce((sum, li) => sum + li.unitAmount * li.quantity, 0);
+    const discount = addonDiscountKr(addonSubtotal);
+
     const bookingFields: Record<string, unknown> = {
       [FIELDS.booking.bookingNo]: bookingNo,
       [FIELDS.booking.ticketCount]: ticketCount || 0,
       [FIELDS.booking.specialRequests]: specialRequests || "",
       [FIELDS.booking.status]: "Afventer betaling",
+      [FIELDS.booking.discount]: discount,
       [FIELDS.booking.customer]: [customerRecord.id],
       // Feltet "Billetkategorier" (fldXuocW3IneLzwnY) i Airtable —
       // tilføjet direkte som felt-ID, da det endnu ikke er lagt ind i
@@ -114,6 +130,23 @@ export async function POST(req: NextRequest) {
     const bookingRecord = await createRecord(TABLES.bookings, bookingFields);
     const origin = req.nextUrl.origin;
     const stripe = getStripe();
+
+    // Rabatten lægges på som en engangs-coupon (amount_off) frem for en
+    // negativ linje — Stripe tillader ikke negative line items, og en coupon
+    // giver den pæneste kvittering med en selvstændig rabatlinje. Beløbet er
+    // det floored kronebeløb ganget op til øre, så det trukne total stemmer
+    // præcis med det viste (linjesum − rabat).
+    let discountParam: { coupon: string }[] | undefined;
+    if (discount > 0) {
+      const coupon = await stripe.coupons.create({
+        amount_off: Math.round(discount * 100),
+        currency: "dkk",
+        duration: "once",
+        name: ADDON_DISCOUNT_LABEL,
+      });
+      discountParam = [{ coupon: coupon.id }];
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -126,6 +159,7 @@ export async function POST(req: NextRequest) {
           product_data: { name: li.name },
         },
       })),
+      discounts: discountParam,
       customer_email: customer.email || undefined,
       metadata: {
         bookingId: bookingRecord.id,
