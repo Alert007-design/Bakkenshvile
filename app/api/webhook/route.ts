@@ -96,6 +96,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ugyldig signatur" }, { status: 400 });
   }
 
+  // Bordbestillinger deler Stripe-konto, så deres events når også hertil.
+  // De håndteres udelukkende af /api/table-orders/webhook — ignorér dem her,
+  // så billet-flowet aldrig rører en bordordre.
+  const obj = event.data.object as { metadata?: { kind?: string } };
+  if (obj?.metadata?.kind === "table-order") {
+    return NextResponse.json({ received: true });
+  }
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     const bookingId = session.metadata?.bookingId;

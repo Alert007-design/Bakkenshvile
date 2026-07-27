@@ -192,6 +192,21 @@ export async function markOrderPaid(
   return { status: "paid", orderId: order.id };
 }
 
+/** Markerer en ubetalt ordre som fejlet (udløbet/afvist betaling). */
+export async function markOrderFailed(
+  db: Queryable,
+  sessionId: string
+): Promise<boolean> {
+  const upd = await db.query<{ id: string }>(
+    `UPDATE orders
+        SET payment_status = 'failed'
+      WHERE stripe_checkout_session_id = $1 AND payment_status = 'pending'
+      RETURNING id`,
+    [sessionId]
+  );
+  return upd.rows.length > 0;
+}
+
 /** Markerer en betalt ordre som refunderet. */
 export async function markOrderRefunded(
   db: Queryable,
