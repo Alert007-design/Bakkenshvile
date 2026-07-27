@@ -35,6 +35,13 @@ export const FIELDS = {
     name: "fldfRo2vS99rldTUD",
     price: "fldT7yU2cBiZ3TvBz",
     category: "fldR4bGu31Z1OmXqd",
+    // Felter tilføjet til bordbestillingen (samme liste som billetkøbets
+    // tilvalg — huset vedligeholder menuen ét sted).
+    description: "fld9SPCNuanJLJJtM",
+    active: "fldzBVlQpYB030TD5",
+    vatRate: "fldyTzzoKdHYFxRrV",
+    productCode: "fldRykFDSu0Y3CK1Q",
+    sort: "fldiVSQNs8MQ5EaA1",
   },
   customer: {
     name: "fldJj0hE2qNJIN136",
@@ -97,21 +104,147 @@ function baseId() {
   return id;
 }
 
+// --- Resiliens: backoff, 429-håndtering og caching ---------------------------
+//
+// Airtable tillader kun 5 kald/sekund pr. base. Med mange samtidige gæster og
+// barens løbende polling skal vi derfor: (1) aldrig lade klienter kalde Airtable
+// direkte, (2) cache serverside, og (3) tåle 429/5xx med eksponentiel backoff.
+
+export type AirtableRecord = { id: string; fields: Record<string, unknown> };
+
+const MAX_RETRIES = 4;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Deterministisk-nok jitter uden Math.random, så to samtidige kald ikke rammer
+// præcis samme backoff-vindue.
+let jitterSeed = 0;
+function jitter(): number {
+  jitterSeed = (jitterSeed + 137) % 500;
+  return jitterSeed;
+}
+
+// Fetch mod Airtable med eksponentiel backoff på 429 og 5xx. Respekterer
+// Retry-After-headeren når den findes. Returnerer det sidste svar (også hvis
+// det stadig fejler efter alle forsøg), så kalderen selv kan håndtere status.
+export async function airtableFetch(
+  url: string,
+  init: RequestInit,
+  opts: { retries?: number; baseDelayMs?: number } = {}
+): Promise<Response> {
+  const retries = opts.retries ?? MAX_RETRIES;
+  const baseDelay = opts.baseDelayMs ?? 500;
+  let attempt = 0;
+  while (true) {
+    const res = await fetch(url, init);
+    if (res.status !== 429 && res.status < 500) return res;
+    if (attempt >= retries) return res;
+    const retryAfter = Number(res.headers.get("retry-after"));
+    const delay =
+      Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : Math.min(baseDelay * 2 ** attempt, 8000) + jitter();
+    await sleep(delay);
+    attempt++;
+  }
+}
+
+// Serverside in-memory cache med TTL og "stale-on-error": hvis Airtable fejler,
+// returneres sidst kendte gode data i stedet for at vælte baren.
+type CacheEntry = { data: AirtableRecord[]; at: number };
+const listCache = new Map<string, CacheEntry>();
+
+/**
+ * Som listRecords, men cachet i ttlMs og med stale-on-error. Bruges af alt der
+ * polles ofte (menu, barens ordrer via spejling), så Airtables 5 kald/sekund
+ * aldrig overskrides. now() injiceres til test.
+ */
+export async function cachedListRecords(
+  tableId: string,
+  ttlMs = 30000,
+  now: () => number = Date.now
+): Promise<AirtableRecord[]> {
+  const t = now();
+  const hit = listCache.get(tableId);
+  if (hit && t - hit.at < ttlMs) return hit.data;
+  try {
+    const data = await listRecords(tableId);
+    listCache.set(tableId, { data, at: t });
+    return data;
+  } catch (err) {
+    if (hit) return hit.data; // stale-on-error
+    throw err;
+  }
+}
+
+/** Rydder list-cachen (kun til test og manuel invalidering). */
+export function clearAirtableCache(tableId?: string) {
+  if (tableId) listCache.delete(tableId);
+  else listCache.clear();
+}
+
+// Batchede skrivninger — Airtable tillader max 10 records pr. kald.
+async function writeInChunks(
+  tableId: string,
+  method: "POST" | "PATCH",
+  records: Array<Record<string, unknown> | { id: string; fields: Record<string, unknown> }>
+): Promise<AirtableRecord[]> {
+  const out: AirtableRecord[] = [];
+  for (let i = 0; i < records.length; i += 10) {
+    const chunk = records.slice(i, i + 10).map((r) =>
+      "id" in r ? { id: r.id, fields: r.fields } : { fields: r }
+    );
+    const res = await airtableFetch(
+      `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true`,
+      {
+        method,
+        headers: headers(),
+        body: JSON.stringify({ records: chunk }),
+      }
+    );
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Airtable-fejl ved batch-${method} (${tableId}): ${body}`);
+    }
+    const data = await res.json();
+    out.push(...(data.records as AirtableRecord[]));
+  }
+  return out;
+}
+
+/** Opretter mange records i batches af 10. */
+export function createRecords(
+  tableId: string,
+  records: Array<Record<string, unknown>>
+): Promise<AirtableRecord[]> {
+  return writeInChunks(tableId, "POST", records);
+}
+
+/** Opdaterer mange records i batches af 10. */
+export function updateRecords(
+  tableId: string,
+  records: Array<{ id: string; fields: Record<string, unknown> }>
+): Promise<AirtableRecord[]> {
+  return writeInChunks(tableId, "PATCH", records);
+}
+
 export async function listRecords(tableId: string) {
-  const res = await fetch(
+  const res = await airtableFetch(
     `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true`,
     {
       headers: headers(),
       next: { revalidate: 30 },
-    }
+    } as RequestInit
   );
   if (!res.ok) throw new Error(`Airtable-fejl (${tableId}): ${res.status}`);
   const data = await res.json();
-  return data.records as Array<{ id: string; fields: Record<string, unknown> }>;
+  return data.records as AirtableRecord[];
 }
 
 export async function findRecords(tableId: string, filterByFormula: string) {
-  const res = await fetch(
+  const res = await airtableFetch(
     `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true&filterByFormula=${encodeURIComponent(
       filterByFormula
     )}`,
@@ -122,11 +255,11 @@ export async function findRecords(tableId: string, filterByFormula: string) {
   );
   if (!res.ok) throw new Error(`Airtable-fejl (${tableId}): ${res.status}`);
   const data = await res.json();
-  return data.records as Array<{ id: string; fields: Record<string, unknown> }>;
+  return data.records as AirtableRecord[];
 }
 
 export async function getRecord(tableId: string, recordId: string) {
-  const res = await fetch(
+  const res = await airtableFetch(
     `${BASE_URL}/${baseId()}/${tableId}/${recordId}?returnFieldsByFieldId=true`,
     {
       headers: headers(),
@@ -134,14 +267,14 @@ export async function getRecord(tableId: string, recordId: string) {
     }
   );
   if (!res.ok) throw new Error(`Airtable-fejl (${tableId}/${recordId}): ${res.status}`);
-  return res.json() as Promise<{ id: string; fields: Record<string, unknown> }>;
+  return res.json() as Promise<AirtableRecord>;
 }
 
 export async function createRecord(
   tableId: string,
   fields: Record<string, unknown>
 ) {
-  const res = await fetch(
+  const res = await airtableFetch(
     `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true`,
     {
       method: "POST",
@@ -161,7 +294,7 @@ export async function updateRecord(
   recordId: string,
   fields: Record<string, unknown>
 ) {
-  const res = await fetch(
+  const res = await airtableFetch(
     `${BASE_URL}/${baseId()}/${tableId}/${recordId}?returnFieldsByFieldId=true`,
     {
       method: "PATCH",

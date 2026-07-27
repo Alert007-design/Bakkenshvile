@@ -6,6 +6,7 @@ import {
   discountedAddonUnitKr,
   ADDON_DISCOUNT_LABEL,
 } from "@/lib/pricing";
+import { getTable, tableNumberFor } from "@/lib/tables";
 import "./booking.css";
 
 type Ticket = {
@@ -155,26 +156,40 @@ const COLS5 = [110, 166, 222, 278, 334];
 const COLS4 = [110, 166, 222, 278];
 const COLS2 = [110, 166];
 
-type Cat = "aplusHigh" | "aplusLow" | "a" | "b";
+// Visuel nuance for A+-borde (kun kosmetisk: øverste vs. nederste halvdel af
+// A+-området). Selve kategorien (A+/A/B) udledes fra lib/tables.ts, så salplanen
+// og bordbestillingen deler præcis samme borddefinition.
+type Shade = "aplusHigh" | "aplusLow";
 
 const ROWS: {
   n: number;
   y: number;
   cols: number[];
-  cat: Cat;
-  firstIsB?: boolean;
+  shade: Shade;
 }[] = [
-  { n: 1, y: 112, cols: COLS5, cat: "aplusHigh" },
-  { n: 2, y: 160, cols: COLS5, cat: "aplusHigh" },
-  { n: 3, y: 208, cols: COLS5, cat: "aplusHigh" },
-  { n: 4, y: 264, cols: COLS5, cat: "aplusLow" },
-  { n: 5, y: 312, cols: COLS5, cat: "aplusLow" },
-  { n: 6, y: 388, cols: COLS5, cat: "aplusLow" },
-  { n: 7, y: 448, cols: COLS4, cat: "a" },
-  { n: 8, y: 496, cols: COLS4, cat: "a" },
-  { n: 9, y: 544, cols: COLS4, cat: "a", firstIsB: true },
-  { n: 10, y: 592, cols: COLS2, cat: "b" },
+  { n: 1, y: 112, cols: COLS5, shade: "aplusHigh" },
+  { n: 2, y: 160, cols: COLS5, shade: "aplusHigh" },
+  { n: 3, y: 208, cols: COLS5, shade: "aplusHigh" },
+  { n: 4, y: 264, cols: COLS5, shade: "aplusLow" },
+  { n: 5, y: 312, cols: COLS5, shade: "aplusLow" },
+  { n: 6, y: 388, cols: COLS5, shade: "aplusLow" },
+  { n: 7, y: 448, cols: COLS4, shade: "aplusLow" },
+  { n: 8, y: 496, cols: COLS4, shade: "aplusLow" },
+  { n: 9, y: 544, cols: COLS4, shade: "aplusLow" },
+  { n: 10, y: 592, cols: COLS2, shade: "aplusLow" },
 ];
+
+// Farve for et bord ud fra dets kategori i den fælles borddefinition. A+ bruger
+// rækkens visuelle nuance; A og B har hver sin faste farve.
+function tableFill(rowN: number, colCount: number, i: number, shade: Shade): string {
+  // Placeringen tælles fra baren (højre side) og indad; kolonnerne tegnes
+  // venstre→højre, så den yderste kolonne (i=0) er den højeste placering.
+  const number = tableNumberFor(rowN, colCount - i);
+  const category = getTable(number)?.category;
+  if (category === "B") return C.b;
+  if (category === "A") return C.a;
+  return C[shade];
+}
 
 const STOLPER = [
   { x: 152, y: 430 },
@@ -367,20 +382,17 @@ function SeatingChart() {
       />
 
       {ROWS.map((row) =>
-        row.cols.map((x, i) => {
-          const isB = row.firstIsB && i === 0;
-          return (
-            <rect
-              key={`${row.n}-${x}`}
-              x={x}
-              y={row.y}
-              width={TW}
-              height={TH}
-              rx={4}
-              fill={isB ? C.b : C[row.cat]}
-            />
-          );
-        })
+        row.cols.map((x, i) => (
+          <rect
+            key={`${row.n}-${x}`}
+            x={x}
+            y={row.y}
+            width={TW}
+            height={TH}
+            rx={4}
+            fill={tableFill(row.n, row.cols.length, i, row.shade)}
+          />
+        ))
       )}
 
       {ROWS.map((row) => (
