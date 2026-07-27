@@ -399,10 +399,16 @@
   opacity: 1;
 }
 
-.date-picker-badge {
+.date-picker-badges {
   position: absolute;
   top: -9px;
   right: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.date-picker-badge {
   font-family: "IBM Plex Mono", monospace;
   font-size: 10px;
   letter-spacing: 0.04em;

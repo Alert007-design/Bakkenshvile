@@ -72,18 +72,24 @@ function monthLabel(iso: string) {
 
 type BadgeType = ShowStatus | "forpremiere";
 
-function getBadge(show: ShowDate): { type: BadgeType; label: string } | null {
-  if (show.soldOut || show.status === "soldout")
-    return { type: "soldout", label: "Udsolgt" };
-  if (show.status === "few") return { type: "few", label: "Få pladser" };
-  // Mærket udledes af titlen, ikke af datoens placering i sæsonen — så det
-  // bliver ved med at være rigtigt, uanset om datoer tilføjes eller fjernes.
+function isSoldOut(show: ShowDate): boolean {
+  return show.soldOut || show.status === "soldout";
+}
+
+// Kan returnere flere mærker, fx både "Premiere" og "Udsolgt" på samme dato.
+// Premiere/Forpremiere-mærket udledes af titlen, ikke af datoens placering i
+// sæsonen — så det bliver ved med at være rigtigt, uanset om datoer tilføjes
+// eller fjernes. Udsolgt vises ved siden af, ikke i stedet for.
+function getBadges(show: ShowDate): { type: BadgeType; label: string }[] {
+  const badges: { type: BadgeType; label: string }[] = [];
   const title = show.title.trim().toLowerCase();
   if (title.startsWith("forpremiere"))
-    return { type: "forpremiere", label: "Forpremiere" };
-  if (title.startsWith("premiere"))
-    return { type: "premiere", label: "Premiere" };
-  return null;
+    badges.push({ type: "forpremiere", label: "Forpremiere" });
+  else if (title.startsWith("premiere") || show.status === "premiere")
+    badges.push({ type: "premiere", label: "Premiere" });
+  if (show.status === "few") badges.push({ type: "few", label: "Få pladser" });
+  if (isSoldOut(show)) badges.push({ type: "soldout", label: "Udsolgt" });
+  return badges;
 }
 
 function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
@@ -590,31 +596,40 @@ export default function BookingClient({
               <div className="date-picker-month-title">{month}</div>
               <div className="date-picker-grid">
                 {shows.map((s) => {
-                  const badge = getBadge(s);
-                  const isSoldOut = badge?.type === "soldout";
+                  const badges = getBadges(s);
+                  const soldOut = isSoldOut(s);
                   return (
                     <button
                       key={s.id}
                       type="button"
                       className={`date-picker-btn${
-                        isSoldOut ? " is-soldout" : ""
+                        soldOut ? " is-soldout" : ""
                       }`}
-                      onClick={() => !isSoldOut && selectDate(s.id)}
-                      aria-disabled={isSoldOut || undefined}
+                      onClick={() => !soldOut && selectDate(s.id)}
+                      aria-disabled={soldOut || undefined}
                       aria-label={`${formatShortDate(s.date)} kl. ${s.time}${
-                        badge ? ", " + badge.label : ""
+                        badges.length
+                          ? ", " + badges.map((b) => b.label).join(", ")
+                          : ""
                       }`}
                     >
-                      {badge && (
-                        <span className={`date-picker-badge badge-${badge.type}`}>
-                          {badge.label}
+                      {badges.length > 0 && (
+                        <span className="date-picker-badges">
+                          {badges.map((b) => (
+                            <span
+                              key={b.type}
+                              className={`date-picker-badge badge-${b.type}`}
+                            >
+                              {b.label}
+                            </span>
+                          ))}
                         </span>
                       )}
                       <span className="date-picker-day">
                         {formatShortDate(s.date)}
                       </span>
                       <span className="date-picker-time">kl. {s.time}</span>
-                      {!isSoldOut && (
+                      {!soldOut && (
                         <span className="date-picker-go" aria-hidden="true">
                           Vælg →
                         </span>
