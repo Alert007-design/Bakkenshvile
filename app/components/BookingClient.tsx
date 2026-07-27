@@ -106,234 +106,304 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
   );
 }
 
-function SeatingChart() {
-  const seat = (
-    x: number,
-    y: number,
-    fill: string,
-    textColor: string
-  ) => (
-    <rect
-      key={`${x}-${y}`}
-      x={x}
-      y={y}
-      width={34}
-      height={34}
-      rx={5}
-      fill={fill}
-      stroke={textColor}
-      strokeOpacity={0.15}
-    />
+/**
+ * Pladsoversigt over salen i Bakkens Hvile.
+ *
+ * Bordfordeling (44 borde i alt, 4 personer pr. bord):
+ *   A+ 1.-3. række   3 rækker à 5 borde   = 15 borde
+ *   A+ 4.-6. række   3 rækker à 5 borde   = 15 borde
+ *   A  7.-9. række   4 + 4 + 3            = 11 borde
+ *   B                venstre bord i 9. rk. + 2 borde i 10. rk. = 3 borde
+ */
+
+const C = {
+  panel: "#1B2C45",
+  gold: "#C9A63A",
+  cream: "#F2E9D8",
+  muted: "rgba(242, 233, 216, 0.55)",
+  aplusHigh: "#E9C96B",
+  aplusLow: "#BF9433",
+  a: "#7B93A8",
+  b: "#4E5F73",
+  stolpe: "#8A8578",
+} as const;
+
+const TW = 40;
+const TH = 36;
+
+const COLS5 = [110, 166, 222, 278, 334];
+const COLS4 = [110, 166, 222, 278];
+const COLS2 = [110, 166];
+
+type Cat = "aplusHigh" | "aplusLow" | "a" | "b";
+
+const ROWS: {
+  n: number;
+  y: number;
+  cols: number[];
+  cat: Cat;
+  firstIsB?: boolean;
+}[] = [
+  { n: 1, y: 112, cols: COLS5, cat: "aplusHigh" },
+  { n: 2, y: 160, cols: COLS5, cat: "aplusHigh" },
+  { n: 3, y: 208, cols: COLS5, cat: "aplusHigh" },
+  { n: 4, y: 264, cols: COLS5, cat: "aplusLow" },
+  { n: 5, y: 312, cols: COLS5, cat: "aplusLow" },
+  { n: 6, y: 388, cols: COLS5, cat: "aplusLow" },
+  { n: 7, y: 448, cols: COLS4, cat: "a" },
+  { n: 8, y: 496, cols: COLS4, cat: "a" },
+  { n: 9, y: 544, cols: COLS4, cat: "a", firstIsB: true },
+  { n: 10, y: 592, cols: COLS2, cat: "b" },
+];
+
+const STOLPER = [
+  { x: 152, y: 430 },
+  { x: 300, y: 430 },
+  { x: 152, y: 530 },
+];
+
+const LEGEND = [
+  { x: 40, y: 728, fill: C.aplusHigh, label: "A+ (1.-3. række)" },
+  { x: 190, y: 728, fill: C.aplusLow, label: "A+ (4.-6. række)" },
+  { x: 340, y: 728, fill: C.a, label: "A (7.-9. række)" },
+  { x: 40, y: 754, fill: C.b, label: "B (10. række)" },
+  { x: 190, y: 754, fill: C.stolpe, label: "Stolpe" },
+];
+
+function Panel({
+  x,
+  y,
+  w,
+  h,
+  label,
+  vertical = false,
+}: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  label: string;
+  vertical?: boolean;
+}) {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={w}
+        height={h}
+        rx={4}
+        fill={C.panel}
+        stroke={C.gold}
+        strokeOpacity={0.35}
+        strokeWidth={1}
+      />
+      <text
+        x={cx}
+        y={cy}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={15}
+        fill={C.cream}
+        letterSpacing="0.06em"
+        transform={vertical ? `rotate(-90 ${cx} ${cy})` : undefined}
+      >
+        {label}
+      </text>
+    </g>
   );
+}
 
-  const row = (
-    count: number,
-    y: number,
-    fill: string,
-    textColor: string
-  ) => {
-    const width = count * 34 + (count - 1) * 10;
-    const startX = 230 - width / 2;
-    return Array.from({ length: count }, (_, i) =>
-      seat(startX + i * 44, y, fill, textColor)
-    );
-  };
-
-  const gold = "var(--bh-gold)";
-  const cream = "var(--bh-cream)";
-  const wine = "#7a2230";
-  const navyDeep = "var(--bh-navy-deep)";
-
+function SeatingChart() {
   return (
     <svg
-      viewBox="0 0 460 700"
-      style={{ width: "100%", maxWidth: 420, display: "block", margin: "0 auto" }}
+      viewBox="0 0 560 800"
+      width="100%"
       role="img"
-      aria-label="Pladstegning over salen: kategori A+ nærmest scenen, A i midten, B nærmest indgangen"
+      aria-labelledby="pladsoversigt-titel pladsoversigt-beskrivelse"
+      style={{ display: "block", maxWidth: 560, margin: "0 auto", height: "auto" }}
     >
+      <title id="pladsoversigt-titel">Pladsoversigt over salen</title>
+      <desc id="pladsoversigt-beskrivelse">
+        Salen har 44 borde med plads til fire personer ved hvert bord, fordelt på
+        ti rækker. Række 1 til 6 er kategori A plus, række 7 til 9 er kategori A,
+        og kategori B består af det venstre bord i 9. række samt de to borde i
+        10. række. Scenen ligger forrest, bar og toiletter langs højre side, og
+        indgangen er bagest.
+      </desc>
+
+      <defs>
+        <marker
+          id="pil-op"
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path
+            d="M2 1L8 5L2 9"
+            fill="none"
+            stroke={C.muted}
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </marker>
+      </defs>
+
+      <Panel x={130} y={24} w={224} h={52} label="Scene" />
+      <Panel x={416} y={104} w={44} h={104} label="Bar" vertical />
+      <Panel x={416} y={224} w={44} h={140} label="Toiletter" vertical />
+
       <rect
-        x={90}
-        y={16}
-        width={280}
-        height={48}
+        x={336}
+        y={440}
+        width={64}
+        height={196}
         rx={4}
-        fill={navyDeep}
-        stroke={gold}
-        strokeOpacity={0.3}
-      />
-      <text
-        x={230}
-        y={48}
-        textAnchor="middle"
-        fontFamily="Fraunces, serif"
-        fontStyle="italic"
-        fontWeight={600}
-        fontSize={22}
-        fill={gold}
-      >
-        Scene
-      </text>
-
-      {row(4, 96, gold, navyDeep)}
-      {row(5, 142, gold, navyDeep)}
-      {row(5, 188, gold, navyDeep)}
-      {row(5, 234, gold, navyDeep)}
-      <line
-        x1={100}
-        y1={278}
-        x2={360}
-        y2={278}
-        stroke={cream}
+        fill="none"
+        stroke={C.gold}
         strokeOpacity={0.25}
-      />
-      <text
-        x={230}
-        y={298}
-        textAnchor="middle"
-        fontFamily="IBM Plex Mono, monospace"
-        fontSize={11}
-        fill={cream}
-        fillOpacity={0.55}
-      >
-        Mellemgang · plads til 2-3 kørestole
-      </text>
-      {row(4, 314, gold, navyDeep)}
-
-      <line
-        x1={100}
-        y1={362}
-        x2={360}
-        y2={362}
-        stroke={cream}
-        strokeOpacity={0.3}
+        strokeWidth={1}
         strokeDasharray="4 4"
       />
-      <rect x={145} y={358} width={8} height={8} fill={cream} fillOpacity={0.4} />
-      <rect x={307} y={358} width={8} height={8} fill={cream} fillOpacity={0.4} />
       <text
-        x={375}
-        y={366}
-        fontFamily="IBM Plex Mono, monospace"
-        fontSize={10}
-        fill={cream}
-        fillOpacity={0.55}
+        x={368}
+        y={538}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={13}
+        fill={C.muted}
+        letterSpacing="0.06em"
+        transform="rotate(-90 368 538)"
       >
         Forhøjning
       </text>
-      <text
-        x={375}
-        y={380}
-        fontFamily="IBM Plex Mono, monospace"
-        fontSize={10}
-        fill={cream}
-        fillOpacity={0.55}
-      >
+      <text x={412} y={492} fontSize={12} fill={C.muted}>
         1 trin
       </text>
-
-      {row(5, 378, cream, navyDeep)}
-
-      <line
-        x1={100}
-        y1={424}
-        x2={360}
-        y2={424}
-        stroke={cream}
-        strokeOpacity={0.3}
-        strokeDasharray="4 4"
-      />
-      <rect x={145} y={420} width={8} height={8} fill={cream} fillOpacity={0.4} />
-      <text
-        x={375}
-        y={438}
-        fontFamily="IBM Plex Mono, monospace"
-        fontSize={10}
-        fill={cream}
-        fillOpacity={0.55}
-      >
+      <text x={412} y={588} fontSize={12} fill={C.muted}>
         2 trin
       </text>
 
-      {row(5, 440, cream, navyDeep)}
-
-      {row(2, 498, wine, cream)}
-      <rect
-        x={280}
-        y={498}
-        width={90}
-        height={34}
-        rx={4}
-        fill={cream}
-        fillOpacity={0.08}
-        stroke={cream}
-        strokeOpacity={0.25}
+      <line
+        x1={462}
+        y1={676}
+        x2={462}
+        y2={632}
+        stroke={C.muted}
+        strokeWidth={1.5}
+        markerEnd="url(#pil-op)"
       />
-      <text
-        x={325}
-        y={519}
-        textAnchor="middle"
-        fontFamily="IBM Plex Mono, monospace"
-        fontSize={10}
-        fill={cream}
-        fillOpacity={0.7}
-      >
-        Billetsalg
+      <text x={462} y={698} textAnchor="middle" fontSize={12} fill={C.muted}>
+        Indgang
       </text>
 
-      <text
-        x={230}
-        y={560}
-        textAnchor="middle"
-        fontFamily="IBM Plex Mono, monospace"
-        fontSize={10}
-        fill={cream}
-        fillOpacity={0.5}
-      >
-        ↑ Indgang
-      </text>
-
-      <text
-        x={40}
-        y={200}
-        fontFamily="Fraunces, serif"
-        fontWeight={700}
-        fontSize={30}
-        fill={gold}
-      >
+      <text x={56} y={268} fontSize={20} fill={C.aplusHigh} letterSpacing="0.04em">
         A+
       </text>
-      <text
-        x={40}
-        y={412}
-        fontFamily="Fraunces, serif"
-        fontWeight={700}
-        fontSize={30}
-        fill={cream}
-      >
+      <text x={56} y={514} fontSize={20} fill={C.a} letterSpacing="0.04em">
         A
       </text>
-      <text
-        x={40}
-        y={520}
-        fontFamily="Fraunces, serif"
-        fontWeight={700}
-        fontSize={30}
-        fill={wine}
-      >
+      <text x={56} y={614} fontSize={20} fill={C.b} letterSpacing="0.04em">
         B
       </text>
 
-      <rect x={20} y={670} width={8} height={8} fill={cream} fillOpacity={0.4} />
+      <line
+        x1={110}
+        y1={254}
+        x2={374}
+        y2={254}
+        stroke={C.gold}
+        strokeOpacity={0.4}
+        strokeWidth={1}
+      />
+
       <text
-        x={34}
-        y={678}
-        fontFamily="IBM Plex Mono, monospace"
-        fontSize={10}
-        fill={cream}
-        fillOpacity={0.5}
+        x={242}
+        y={366}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={12}
+        fill={C.muted}
+        fontStyle="italic"
       >
-        = stolpe
+        Mellemgang — plads til 2-3 kørestole
       </text>
+
+      <line
+        x1={110}
+        y1={436}
+        x2={374}
+        y2={436}
+        stroke={C.gold}
+        strokeOpacity={0.25}
+        strokeWidth={1}
+        strokeDasharray="5 5"
+      />
+
+      {ROWS.map((row) =>
+        row.cols.map((x, i) => {
+          const isB = row.firstIsB && i === 0;
+          return (
+            <rect
+              key={`${row.n}-${x}`}
+              x={x}
+              y={row.y}
+              width={TW}
+              height={TH}
+              rx={4}
+              fill={isB ? C.b : C[row.cat]}
+            />
+          );
+        })
+      )}
+
+      {ROWS.map((row) => (
+        <text
+          key={`nr-${row.n}`}
+          x={96}
+          y={row.y + TH / 2}
+          textAnchor="end"
+          dominantBaseline="central"
+          fontSize={12}
+          fill={C.muted}
+        >
+          {row.n}
+        </text>
+      ))}
+
+      {STOLPER.map((s) => (
+        <rect
+          key={`stolpe-${s.x}-${s.y}`}
+          x={s.x}
+          y={s.y}
+          width={11}
+          height={11}
+          fill={C.stolpe}
+        />
+      ))}
+
+      <Panel x={222} y={592} w={140} h={36} label="Billetsalg" />
+
+      {LEGEND.map((item) => (
+        <g key={item.label}>
+          <rect x={item.x} y={item.y} width={14} height={14} rx={3} fill={item.fill} />
+          <text
+            x={item.x + 20}
+            y={item.y + 7}
+            dominantBaseline="central"
+            fontSize={12}
+            fill={C.muted}
+          >
+            {item.label}
+          </text>
+        </g>
+      ))}
     </svg>
   );
 }

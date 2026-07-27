@@ -65,9 +65,9 @@
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(10, 21, 38, 0.72), rgba(10, 21, 38, 0.94)),
-    url("/dot-vintage-1.jpg");
+    url("/BH (20).jpeg");
   background-size: cover;
-  background-position: center 22%;
+  background-position: center 28%;
 }
 .book-hero--compact {
   padding: 40px 40px 24px;
