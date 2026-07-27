@@ -26,3 +26,17 @@ export function isOrderingEnabled(): boolean {
 export function isLiveMode(): boolean {
   return process.env.TABLE_ORDERING_LIVE === "true";
 }
+
+/**
+ * Værn mod utilsigtet livebetaling: en live Stripe-nøgle (sk_live_) må aldrig
+ * bruges, når TABLE_ORDERING_LIVE ikke er true. Kaster hvis kombinationen er
+ * ulovlig, så en livebetaling er umulig uden eksplicit live-tilstand.
+ */
+export function assertLivePaymentAllowed(stripeKey: string | undefined): void {
+  const isLiveKey = (stripeKey ?? "").startsWith("sk_live_");
+  if (isLiveKey && !isLiveMode()) {
+    throw new Error(
+      "Livebetaling er slået fra (TABLE_ORDERING_LIVE=false), men Stripe-nøglen er en live-nøgle."
+    );
+  }
+}

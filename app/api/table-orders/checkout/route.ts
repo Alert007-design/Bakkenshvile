@@ -9,6 +9,7 @@ import { parseTableNumber } from "@/lib/tables";
 import { verifyTableToken } from "@/lib/table-tokens";
 import { rateLimit } from "@/lib/rate-limit";
 import {
+  assertLivePaymentAllowed,
   CHECKOUT_EXPIRY_MINUTES,
   CHECKOUT_RATE_LIMIT,
   CHECKOUT_RATE_WINDOW_MS,
@@ -20,6 +21,12 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   // Sikkerhedskontakt: intet tages imod før bordbestilling er slået til.
   if (!isOrderingEnabled()) {
+    return NextResponse.json({ error: "Bordbestilling er ikke aktiv." }, { status: 403 });
+  }
+  // Livebetaling er umulig uden eksplicit live-tilstand (fejler lukket).
+  try {
+    assertLivePaymentAllowed(process.env.STRIPE_SECRET_KEY);
+  } catch {
     return NextResponse.json({ error: "Bordbestilling er ikke aktiv." }, { status: 403 });
   }
 
