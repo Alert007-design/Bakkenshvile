@@ -486,6 +486,7 @@
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   border: 1px solid var(--bh-line);
 }
+.summary-line,
 .summary-discount {
   display: flex;
   gap: 14px;

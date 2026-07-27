@@ -982,10 +982,16 @@ export default function BookingClient({
       <div className="summary">
         <div>
           {discount > 0 && (
-            <div className="summary-discount">
-              <span>{ADDON_DISCOUNT_LABEL}</span>
-              <span className="summary-discount-amount">−{kr(discount)}</span>
-            </div>
+            <>
+              <div className="summary-line">
+                <span>Subtotal</span>
+                <span>{kr(ticketsTotal + addonSubtotal)}</span>
+              </div>
+              <div className="summary-discount">
+                <span>{ADDON_DISCOUNT_LABEL}</span>
+                <span className="summary-discount-amount">−{kr(discount)}</span>
+              </div>
+            </>
           )}
           <div className="summary-total">{kr(total)}</div>
           <div className="summary-count">
