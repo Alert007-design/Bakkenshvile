@@ -1,0 +1,235 @@
+/* Gæstens bordbestilling — mobil-first, en del af Bakkens Hvile-designet.
+   Genbruger farve- og font-variablerne fra globals.css. */
+
+.bord {
+  --bar-h: 84px;
+  min-height: 100dvh;
+  background: var(--ink-900);
+  color: var(--paper);
+  padding-bottom: calc(var(--bar-h) + env(safe-area-inset-bottom, 0px) + 16px);
+}
+
+/* Mørkt, dæmpet show-tema. Ikke et globalt CSS-filter — separate,
+   lav-luminans-farver, så kontrast og læsbarhed bevares. */
+.bord[data-show="true"] {
+  --paper: oklch(0.7 0.01 80);
+  --gold: oklch(0.62 0.09 85);
+  background: oklch(0.13 0.03 265);
+}
+
+.bord-head {
+  padding: 24px 20px 8px;
+  text-align: center;
+}
+.bord-no {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 64px;
+  line-height: 1;
+  color: var(--gold);
+}
+.bord-place {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.bord-note {
+  max-width: 520px;
+  margin: 12px auto 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--paper-dim);
+}
+
+.menu {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 8px 16px;
+}
+.menu-group-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin: 24px 0 8px;
+  color: var(--paper);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.menu-item-main {
+  flex: 1;
+  min-width: 0;
+}
+.menu-item-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+.menu-item-desc {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.menu-item-price {
+  font-size: 14px;
+  color: var(--gold);
+  margin-top: 2px;
+}
+
+.qty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.qty button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--paper);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qty button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.qty-val {
+  min-width: 20px;
+  text-align: center;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sticky bundlinje med safe-area for iPhone. */
+.checkout-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--ink-950);
+  border-top: 1px solid var(--line-strong);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+}
+.checkout-bar-inner {
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.checkout-total {
+  flex: 1;
+}
+.checkout-total .n {
+  font-size: 12px;
+  color: var(--muted);
+}
+.checkout-total .amt {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
+}
+.btn-pay {
+  background: var(--gold);
+  color: var(--ink-950);
+  border: none;
+  border-radius: 10px;
+  padding: 14px 22px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-pay:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.field {
+  max-width: 560px;
+  margin: 16px auto 0;
+  padding: 0 16px;
+}
+.field label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.field input,
+.field textarea {
+  width: 100%;
+  background: var(--ink-800);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--paper);
+  padding: 12px;
+  font-size: 16px; /* >=16px, undgår iOS-zoom */
+  font-family: inherit;
+}
+
+.bord-msg {
+  max-width: 560px;
+  margin: 40px auto;
+  padding: 0 24px;
+  text-align: center;
+  color: var(--paper-dim);
+}
+.bord-msg h1 {
+  font-family: var(--font-display);
+  color: var(--gold);
+}
+
+.error-line {
+  color: oklch(0.7 0.15 25);
+  font-size: 14px;
+  text-align: center;
+  margin: 8px 0 0;
+}
+
+/* Kvittering */
+.kvit {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 32px 20px;
+  text-align: center;
+}
+.kvit-status {
+  font-family: var(--font-display);
+  font-size: 24px;
+  margin: 16px 0;
+}
+.kvit-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.kvit-badge.processing { background: var(--ink-800); color: var(--paper-dim); }
+.kvit-badge.paid { background: oklch(0.5 0.12 150); color: var(--paper); }
+.kvit-badge.failed { background: oklch(0.5 0.15 25); color: var(--paper); }
+.kvit-lines {
+  text-align: left;
+  margin: 24px auto;
+  border-top: 1px solid var(--line);
+}
+.kvit-lines .row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
