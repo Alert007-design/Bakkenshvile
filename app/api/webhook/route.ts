@@ -1,18 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
-import { updateRecord, TABLES, FIELDS } from "@/lib/airtable";
+import { updateRecord, getRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { sendMail } from "@/lib/resend";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
+import { addonBreakdown, mergeAddonBreakdowns } from "@/lib/genbestil";
 import Stripe from "stripe";
 
-function ticketEmailHtml(params: {
+// Fælles e-mail-skabelon for både billetkøb og genbestilling — samme design.
+function orderEmailHtml(params: {
+  heading: string;
   bookingNo: string;
-  customerName: string;
   lineItems: Stripe.LineItem[];
   discountKr: number;
+  totalLabel: string;
   total: string;
+  grandTotal?: string;
+  footerNote: string;
 }) {
-  const { bookingNo, customerName, lineItems, discountKr, total } = params;
+  const {
+    heading,
+    bookingNo,
+    lineItems,
+    discountKr,
+    totalLabel,
+    total,
+    grandTotal,
+    footerNote,
+  } = params;
   const discountRow =
     discountKr > 0
       ? `
@@ -34,6 +48,9 @@ function ticketEmailHtml(params: {
       </tr>`
     )
     .join("");
+  const grandTotalRow = grandTotal
+    ? `<p style="text-align:right;margin:4px 0 0;font-size:14px;color:#d8d3c2;">Samlet bestilling i alt: ${grandTotal}</p>`
+    : "";
 
   return `
   <div style="font-family:Georgia,serif;background:#f6f1e4;padding:32px;color:#1a1a16;">
@@ -41,7 +58,7 @@ function ticketEmailHtml(params: {
       <p style="letter-spacing:0.15em;text-transform:uppercase;font-size:12px;color:#c9a227;margin:0 0 8px;">
         Bakkens Hvile · Underholdning siden 1877
       </p>
-      <h1 style="margin:0 0 16px;font-size:24px;">Tak for din billetbestilling, ${customerName}!</h1>
+      <h1 style="margin:0 0 16px;font-size:24px;">${heading}</h1>
       <p style="font-family:monospace;color:#c9a227;font-size:14px;margin:0 0 24px;">${bookingNo}</p>
 
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
@@ -55,11 +72,11 @@ function ticketEmailHtml(params: {
         <tbody>${rows}${discountRow}</tbody>
       </table>
 
-      <p style="text-align:right;margin-top:16px;font-size:18px;color:#c9a227;">I alt: ${total}</p>
+      <p style="text-align:right;margin-top:16px;font-size:18px;color:#c9a227;">${totalLabel}: ${total}</p>
+      ${grandTotalRow}
 
       <p style="font-size:13px;color:#d8d3c2;margin-top:32px;">
-        Vis dette bookingnummer ved indgangen. Vi glæder os til at se dig på
-        Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.
+        ${footerNote}
       </p>
     </div>
   </div>`;
@@ -83,12 +100,52 @@ export async function POST(req: NextRequest) {
     const session = event.data.object as Stripe.Checkout.Session;
     const bookingId = session.metadata?.bookingId;
     const bookingNo = session.metadata?.bookingNo || "";
+    const isReorder = session.metadata?.reorder === "true";
+
+    const paidKr = Math.round((session.amount_total ?? 0) / 100);
+    // Rabatten aflæses direkte på Stripe-sessionen, så mailen viser nøjagtig
+    // det beløb, kunden fik trukket via couponen.
+    const discountKr = Math.round(
+      (session.total_details?.amount_discount ?? 0) / 100
+    );
+
+    let grandTotalKr = paidKr;
 
     if (bookingId) {
       try {
-        await updateRecord(TABLES.bookings, bookingId, {
-          [FIELDS.booking.status]: "Betalt",
-        });
+        if (isReorder) {
+          // Genbestilling: læg tilvalgene oven i den eksisterende booking og
+          // summér rabat + samlet betaling. Der oprettes ingen ny booking.
+          const stripe = getStripe();
+          const items = await stripe.checkout.sessions.listLineItems(
+            session.id,
+            { limit: 100 }
+          );
+          const newAddons = addonBreakdown(
+            items.data.map((li) => ({
+              name: li.description ?? "",
+              quantity: li.quantity ?? 0,
+            }))
+          );
+          const existing = await getRecord(TABLES.bookings, bookingId);
+          const prevDiscount = Number(
+            existing.fields[FIELDS.booking.discount] ?? 0
+          );
+          const prevPaid = Number(existing.fields[FIELDS.booking.totalPaid] ?? 0);
+          const prevAddons = String(existing.fields[FIELDS.booking.addons] ?? "");
+          grandTotalKr = prevPaid + paidKr;
+          await updateRecord(TABLES.bookings, bookingId, {
+            [FIELDS.booking.addons]: mergeAddonBreakdowns(prevAddons, newAddons),
+            [FIELDS.booking.discount]: prevDiscount + discountKr,
+            [FIELDS.booking.totalPaid]: grandTotalKr,
+          });
+        } else {
+          // Almindeligt billetkøb: markér betalt og gem det samlede beløb.
+          await updateRecord(TABLES.bookings, bookingId, {
+            [FIELDS.booking.status]: "Betalt",
+            [FIELDS.booking.totalPaid]: paidKr,
+          });
+        }
       } catch (err) {
         console.error("Kunne ikke opdatere booking i Airtable", err);
       }
@@ -102,27 +159,45 @@ export async function POST(req: NextRequest) {
           session.id,
           { limit: 100 }
         );
-        const total = session.amount_total
-          ? `${(session.amount_total / 100).toFixed(0)} kr.`
-          : "";
-        // Rabatten aflæses direkte på Stripe-sessionen, så mailen viser
-        // nøjagtig det beløb, kunden fik trukket via couponen.
-        const discountKr = Math.round(
-          (session.total_details?.amount_discount ?? 0) / 100
-        );
-        await sendMail({
-          to: email,
-          subject: `Dine billetter til Bakkens Hvile — ${bookingNo}`,
-          html: ticketEmailHtml({
-            bookingNo,
-            customerName: session.customer_details?.name || "",
-            lineItems: lineItems.data,
-            discountKr,
-            total,
-          }),
-        });
+        const customerName = session.customer_details?.name || "";
+        if (isReorder) {
+          await sendMail({
+            to: email,
+            subject: `Din ekstra bestilling til Bakkens Hvile — ${bookingNo}`,
+            html: orderEmailHtml({
+              heading: `Tak for din ekstra bestilling${
+                customerName ? ", " + customerName : ""
+              }!`,
+              bookingNo,
+              lineItems: lineItems.data,
+              discountKr,
+              totalLabel: "Betalt nu",
+              total: `${paidKr} kr.`,
+              grandTotal: `${grandTotalKr} kr.`,
+              footerNote:
+                "Vi har lagt drikkevarerne til din bestilling. Vi glæder os til at se dig på Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.",
+            }),
+          });
+        } else {
+          await sendMail({
+            to: email,
+            subject: `Dine billetter til Bakkens Hvile — ${bookingNo}`,
+            html: orderEmailHtml({
+              heading: `Tak for din billetbestilling${
+                customerName ? ", " + customerName : ""
+              }!`,
+              bookingNo,
+              lineItems: lineItems.data,
+              discountKr,
+              totalLabel: "I alt",
+              total: `${paidKr} kr.`,
+              footerNote:
+                "Vis dette bookingnummer ved indgangen. Vi glæder os til at se dig på Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.",
+            }),
+          });
+        }
       } catch (err) {
-        console.error("Kunne ikke sende billet-mail", err);
+        console.error("Kunne ikke sende bekræftelsesmail", err);
       }
     }
   }

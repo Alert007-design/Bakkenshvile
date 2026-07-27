@@ -58,6 +58,10 @@ export const FIELDS = {
     drinkPreference: "fldTUUh4pZHpvakeb",
     matchNote: "fldiOj5VZFyDT4Wlo",
     discount: "fldyvk9ctBK7yyYrn",
+    ticketBreakdown: "fldXuocW3IneLzwnY",
+    key: "fldxkPBhklx1pv3ng",
+    addons: "fldmL8WJLs0OHLPd3",
+    totalPaid: "fldfamJJegkmOLm1q",
   },
 } as const;
 
@@ -97,6 +101,21 @@ export async function listRecords(tableId: string) {
     {
       headers: headers(),
       next: { revalidate: 30 },
+    }
+  );
+  if (!res.ok) throw new Error(`Airtable-fejl (${tableId}): ${res.status}`);
+  const data = await res.json();
+  return data.records as Array<{ id: string; fields: Record<string, unknown> }>;
+}
+
+export async function findRecords(tableId: string, filterByFormula: string) {
+  const res = await fetch(
+    `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true&filterByFormula=${encodeURIComponent(
+      filterByFormula
+    )}`,
+    {
+      headers: headers(),
+      cache: "no-store",
     }
   );
   if (!res.ok) throw new Error(`Airtable-fejl (${tableId}): ${res.status}`);
