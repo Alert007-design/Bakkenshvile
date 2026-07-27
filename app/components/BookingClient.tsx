@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  addonDiscountKr,
+  addonsTotalDiscountKr,
   discountedAddonUnitKr,
   ADDON_DISCOUNT_LABEL,
 } from "@/lib/pricing";
@@ -505,9 +505,18 @@ export default function BookingClient({
     return sum;
   }, [addons, addonQty]);
 
-  // Rabatten beregnes på summen af tilvalg (ikke pr. linje) via den delte
-  // hjælpefunktion — nøjagtig samme tal som Stripe-checkout bruger.
-  const discount = useMemo(() => addonDiscountKr(addonSubtotal), [addonSubtotal]);
+  // Rabatten er summen af de enhedsfloorede rabatter via den delte
+  // hjælpefunktion — nøjagtig samme tal som Stripe-checkout bruger, og
+  // linjerne summerer præcis til totalen.
+  const discount = useMemo(
+    () =>
+      addonsTotalDiscountKr(
+        addons
+          .filter((a) => addonQty[a.id])
+          .map((a) => ({ unitKr: a.price, quantity: addonQty[a.id] }))
+      ),
+    [addons, addonQty]
+  );
 
   const total = ticketsTotal + addonSubtotal - discount;
 

@@ -11,17 +11,27 @@ export const ADDON_DISCOUNT_RATE = 0.1;
 
 export const ADDON_DISCOUNT_LABEL = "Onlinerabat, 10% på drikkevarer";
 
-// Rabatbeløbet i hele kroner, beregnet på det samlede tilvalgs-beløb.
-// Rundes ned (Math.floor), så rabatten aldrig overstiger 10%.
-export function addonDiscountKr(addonSubtotalKr: number): number {
-  if (!Number.isFinite(addonSubtotalKr) || addonSubtotalKr <= 0) return 0;
-  return Math.floor(addonSubtotalKr * ADDON_DISCOUNT_RATE);
+// Rabat pr. enhed i hele kroner, rundet ned (Math.floor). Dette er den
+// bindende enhed: både den viste pris pr. linje og det trukne beløb bygger på
+// dette tal, så det gæsten ser pr. linje altid er identisk med det trukne.
+export function addonUnitDiscountKr(unitKr: number): number {
+  if (!Number.isFinite(unitKr) || unitKr <= 0) return 0;
+  return Math.floor(unitKr * ADDON_DISCOUNT_RATE);
 }
 
-// Rabatteret enhedspris til visning pr. tilvalg. Kun til visning — den
-// bindende rabat beregnes på summen via addonDiscountKr(), så en enkelt linje
-// kan afvige nogle øre fra den summerede rabat. Rundes ned for at følge samme
-// princip som totalrabatten.
+// Rabatteret enhedspris til visning: fuld pris minus den enhedsfloorede rabat.
 export function discountedAddonUnitKr(unitKr: number): number {
-  return Math.floor(unitKr * (1 - ADDON_DISCOUNT_RATE));
+  return unitKr - addonUnitDiscountKr(unitKr);
+}
+
+// Samlet rabat = summen af de enhedsfloorede rabatter (× antal) — IKKE en
+// separat floor på totalen. Dermed summerer linjerne præcis til totalen, og
+// det viste stemmer nøjagtigt med det trukne. Deles af frontend og checkout.
+export function addonsTotalDiscountKr(
+  lines: { unitKr: number; quantity: number }[]
+): number {
+  return lines.reduce(
+    (sum, line) => sum + addonUnitDiscountKr(line.unitKr) * line.quantity,
+    0
+  );
 }
