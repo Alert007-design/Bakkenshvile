@@ -11,7 +11,13 @@ import {
   listActiveOrders,
   type DraftOrderInput,
 } from "@/lib/orders";
-import { getHallState, setHallState, isOrderingOpen } from "@/lib/hall-state";
+import {
+  getHallState,
+  setHallState,
+  isOrderingOpen,
+  getActiveEvent,
+  activateEvent,
+} from "@/lib/hall-state";
 
 // pglite implementerer Queryable (query(text, params) → { rows, rowCount }).
 let db: Queryable & { query: PGlite["query"] };
@@ -264,5 +270,21 @@ describe("hall_state", () => {
     // Stadig præcis én række pr. event (upsert).
     const { rows } = await db.query<{ n: string }>(`SELECT count(*) AS n FROM hall_state WHERE event_id='evt1'`);
     expect(Number(rows[0].n)).toBe(1);
+  });
+
+  it("activateEvent åbner ét event og lukker alle andre", async () => {
+    await setHallState(db, "evt1", "show", true);
+    await activateEvent(db, "evt2", "before_show");
+
+    const active = await getActiveEvent(db);
+    expect(active?.eventId).toBe("evt2");
+    expect(active?.orderingOpen).toBe(true);
+    // evt1 er nu lukket.
+    expect(await isOrderingOpen(db, "evt1")).toBe(false);
+  });
+
+  it("getActiveEvent er null når intet event er åbent", async () => {
+    await setHallState(db, "evt1", "closed", false);
+    expect(await getActiveEvent(db)).toBeNull();
   });
 });

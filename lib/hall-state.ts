@@ -79,3 +79,48 @@ export async function isOrderingOpen(db: Queryable, eventId: string): Promise<bo
   const hs = await getHallState(db, eventId);
   return Boolean(hs?.orderingOpen);
 }
+
+/**
+ * Aftenens aktive forestilling: den ene med åben bestilling. Gæsten scanner et
+ * bord uden at kende eventet, så serveren udleder det herfra. Null hvis ingen
+ * forestilling er åben (⇒ bestilling lukket).
+ */
+export async function getActiveEvent(db: Queryable): Promise<HallState | null> {
+  const { rows } = await db.query<{
+    event_id: string;
+    state: HallStateValue;
+    ordering_open: boolean;
+    updated_at: string;
+  }>(
+    `SELECT event_id, state, ordering_open, updated_at
+       FROM hall_state WHERE ordering_open = true
+      ORDER BY updated_at DESC LIMIT 1`
+  );
+  return rows[0] ? toHallState(rows[0]) : null;
+}
+
+/**
+ * Baren bekræfter aftenens forestilling: åbner bestilling for dette event og
+ * lukker alle andre, så der altid er præcis ét aktivt event. Der kan kun
+ * bestilles til den konkrete aften.
+ */
+export async function activateEvent(
+  db: Queryable,
+  eventId: string,
+  state: HallStateValue = "before_show"
+): Promise<HallState> {
+  await db.query("BEGIN");
+  try {
+    await db.query(
+      `UPDATE hall_state SET ordering_open = false, updated_at = now()
+        WHERE event_id <> $1 AND ordering_open = true`,
+      [eventId]
+    );
+    const hs = await setHallState(db, eventId, state, true);
+    await db.query("COMMIT");
+    return hs;
+  } catch (err) {
+    await db.query("ROLLBACK");
+    throw err;
+  }
+}
