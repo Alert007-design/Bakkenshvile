@@ -2,6 +2,7 @@
 // testes uden en QR-billedafhængighed. scripts/generate-qr-sheet.ts bygger
 // oven på dette og tegner de faktiske QR-koder.
 
+import QRCode from "qrcode";
 import { VALID_TABLE_NUMBERS, getTable, type TableCategory } from "@/lib/tables";
 import { tableUrl, TABLE_TOKEN_VERSION } from "@/lib/table-tokens";
 
@@ -33,5 +34,23 @@ export function buildQrSheet(
       version,
       url: tableUrl(number, baseUrl, version),
     };
+  });
+}
+
+export interface QrSvgOptions {
+  errorCorrectionLevel?: "L" | "M" | "Q" | "H";
+  /** Quiet zone i moduler (Airtable-standard er 4). */
+  margin?: number;
+}
+
+/**
+ * Renderer en URL som inline SVG-QR-kode. Delt af både print-scriptet og
+ * admin-siden, så token/URL og QR-rendering ikke duplikeres.
+ */
+export function renderQrSvg(url: string, opts: QrSvgOptions = {}): Promise<string> {
+  return QRCode.toString(url, {
+    type: "svg",
+    errorCorrectionLevel: opts.errorCorrectionLevel ?? "M",
+    margin: opts.margin ?? 1,
   });
 }

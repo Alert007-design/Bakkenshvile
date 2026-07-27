@@ -14,8 +14,7 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import QRCode from "qrcode";
-import { buildQrSheet } from "@/lib/qr-sheet";
+import { buildQrSheet, renderQrSvg } from "@/lib/qr-sheet";
 
 const BASE_URL = process.env.QR_BASE_URL || "https://bakkenshvile.dk";
 const OUT = process.env.QR_OUT || "scripts/output/qr-ark.html";
@@ -33,13 +32,7 @@ async function main() {
 
   // QR-koderne tegnes som SVG (skarpe ved print, ingen ekstern fil).
   const svgs = await Promise.all(
-    entries.map((e) =>
-      QRCode.toString(e.url, {
-        type: "svg",
-        errorCorrectionLevel: "M",
-        margin: 1,
-      })
-    )
+    entries.map((e) => renderQrSvg(e.url, { errorCorrectionLevel: "M", margin: 1 }))
   );
 
   const pages = entries
