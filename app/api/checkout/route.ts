@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRecord, getRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { getStripe } from "@/lib/stripe";
 import { addonsTotalDiscountKr, ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
+import { addonBreakdown, generateBookingKey } from "@/lib/genbestil";
 
 type LineItem = {
   name: string;
@@ -92,6 +93,11 @@ export async function POST(req: NextRequest) {
     });
     const bookingNo = `BH-${Date.now().toString().slice(-8)}`;
     const ticketBreakdown = summarizeTicketCategories(lineItems);
+    // Tilvalg gemmes på bookingen (én linje pr. vare), så en senere
+    // genbestilling kan lægges oven i dem.
+    const addonsText = addonBreakdown(
+      lineItems.filter((li) => li.kind === "addon")
+    );
 
     // Onlinerabat: 10% på tilvalg. Beregnes serverside som summen af de
     // enhedsfloorede rabatter via den delte hjælpefunktion — nøjagtig samme
@@ -109,12 +115,10 @@ export async function POST(req: NextRequest) {
       [FIELDS.booking.status]: "Afventer betaling",
       [FIELDS.booking.discount]: discount,
       [FIELDS.booking.customer]: [customerRecord.id],
-      // Feltet "Billetkategorier" (fldXuocW3IneLzwnY) i Airtable —
-      // tilføjet direkte som felt-ID, da det endnu ikke er lagt ind i
-      // FIELDS-mappingen i lib/airtable.ts. Overvej at tilføje
-      // "ticketBreakdown: 'fldXuocW3IneLzwnY'" til FIELDS.booking der,
-      // og skift nøglen herunder til FIELDS.booking.ticketBreakdown.
-      fldXuocW3IneLzwnY: ticketBreakdown,
+      [FIELDS.booking.ticketBreakdown]: ticketBreakdown,
+      [FIELDS.booking.addons]: addonsText,
+      // Ugættelig nøgle til genbestilling (/genbestil?ref=<nr>&n=<nøgle>).
+      [FIELDS.booking.key]: generateBookingKey(),
     };
     if (showId) {
       bookingFields[FIELDS.booking.show] = [showId];
