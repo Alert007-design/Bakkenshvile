@@ -879,8 +879,9 @@ export default function BookingClient({
         <div className="section-title">Om bordplaceringen</div>
         <div className="section-sub">
           Ved udsolgte shows sættes gæster ved borde inden for den
-          billetkategori, I har købt. Bordene i salen rummer 5-6 personer, og
-          jeres selskab kan derfor komme til at dele bord med andre gæster.
+          billetkategori, I har købt. Bordene i salen rummer op til fire
+          personer, og jeres selskab kan derfor komme til at dele bord med
+          andre gæster.
           Vi opfordrer jer til at udfylde spørgsmålene herunder — de hjælper
           os med at sætte selskaber sammen, der passer godt til hinanden.
         </div>
