@@ -43,7 +43,7 @@ function orderEmailHtml(params: {
         <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;">${li.description}</td>
         <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;text-align:center;">${li.quantity}</td>
         <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;text-align:right;">${
-          li.amount_total != null ? (li.amount_total / 100).toFixed(0) : ""
+          li.amount_subtotal != null ? (li.amount_subtotal / 100).toFixed(0) : ""
         } kr.</td>
       </tr>`
     )
