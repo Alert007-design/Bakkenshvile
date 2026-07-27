@@ -12,14 +12,13 @@ const NAV_LINKS = [
   { href: "#kontakt", label: "Kontakt" },
 ];
 
-// Navngivne portrætter. Ann, Tina og Dot har bekræftede fotos i kataloget;
-// der findes endnu ikke et foto identificeret som Sus Mathiasen — hendes kort
-// vises som et pænt "foto følger"-felt, indtil huset leverer et billede.
-const SINGERS: { name: string; billede: Billede | null }[] = [
-  { name: "Tina Grunwald", billede: billeder.tinaIGarderoben },
-  { name: "Sus Mathiasen", billede: null },
-  { name: "Dot Wessman", billede: billeder.dotPaaRaekvaerket },
-  { name: "Ann Farholt", billede: billeder.annPortraet },
+// Navngivne portrætter — dedikerede lokale kopier i public/ (via lib/billeder.ts),
+// så intet hentes fra bakkenshvile.dk, der lukkes ned.
+const SINGERS: { name: string; billede: Billede }[] = [
+  { name: "Tina Grunwald", billede: billeder.tinaGrunwald },
+  { name: "Sus Mathiasen", billede: billeder.susMathiasen },
+  { name: "Dot Wessman", billede: billeder.dotWessman },
+  { name: "Ann Farholt", billede: billeder.annFarholt },
 ];
 
 // Portrætmosaik til galleriet. Første element er featuren (2×2).
@@ -137,19 +136,15 @@ export default function Home() {
             {SINGERS.map((singer) => (
               <div className="singerCard" key={singer.name}>
                 <div className="singerPhoto">
-                  {singer.billede ? (
-                    <Image
-                      src={singer.billede.src}
-                      alt={singer.billede.alt}
-                      width={singer.billede.bredde}
-                      height={singer.billede.hoejde}
-                      loading="lazy"
-                      sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 276px"
-                      style={{ objectPosition: "center 25%" }}
-                    />
-                  ) : (
-                    <div className="singerPhotoPending">Foto følger</div>
-                  )}
+                  <Image
+                    src={singer.billede.src}
+                    alt={singer.billede.alt}
+                    width={singer.billede.bredde}
+                    height={singer.billede.hoejde}
+                    loading="lazy"
+                    sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 276px"
+                    style={{ objectPosition: "center 25%" }}
+                  />
                 </div>
                 <p className="singerName">{singer.name}</p>
               </div>

@@ -222,6 +222,37 @@ export const billeder = {
     hoejde: 2622,
     maksVisningsbredde: 1100,
   },
+
+  // --- Sangerinde-portrætter (dedikerede lokale kopier) ---
+  // Erstatter tidligere hotlinks til bakkenshvile.dk, som lukkes ned.
+  annFarholt: {
+    src: "/ann-farholt.jpg",
+    alt: "Portræt af syngepigen Ann Farholt",
+    bredde: 1200,
+    hoejde: 1348,
+    maksVisningsbredde: 1200,
+  },
+  susMathiasen: {
+    src: "/sus-mathiasen.jpg",
+    alt: "Portræt af syngepigen Sus Mathiasen",
+    bredde: 1395,
+    hoejde: 1498,
+    maksVisningsbredde: 1395,
+  },
+  dotWessman: {
+    src: "/dot-wessman.jpg",
+    alt: "Portræt af syngepigen Dot Wessman",
+    bredde: 1520,
+    hoejde: 1506,
+    maksVisningsbredde: 1520,
+  },
+  tinaGrunwald: {
+    src: "/tina-grunwald.jpg",
+    alt: "Portræt af syngepigen Tina Grunwald",
+    bredde: 1493,
+    hoejde: 1536,
+    maksVisningsbredde: 1493,
+  },
 } satisfies Record<string, Billede>;
 
 export type BilledeNoegle = keyof typeof billeder;
