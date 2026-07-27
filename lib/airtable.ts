@@ -35,6 +35,13 @@ export const FIELDS = {
     name: "fldfRo2vS99rldTUD",
     price: "fldT7yU2cBiZ3TvBz",
     category: "fldR4bGu31Z1OmXqd",
+    // Felter tilføjet til bordbestillingen (samme liste som billetkøbets
+    // tilvalg — huset vedligeholder menuen ét sted).
+    description: "fld9SPCNuanJLJJtM",
+    active: "fldzBVlQpYB030TD5",
+    vatRate: "fldyTzzoKdHYFxRrV",
+    productCode: "fldRykFDSu0Y3CK1Q",
+    sort: "fldiVSQNs8MQ5EaA1",
   },
   customer: {
     name: "fldJj0hE2qNJIN136",
