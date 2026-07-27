@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRecord, getRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { getStripe } from "@/lib/stripe";
-import { addonDiscountKr, ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
+import { addonsTotalDiscountKr, ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
 
 type LineItem = {
   name: string;
@@ -93,13 +93,14 @@ export async function POST(req: NextRequest) {
     const bookingNo = `BH-${Date.now().toString().slice(-8)}`;
     const ticketBreakdown = summarizeTicketCategories(lineItems);
 
-    // Onlinerabat: 10% på tilvalg. Beregnes serverside på summen af tilvalg
-    // via den delte hjælpefunktion — nøjagtig samme tal som frontend viser,
-    // så det viste og det trukne aldrig kan afvige.
-    const addonSubtotal = lineItems
-      .filter((li) => li.kind === "addon")
-      .reduce((sum, li) => sum + li.unitAmount * li.quantity, 0);
-    const discount = addonDiscountKr(addonSubtotal);
+    // Onlinerabat: 10% på tilvalg. Beregnes serverside som summen af de
+    // enhedsfloorede rabatter via den delte hjælpefunktion — nøjagtig samme
+    // tal som frontend viser, så det viste og det trukne aldrig kan afvige.
+    const discount = addonsTotalDiscountKr(
+      lineItems
+        .filter((li) => li.kind === "addon")
+        .map((li) => ({ unitKr: li.unitAmount, quantity: li.quantity }))
+    );
 
     const bookingFields: Record<string, unknown> = {
       [FIELDS.booking.bookingNo]: bookingNo,
