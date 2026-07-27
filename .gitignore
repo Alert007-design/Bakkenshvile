@@ -13,6 +13,7 @@
 
 # typescript
 next-env.d.ts
+tsconfig.tsbuildinfo
 
 # misc / os
 .DS_Store
