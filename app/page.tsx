@@ -37,8 +37,9 @@ const GALLERI: { billede: Billede; objectPosition: string }[] = [
 
 const JUBILEE = {
   title: "150 års jubilæumssæson 2027",
-  price: "Fra 209 kr",
+  price: "Ordinær fra 289 kr",
   desc: "Hele 2027 fejrer vi 150 år på Dyrehavsbakken med en samlet jubilæumssæson. Book jeres billet og vær med til at fejre det med os.",
+  note: "De to forpremierer 10. og 11. maj 2027 har lavere priser — fra 179 kr. Se de gældende priser for hver enkelt dato, når du vælger den.",
 };
 
 export default function Home() {
@@ -163,6 +164,7 @@ export default function Home() {
             <h3>{JUBILEE.title}</h3>
             <p className="amount">{JUBILEE.price}</p>
             <p className="desc">{JUBILEE.desc}</p>
+            <p className="desc jubileeNote">{JUBILEE.note}</p>
           </div>
           <div style={{ textAlign: "center", marginTop: 48 }}>
             <Link

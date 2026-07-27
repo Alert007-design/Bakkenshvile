@@ -9,6 +9,7 @@ type Ticket = {
   price: number;
   fee: number;
   maxCount: number;
+  priceGroup: string;
 };
 
 type AddOn = {
@@ -27,10 +28,13 @@ type ShowDate = {
   time: string;
   duration: string;
   notes: string;
-  // Valgfrit felt — findes ikke i Airtable/page.tsx endnu.
-  // Tilføj et "Status"-felt i Events-tabellen (fx single-select med
-  // værdierne "few" / "soldout" / "premiere") og send det med fra
-  // page.tsx, så virker badges "Få pladser" og "Udsolgt" automatisk.
+  // Prisgruppen fra Events ("Ordinær", "Forpremiere 10. maj", ...).
+  // Bestemmer hvilke billettyper der vises for datoen.
+  priceGroup: string;
+  // Udsolgt-flag fra Events. Udsolgte datoer vises, men kan ikke bookes.
+  soldOut: boolean;
+  // Valgfrit "Få pladser"/"premiere"-hint. Findes ikke i Airtable endnu;
+  // "soldout" udledes nu i stedet af feltet soldOut ovenfor.
   status?: ShowStatus;
 };
 
@@ -70,7 +74,8 @@ function getBadge(
   show: ShowDate,
   isEarliest: boolean
 ): { type: ShowStatus; label: string } | null {
-  if (show.status === "soldout") return { type: "soldout", label: "Udsolgt" };
+  if (show.soldOut || show.status === "soldout")
+    return { type: "soldout", label: "Udsolgt" };
   if (show.status === "few") return { type: "few", label: "Få pladser" };
   if (show.status === "premiere" || isEarliest)
     return { type: "premiere", label: "Premiere" };
@@ -467,20 +472,31 @@ export default function BookingClient({
     return Array.from(map.entries());
   }, [addons]);
 
-  const sortedTickets = useMemo(() => {
-    return [...tickets].sort(
-      (a, b) => b.price + b.fee - (a.price + a.fee)
-    );
-  }, [tickets]);
+  // Kun billettyper hvis prisgruppe matcher den valgte dato, dyreste først.
+  // Sorteres på pris (faldende) frem for hårdkodede kategorinavne.
+  const visibleTickets = useMemo(() => {
+    if (!selectedShow) return [];
+    return tickets
+      .filter((t) => t.priceGroup === selectedShow.priceGroup)
+      .sort((a, b) => b.price + b.fee - (a.price + a.fee));
+  }, [tickets, selectedShow]);
 
   const totalTickets = Object.values(ticketQty).reduce((a, b) => a + b, 0);
 
   const total = useMemo(() => {
     let sum = 0;
-    for (const t of tickets) sum += (ticketQty[t.id] || 0) * (t.price + t.fee);
+    for (const t of visibleTickets) sum += (ticketQty[t.id] || 0) * (t.price + t.fee);
     for (const a of addons) sum += (addonQty[a.id] || 0) * a.price;
     return sum;
-  }, [tickets, addons, ticketQty, addonQty]);
+  }, [visibleTickets, addons, ticketQty, addonQty]);
+
+  // Skift dato: nulstil billetantal, så mængder fra en anden prisgruppe
+  // aldrig følger med over på den nye dato.
+  function selectDate(id: string | null) {
+    setSelectedId(id);
+    setTicketQty({});
+    setError(null);
+  }
 
   function setTicket(id: string, delta: number, max: number) {
     setTicketQty((prev) => {
@@ -502,6 +518,10 @@ export default function BookingClient({
       setError("Vælg en dato.");
       return;
     }
+    if (selectedShow.soldOut) {
+      setError("Denne dato er udsolgt.");
+      return;
+    }
     if (totalTickets === 0) {
       setError("Vælg mindst én billet.");
       return;
@@ -514,7 +534,7 @@ export default function BookingClient({
     try {
       const showLabel = `${formatShortDate(selectedShow.date)} kl. ${selectedShow.time}`;
       const lineItems = [
-        ...tickets
+        ...visibleTickets
           .filter((t) => ticketQty[t.id])
           .map((t) => ({
             name: `Billet: ${t.category} — ${showLabel}`,
@@ -580,8 +600,8 @@ export default function BookingClient({
                       className={`date-picker-btn${
                         isSoldOut ? " is-soldout" : ""
                       }`}
-                      onClick={() => !isSoldOut && setSelectedId(s.id)}
-                      disabled={isSoldOut}
+                      onClick={() => !isSoldOut && selectDate(s.id)}
+                      aria-disabled={isSoldOut || undefined}
                       aria-label={`${formatShortDate(s.date)} kl. ${s.time}${
                         badge ? ", " + badge.label : ""
                       }`}
@@ -632,7 +652,7 @@ export default function BookingClient({
         <StepIndicator current={2} />
         <button
           className="change-date-link"
-          onClick={() => setSelectedId(null)}
+          onClick={() => selectDate(null)}
         >
           Skift dato
         </button>
@@ -655,28 +675,37 @@ export default function BookingClient({
             <SeatingChart />
           </div>
         )}
-        {sortedTickets.map((t) => (
-          <div className="ticket-row" key={t.id}>
-            <div className="ticket-name">{t.category}</div>
-            <div className="ticket-price">{kr(t.price + t.fee)}</div>
-            <div className="stepper">
-              <button
-                onClick={() => setTicket(t.id, -1, t.maxCount)}
-                disabled={!ticketQty[t.id]}
-                aria-label={`Fjern ${t.category}`}
-              >
-                −
-              </button>
-              <span>{ticketQty[t.id] || 0}</span>
-              <button
-                onClick={() => setTicket(t.id, 1, t.maxCount)}
-                aria-label={`Tilføj ${t.category}`}
-              >
-                +
-              </button>
-            </div>
+        {visibleTickets.length === 0 ? (
+          <div className="notice" role="status">
+            Der er desværre ingen billetter tilgængelige for denne dato. Kontakt
+            os på{" "}
+            <a href="mailto:kontor@bakkenshvile.dk">kontor@bakkenshvile.dk</a>,
+            hvis du har spørgsmål.
           </div>
-        ))}
+        ) : (
+          visibleTickets.map((t) => (
+            <div className="ticket-row" key={t.id}>
+              <div className="ticket-name">{t.category}</div>
+              <div className="ticket-price">{kr(t.price + t.fee)}</div>
+              <div className="stepper">
+                <button
+                  onClick={() => setTicket(t.id, -1, t.maxCount)}
+                  disabled={!ticketQty[t.id]}
+                  aria-label={`Fjern ${t.category}`}
+                >
+                  −
+                </button>
+                <span>{ticketQty[t.id] || 0}</span>
+                <button
+                  onClick={() => setTicket(t.id, 1, t.maxCount)}
+                  aria-label={`Tilføj ${t.category}`}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {groupedAddons.length > 0 && (

@@ -1,4 +1,4 @@
-import { listRecords, TABLES, FIELDS } from "@/lib/airtable";
+import { listRecords, TABLES, FIELDS, priceGroupName } from "@/lib/airtable";
 import BookingClient from "../components/BookingClient";
 import BookingShell from "../components/BookingShell";
 
@@ -19,6 +19,8 @@ export default async function Page() {
       time: String(r.fields[FIELDS.event.time] ?? ""),
       duration: String(r.fields[FIELDS.event.duration] ?? ""),
       notes: String(r.fields[FIELDS.event.notes] ?? ""),
+      priceGroup: priceGroupName(r.fields[FIELDS.event.priceGroup]),
+      soldOut: Boolean(r.fields[FIELDS.event.soldOut]),
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -28,6 +30,7 @@ export default async function Page() {
     price: Number(r.fields[FIELDS.ticketType.price] ?? 0),
     fee: Number(r.fields[FIELDS.ticketType.fee] ?? 0),
     maxCount: Number(r.fields[FIELDS.ticketType.maxCount] ?? 0),
+    priceGroup: priceGroupName(r.fields[FIELDS.ticketType.priceGroup]),
   }));
 
   const addons = addOns.map((r) => ({

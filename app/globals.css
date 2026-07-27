@@ -385,6 +385,13 @@ button {
   margin: 0;
 }
 
+.jubileeCard p.desc.jubileeNote {
+  margin-top: 18px;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--gold);
+}
+
 /* ---------- galleri ---------- */
 
 .galleryGrid {

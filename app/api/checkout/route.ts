@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRecord, TABLES, FIELDS } from "@/lib/airtable";
+import { createRecord, getRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { getStripe } from "@/lib/stripe";
 
 type LineItem = { name: string; unitAmount: number; quantity: number };
@@ -64,6 +64,17 @@ export async function POST(req: NextRequest) {
         { error: "Vælg mindst én billet" },
         { status: 400 }
       );
+    }
+    // Serverside-værn: en udsolgt dato må aldrig kunne føres til betaling,
+    // heller ikke hvis klienten manipuleres til at sende showId'et alligevel.
+    if (showId) {
+      const event = await getRecord(TABLES.events, showId);
+      if (event.fields[FIELDS.event.soldOut]) {
+        return NextResponse.json(
+          { error: "Denne dato er udsolgt og kan ikke bestilles." },
+          { status: 409 }
+        );
+      }
     }
     const customerRecord = await createRecord(TABLES.customers, {
       [FIELDS.customer.name]: customer.name,

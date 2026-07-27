@@ -20,12 +20,15 @@ export const FIELDS = {
     duration: "fldvWxZwE1yru1MHW",
     notes: "fldztH9TYEEqda6Zm",
     seatingLink: "fldfK75vTcpcpZx9d",
+    priceGroup: "fldXSAvVkLrg5HZk0",
+    soldOut: "fld3Cwq5W7lP8xaHE",
   },
   ticketType: {
     category: "fldjmx1vfbTgxlDn0",
     price: "fldUQH5EMjpP5KhPJ",
     fee: "fldK1NBmdZyCTc0kL",
     maxCount: "fldg5GPUE2qt1HCsA",
+    priceGroup: "fldz66mBlNz4Q2FcQ",
   },
   addOn: {
     name: "fldfRo2vS99rldTUD",
@@ -57,6 +60,21 @@ export const FIELDS = {
   },
 } as const;
 
+// Normaliserer en Prisgruppe-værdi til en ren streng.
+// Events' Prisgruppe er singleSelect og leveres som objekt ({ id, name, color }),
+// mens TicketTypes' Prisgruppe er singleLineText og leveres som ren streng.
+// Denne funktion tåler begge former — også hvis TicketTypes-feltet senere
+// konverteres til singleSelect — så de to felter altid kan sammenlignes.
+export function priceGroupName(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "object") {
+    const name = (value as { name?: unknown }).name;
+    if (typeof name === "string") return name.trim();
+  }
+  return String(value).trim();
+}
+
 function headers() {
   const token = process.env.AIRTABLE_TOKEN;
   if (!token) throw new Error("AIRTABLE_TOKEN mangler i miljøvariablerne");
@@ -83,6 +101,18 @@ export async function listRecords(tableId: string) {
   if (!res.ok) throw new Error(`Airtable-fejl (${tableId}): ${res.status}`);
   const data = await res.json();
   return data.records as Array<{ id: string; fields: Record<string, unknown> }>;
+}
+
+export async function getRecord(tableId: string, recordId: string) {
+  const res = await fetch(
+    `${BASE_URL}/${baseId()}/${tableId}/${recordId}?returnFieldsByFieldId=true`,
+    {
+      headers: headers(),
+      cache: "no-store",
+    }
+  );
+  if (!res.ok) throw new Error(`Airtable-fejl (${tableId}/${recordId}): ${res.status}`);
+  return res.json() as Promise<{ id: string; fields: Record<string, unknown> }>;
 }
 
 export async function createRecord(
