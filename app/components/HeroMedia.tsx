@@ -5,18 +5,22 @@ import Image from "next/image";
 import { billeder } from "@/lib/billeder";
 
 // Videoens poster ligger som asset (ikke i billeder.ts, da det hører til videoen).
+// salen.mp4 er STÅENDE (1280x2276, 9:16) — kildefilen bar et -90° rotationsflag.
 const POSTER = { src: "/video/salen-poster.jpg", bredde: 1280, hoejde: 2276 };
 
-type Mode = "video" | "posterStill" | "mobileStill";
+type Mode = "video" | "posterStill" | "desktopStill";
 
 /**
  * Baggrundsmedie til heroen.
  *
- * - Bred skærm + bevægelse tilladt  → dæmpet baggrundsvideo (salen.mp4).
+ * Videoen er stående (9:16), så den bruges der, hvor det format passer:
+ *
+ * - Under 768 px (mobil)            → dæmpet fuldskærms baggrundsvideo (salen.mp4).
+ * - Bred skærm (desktop)            → BH (17) som stillbillede. Videoen strækkes
+ *   IKKE til fuld bredde — et stående motiv beskåret til en vandret stribe
+ *   viser næsten ingenting.
  * - prefers-reduced-motion: reduce  → KUN salen-poster.jpg som stillbillede.
  *   Videoen mountes aldrig, så den hentes heller ikke.
- * - Under 768 px                    → BH (17) som stillbillede (en 16:9-video
- *   beskåret til mobil viser næsten ingenting).
  *
  * Videoelementet findes kun i DOM'en, når betingelserne er opfyldt — derfor
  * er start-tilstanden et stillbillede, og videoen tilføjes først på klienten.
@@ -24,7 +28,7 @@ type Mode = "video" | "posterStill" | "mobileStill";
  */
 export default function HeroMedia() {
   // SSR/første render: poster-stillbillede. Samme på server og klient →
-  // ingen hydration-mismatch. Videoens poster genbruges, hvis videoen mountes.
+  // ingen hydration-mismatch. På mobil genbruges posteren som videoens poster.
   const [mode, setMode] = useState<Mode>("posterStill");
 
   useEffect(() => {
@@ -33,8 +37,8 @@ export default function HeroMedia() {
 
     const update = () => {
       if (reduceMq.matches) setMode("posterStill");
-      else if (wideMq.matches) setMode("video");
-      else setMode("mobileStill");
+      else if (wideMq.matches) setMode("desktopStill");
+      else setMode("video");
     };
 
     update();
@@ -78,7 +82,7 @@ export default function HeroMedia() {
     );
   }
 
-  // mobileStill — BH (17)
+  // desktopStill — BH (17)
   const hero = billeder.syngepigerFloejlstaepper;
   return (
     <Image
