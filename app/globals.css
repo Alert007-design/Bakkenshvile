@@ -107,7 +107,6 @@ button {
   text-transform: uppercase;
 }
 
-.navCta,
 .ctaGold {
   background: var(--gold);
   color: var(--ink-950);
@@ -120,6 +119,19 @@ button {
   display: inline-block;
   border: none;
   cursor: pointer;
+}
+
+/* Nav-CTA'en matcher de øvrige nav-links (guld tekst, ingen fyldt baggrund),
+   så teksten altid er læsbar mod den mørke nav. */
+.navCta {
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  color: var(--gold);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.navCta:hover {
+  color: var(--gold-hover);
 }
 
 .ctaGold:hover {
@@ -683,4 +695,45 @@ button {
     grid-column: span 1;
     grid-row: span 1;
   }
+}
+
+/* ---------- drikkekort (/priser) ---------- */
+
+.drinkList {
+  margin-top: 40px;
+}
+.drinkGroup {
+  margin-bottom: 36px;
+}
+.drinkGroupTitle {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 8px;
+  margin: 0 0 12px;
+}
+.drinkRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+}
+.drinkName {
+  color: var(--paper);
+  font-size: 16px;
+}
+.drinkDots {
+  flex: 1;
+  border-bottom: 1px dotted var(--line-strong);
+  transform: translateY(-4px);
+  min-width: 20px;
+}
+.drinkPrice {
+  color: var(--paper-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 16px;
 }

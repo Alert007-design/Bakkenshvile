@@ -1,0 +1,117 @@
+/* Printklart QR-ark i appen. Sort på hvidt, A4 stående, 6 kort pr. side. */
+
+.qr-admin {
+  background: #fff;
+  color: #000;
+  font-family: Georgia, "Playfair Display", serif;
+  min-height: 100vh;
+}
+
+/* Skærm-only værktøjslinje (skjules ved print). */
+.qr-toolbar {
+  font-family: -apple-system, system-ui, sans-serif;
+  background: #111;
+  color: #f6f1e4;
+  padding: 12px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  font-size: 14px;
+}
+.qr-toolbar a {
+  color: #c9a227;
+}
+.qr-toolbar .hint {
+  opacity: 0.8;
+}
+
+/* Ét A4-ark: 2 kolonner × 3 rækker = 6 kort. */
+.qr-sheet {
+  width: 210mm;
+  height: 297mm;
+  margin: 8mm auto;
+  background: #fff;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+}
+
+.qr-card {
+  border: 1px dashed #999; /* stiplet klippekant */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8mm;
+  color: #000;
+}
+.qr-card .no {
+  font-weight: 900;
+  font-size: 46mm;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+}
+.qr-card .place {
+  font-size: 4mm;
+  color: #333;
+  margin-top: 1mm;
+}
+.qr-card .qr {
+  margin: 5mm 0 3mm;
+}
+.qr-card .qr svg {
+  width: 55mm;
+  height: 55mm;
+  display: block;
+}
+.qr-card .cta {
+  font-size: 5.5mm;
+  font-weight: 600;
+}
+.qr-card .season {
+  font-family: -apple-system, system-ui, sans-serif;
+  font-size: 2.6mm;
+  color: #888;
+  margin-top: 2mm;
+  letter-spacing: 0.08em;
+}
+
+.qr-empty {
+  padding: 40px;
+  font-family: -apple-system, system-ui, sans-serif;
+}
+
+@media print {
+  /* Tving sort på hvidt uanset sitets tema; ingen baggrundsblæk. */
+  html,
+  body,
+  .qr-admin {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  /* Skjul al navigation/værktøj. */
+  .qr-toolbar,
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  .qr-sheet {
+    margin: 0;
+    box-shadow: none;
+    break-after: page;
+    page-break-after: always;
+  }
+  .qr-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .qr-card {
+    border-color: #999;
+  }
+}

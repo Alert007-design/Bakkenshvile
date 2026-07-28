@@ -81,6 +81,12 @@
   color: var(--gold);
   margin-top: 2px;
 }
+.menu-item-full {
+  margin-left: 8px;
+  color: var(--muted);
+  text-decoration: line-through;
+  font-size: 12px;
+}
 
 .qty {
   display: flex;

@@ -121,19 +121,23 @@ export function validateCheckout(body: unknown, ctx: CheckoutContext): CheckoutR
     }
     totalItems += quantity;
 
-    const lineTotal = lineTotalOre(item.unitPriceOre, quantity);
+    // Online-pris (fuld pris minus 10%) er det, gæsten betaler ved QR-/online-
+    // bestilling. Linjesnapshot og Stripe-beløb bruger online-prisen, så
+    // ordren summerer præcis til det trukne beløb.
+    const unitOnlineOre = item.onlineUnitPriceOre;
+    const lineTotal = lineTotalOre(unitOnlineOre, quantity);
     lines.push({
       menuItemId: item.id,
       productCode: item.productCode,
       name: item.name,
       quantity,
-      unitPriceOre: item.unitPriceOre,
+      unitPriceOre: unitOnlineOre,
       vatRate: item.vatRate,
       lineTotalOre: lineTotal,
     });
     stripeLines.push({
       name: item.name,
-      unitAmountOre: item.unitPriceOre,
+      unitAmountOre: unitOnlineOre,
       quantity,
     });
   }

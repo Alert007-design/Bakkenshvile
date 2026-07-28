@@ -3,9 +3,10 @@ import { validateCheckout, stripeLinesTotalOre, type CheckoutContext } from "@/l
 import type { MenuItem } from "@/lib/menu";
 import { getTable } from "@/lib/tables";
 import { MAX_PER_ITEM, MAX_TOTAL_ITEMS } from "@/lib/table-ordering-config";
+import { discountedAddonUnitOre } from "@/lib/pricing";
 
 function menuItem(id: string, overrides: Partial<MenuItem> = {}): MenuItem {
-  return {
+  const base = {
     id,
     productCode: id.toUpperCase(),
     name: "Øl",
@@ -15,6 +16,11 @@ function menuItem(id: string, overrides: Partial<MenuItem> = {}): MenuItem {
     vatRate: 25,
     sort: 0,
     ...overrides,
+  };
+  return {
+    ...base,
+    onlineUnitPriceOre:
+      overrides.onlineUnitPriceOre ?? discountedAddonUnitOre(base.unitPriceOre),
   };
 }
 
@@ -80,15 +86,16 @@ describe("validateCheckout — input", () => {
 });
 
 describe("validateCheckout — varer og priser (server autoritativ)", () => {
-  it("ignorerer en pris sendt fra browseren og bruger menuens pris", () => {
+  it("ignorerer en pris sendt fra browseren og bruger menuens online-pris", () => {
     const r = validateCheckout(
       body({ items: [{ menuItemId: "rec1", quantity: 1, unitAmount: 1, price: 1 }] }),
       ctx()
     );
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.draft.lines[0].unitPriceOre).toBe(5000);
-      expect(r.draft.totalOre).toBe(5000);
+      // Fuld pris 50 kr → online 45 kr (10% floor pr. enhed).
+      expect(r.draft.lines[0].unitPriceOre).toBe(4500);
+      expect(r.draft.totalOre).toBe(4500);
     }
   });
 
@@ -133,18 +140,20 @@ describe("validateCheckout — varer og priser (server autoritativ)", () => {
     if (r.ok) {
       expect(r.draft.lines).toHaveLength(1);
       expect(r.draft.lines[0].quantity).toBe(3);
-      expect(r.draft.totalOre).toBe(15000);
+      // 3 × online 45 kr = 135 kr.
+      expect(r.draft.totalOre).toBe(13500);
     }
   });
 
-  it("beregner subtotal/moms/total korrekt i øre", () => {
+  it("beregner subtotal/moms/total korrekt i øre (online-pris)", () => {
     const r = validateCheckout(body({ items: [{ menuItemId: "rec1", quantity: 2 }] }), ctx());
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.draft.totalOre).toBe(10000);
-      expect(r.draft.vatOre).toBe(2000); // 10000 * 25/125
-      expect(r.draft.subtotalOre).toBe(8000);
-      expect(stripeLinesTotalOre(r.stripeLines)).toBe(10000);
+      // 2 × online 45 kr = 90 kr.
+      expect(r.draft.totalOre).toBe(9000);
+      expect(r.draft.vatOre).toBe(1800); // 9000 * 25/125
+      expect(r.draft.subtotalOre).toBe(7200);
+      expect(stripeLinesTotalOre(r.stripeLines)).toBe(9000);
     }
   });
 });

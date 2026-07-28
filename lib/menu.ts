@@ -13,6 +13,7 @@ import {
   type AirtableRecord,
 } from "@/lib/airtable";
 import { kronerToOre } from "@/lib/money";
+import { discountedAddonUnitOre } from "@/lib/pricing";
 
 // Standard dansk moms hvis en vare ikke har en eksplicit sats sat.
 export const DEFAULT_VAT_RATE = 25;
@@ -20,16 +21,22 @@ export const DEFAULT_VAT_RATE = 25;
 // Menuen ændres sjældent; 60 sek. cache er rigeligt og skåner Airtable.
 const MENU_TTL_MS = 60000;
 
-// Gruppernes rækkefølge på bestillingssiden, matcher AddOns.Kategori-valgene.
+// Gruppernes rækkefølge på drikkekortet, matcher AddOns.Kategori-valgene.
 // Ukendte grupper vises til sidst i alfabetisk orden.
-const GROUP_ORDER = [
+export const GROUP_ORDER = [
+  "Øl",
+  "Sodavand og vand",
   "Drinks",
-  "Fadøl",
-  "Vin",
+  "Spritz",
+  "Alkoholfrie drinks",
+  "Rødvin",
+  "Hvidvin",
+  "Rosévin",
+  "Champagne og mousserende vin",
+  "Varme drikke",
   "Spiritus",
-  "Sodavand",
+  "Hele flasker spiritus",
   "Snacks",
-  "Kaffe",
 ];
 
 export interface MenuItem {
@@ -38,7 +45,10 @@ export interface MenuItem {
   name: string;
   description: string;
   group: string;
+  /** Fuld salpris i øre (som i salen / på /priser). */
   unitPriceOre: number;
+  /** Online-pris i øre = fuld pris minus 10% (det gæsten betaler online). */
+  onlineUnitPriceOre: number;
   vatRate: number;
   sort: number;
 }
@@ -66,6 +76,7 @@ function toMenuItem(rec: AirtableRecord): MenuItem | null {
 
   const productCode = String(f[FIELDS.addOn.productCode] ?? "").trim() || rec.id;
   const sortRaw = Number(f[FIELDS.addOn.sort]);
+  const unitPriceOre = kronerToOre(priceKr);
 
   return {
     id: rec.id,
@@ -73,7 +84,8 @@ function toMenuItem(rec: AirtableRecord): MenuItem | null {
     name,
     description: String(f[FIELDS.addOn.description] ?? "").trim(),
     group: priceGroupName(f[FIELDS.addOn.category]) || "Andet",
-    unitPriceOre: kronerToOre(priceKr),
+    unitPriceOre,
+    onlineUnitPriceOre: discountedAddonUnitOre(unitPriceOre),
     vatRate,
     sort: Number.isFinite(sortRaw) ? sortRaw : 0,
   };
