@@ -621,7 +621,9 @@ export default function BookingClient({
     return (
       <div className="page">
         <div className="book-hero">
-          <div className="eyebrow">Bakkens Hvile · Underholdning siden 1877</div>
+          <div className="eyebrow">
+            <a href="/">Bakkens Hvile · Underholdning siden 1877</a>
+          </div>
           <h1 className="jubilee-title">150 års jubilæumsshow</h1>
           <p className="book-helper">
             Vælg den forestilling, du ønsker at bestille billetter til.
