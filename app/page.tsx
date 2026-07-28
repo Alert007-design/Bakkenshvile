@@ -25,13 +25,9 @@ const SINGERS: { name: string; billede: Billede }[] = [
 // object-position skubber årstalsskiltet i BH (6) ud af beskæringen.
 const GALLERI: { billede: Billede; objectPosition: string }[] = [
   { billede: billeder.denTommeSal, objectPosition: "center 55%" },
-  { billede: billeder.denTommeGarderobe, objectPosition: "center" },
   { billede: billeder.blomstersangen, objectPosition: "72% 70%" },
   { billede: billeder.dotAleneMedRose, objectPosition: "center 30%" },
-  { billede: billeder.salenMedPjerrot, objectPosition: "center" },
-  { billede: billeder.roserTilScenen, objectPosition: "center 40%" },
   { billede: billeder.garderobenFoerShow, objectPosition: "center 35%" },
-  { billede: billeder.firePigerVedTaeppet, objectPosition: "center 28%" },
   { billede: billeder.trePigerVedTaeppet, objectPosition: "center 28%" },
 ];
 
@@ -108,13 +104,13 @@ export default function Home() {
           </div>
           <div className="aboutPhoto">
             <Image
-              src={billeder.dotUngdomMedRoser.src}
-              alt={billeder.dotUngdomMedRoser.alt}
-              width={billeder.dotUngdomMedRoser.bredde}
-              height={billeder.dotUngdomMedRoser.hoejde}
+              src={billeder.firePigerVedTaeppet.src}
+              alt={billeder.firePigerVedTaeppet.alt}
+              width={billeder.firePigerVedTaeppet.bredde}
+              height={billeder.firePigerVedTaeppet.hoejde}
               loading="lazy"
               sizes="(max-width: 900px) 100vw, 528px"
-              style={{ objectPosition: "center 30%" }}
+              style={{ objectPosition: "center 20%" }}
             />
           </div>
         </div>
@@ -251,7 +247,7 @@ export default function Home() {
               <div>
                 <p className="label">Spørgsmål</p>
                 <p>
-                  Har du et spørgsmål, så send en mail.{" "}
+                  Har du et spørgsmål, så send en mail:{" "}
                   <a href="mailto:kontor@bakkenshvile.dk">
                     kontor@bakkenshvile.dk
                   </a>
