@@ -35,13 +35,6 @@ const GALLERI: { billede: Billede; objectPosition: string }[] = [
   { billede: billeder.trePigerVedTaeppet, objectPosition: "center 28%" },
 ];
 
-const JUBILEE = {
-  title: "150 års jubilæumssæson 2027",
-  price: "Ordinær fra 289 kr",
-  desc: "Hele 2027 fejrer vi 150 år på Dyrehavsbakken med en samlet jubilæumssæson. Book jeres billet og vær med til at fejre det med os.",
-  note: "De to forpremierer 10. og 11. maj 2027 har lavere priser — fra 179 kr. Se de gældende priser for hver enkelt dato, når du vælger den.",
-};
-
 export default function Home() {
   const year = new Date().getFullYear();
   const [feature, ...galleryRest] = GALLERI;
@@ -157,22 +150,38 @@ export default function Home() {
       <section id="priser" className="section">
         <div className="wrap" style={{ padding: 0 }}>
           <p className="eyebrow" style={{ textAlign: "center" }}>
-            Billetter
+            Baren
           </p>
-          <h2 className="sectionTitle">Priser &amp; forestillinger</h2>
-          <div className="jubileeCard">
-            <h3>{JUBILEE.title}</h3>
-            <p className="amount">{JUBILEE.price}</p>
-            <p className="desc">{JUBILEE.desc}</p>
-            <p className="desc jubileeNote">{JUBILEE.note}</p>
-          </div>
-          <div style={{ textAlign: "center", marginTop: 48 }}>
-            <Link
-              href="/book"
-              className="ctaGold"
-              style={{ padding: "16px 32px" }}
-            >
-              Se alle datoer &amp; køb billetter
+          <h2 className="sectionTitle">Priser</h2>
+          <p
+            style={{
+              maxWidth: 620,
+              margin: "0 auto",
+              textAlign: "center",
+              color: "var(--paper-dim)",
+              fontSize: 18,
+              lineHeight: 1.6,
+            }}
+          >
+            Køber du drikkevarer online sammen med din billet, får du dem{" "}
+            <strong style={{ color: "var(--gold)" }}>10% billigere</strong> end
+            ved køb i salen.
+          </p>
+          <div
+            style={{
+              textAlign: "center",
+              marginTop: 40,
+              display: "flex",
+              gap: 16,
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <Link href="/book" className="ctaGold" style={{ padding: "16px 32px" }}>
+              Køb billetter
+            </Link>
+            <Link href="/priser" className="ctaOutline">
+              Se hele drikkekortet
             </Link>
           </div>
         </div>
