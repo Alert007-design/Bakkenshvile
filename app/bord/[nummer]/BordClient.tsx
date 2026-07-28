@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { formatOre } from "@/lib/money";
+import { formatKroner } from "@/lib/money";
 import type { MenuGroup } from "@/lib/menu";
 import { MAX_PER_ITEM } from "@/lib/table-ordering-config";
 
@@ -41,7 +41,8 @@ export default function BordClient({
     for (const [id, n] of Object.entries(qty)) {
       const item = itemById.get(id);
       if (item && n > 0) {
-        totalOre += item.unitPriceOre * n;
+        // Online-pris (10% billigere end i salen) — det gæsten betaler.
+        totalOre += item.onlineUnitPriceOre * n;
         totalCount += n;
       }
     }
@@ -103,6 +104,10 @@ export default function BordClient({
         <div className="bord-place">
           {row}. række · {position}. bord fra baren
         </div>
+        <div className="bord-note">
+          Priserne her er online-priser — 10% billigere end ved bestilling hos
+          tjeneren i salen.
+        </div>
         {isShow ? (
           <div className="bord-note">
             Forestillingen er i gang, så skærmen er dæmpet. Du kan roligt bestille nu —
@@ -124,7 +129,12 @@ export default function BordClient({
                     {item.description ? (
                       <div className="menu-item-desc">{item.description}</div>
                     ) : null}
-                    <div className="menu-item-price">{formatOre(item.unitPriceOre)}</div>
+                    <div className="menu-item-price">
+                      {formatKroner(item.onlineUnitPriceOre)}
+                      {item.onlineUnitPriceOre < item.unitPriceOre ? (
+                        <span className="menu-item-full">{formatKroner(item.unitPriceOre)}</span>
+                      ) : null}
+                    </div>
                   </div>
                   <div className="qty">
                     <button
@@ -198,7 +208,7 @@ export default function BordClient({
             <div className="n">
               {totalCount} {totalCount === 1 ? "vare" : "varer"}
             </div>
-            <div className="amt">{formatOre(totalOre)}</div>
+            <div className="amt">{formatKroner(totalOre)}</div>
           </div>
           <button
             className="btn-pay"

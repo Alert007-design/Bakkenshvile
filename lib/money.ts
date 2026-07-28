@@ -34,6 +34,17 @@ export function formatOre(ore: number): string {
   return `${kr} kr.`;
 }
 
+/**
+ * Formaterer øre til menuvisning: hele kroner uden decimaler ("50 kr."), og kun
+ * med decimaler hvis beløbet ikke går op ("49,50 kr."). Drikkekortet er altid
+ * hele kroner, så det giver et rent kort.
+ */
+export function formatKroner(ore: number): string {
+  const kr =
+    ore % 100 === 0 ? String(ore / 100) : (ore / 100).toFixed(2).replace(".", ",");
+  return `${kr} kr.`;
+}
+
 /** Momsandelen af en bruttopris i øre (moms inkluderet i prisen). */
 export function vatFromGrossOre(grossOre: number, vatRate: number): number {
   if (!Number.isFinite(vatRate) || vatRate < 0) {

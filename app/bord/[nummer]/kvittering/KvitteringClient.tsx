@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatOre } from "@/lib/money";
+import { formatKroner } from "@/lib/money";
 
 interface OrderView {
   orderNumber: string;
@@ -98,12 +98,12 @@ export default function KvitteringClient({
                   <span>
                     {l.quantity} × {l.name}
                   </span>
-                  <span>{formatOre(l.lineTotalOre)}</span>
+                  <span>{formatKroner(l.lineTotalOre)}</span>
                 </div>
               ))}
               <div className="row" style={{ fontWeight: 700 }}>
                 <span>I alt</span>
-                <span>{formatOre(order.totalOre)}</span>
+                <span>{formatKroner(order.totalOre)}</span>
               </div>
             </div>
             {order.paymentStatus === "pending" ? (
