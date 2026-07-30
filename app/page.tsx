@@ -64,7 +64,7 @@ export default function Home() {
           <p className="heroLead">
             Bakkesangerinderne har underholdt på Dyrehavsbakken siden 1877 —
             fra klassiske danske sange og viser til dagens friskeste
-            satire. Oplev showet, bestil drinks i baren, og bliv en del af
+            satire. Oplev showet, bestil vin, øl og drinks, og bliv en del af
             traditionen.
           </p>
           <div className="heroCtas">
@@ -97,7 +97,7 @@ export default function Home() {
             </p>
             <p>
               Oplev os over sommermånederne i vores smukke bøgeskov, og
-              bestil drinks i baren under hele showet.
+              bestil vin, øl og drinks ved bordet under hele showet.
             </p>
           </div>
           <div className="aboutPhoto">

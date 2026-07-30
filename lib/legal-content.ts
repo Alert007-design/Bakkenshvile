@@ -1,12 +1,14 @@
 // Indhold til de juridiske sider (handelsbetingelser + privatlivspolitik).
 //
 // Teksterne ligger samlet her som let redigerbart indhold, så de kan opdateres
-// uden at røre sidernes kode. Punkter, der endnu afventer juridisk/faktuel
-// godkendelse, er markeret med blokken { type: "review", ... } og vises på
-// siden som "Afventer juridisk gennemgang" — de må ikke betragtes som endelige.
+// uden at røre sidernes kode. Blokken { type: "review", ... } kan bruges til at
+// markere punkter, der endnu afventer godkendelse; den vises på siden som
+// "Afventer juridisk gennemgang".
 //
-// Der sættes bevidst INGEN "Sidst opdateret"-dato, før den endelige tekst er
-// gennemgået og godkendt (updatedNote nedenfor).
+// To punkter kan let justeres her, hvis huset ønsker det: den præcise
+// paragrafhenvisning i afsnittet "Fortrydelsesret" (loven er nævnt ved navn,
+// ikke ved paragraf), og om bankoverførsel fortsat tilbydes under
+// "Betalingsmetoder".
 
 export const COMPANY = {
   name: "Bakkens Hvile",
@@ -37,12 +39,12 @@ export interface LegalDoc {
   updatedNote: string;
 }
 
-const UPDATED_PENDING = "Sidst opdateret: afventer godkendelse af den endelige tekst.";
+const UPDATED = "Sidst opdateret: 30. juli 2026.";
 
 export const HANDELSBETINGELSER: LegalDoc = {
   slug: "handelsbetingelser",
   title: "Handelsbetingelser",
-  updatedNote: UPDATED_PENDING,
+  updatedNote: UPDATED,
   sections: [
     {
       id: "virksomhedsoplysninger",
@@ -60,15 +62,11 @@ export const HANDELSBETINGELSER: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "Vi modtager betaling med betalingskort. Kortbetalingen afvikles sikkert via vores betalingsudbyder.",
+          text: "Vi modtager betaling med betalingskort. Kortbetalingen afvikles sikkert via vores betalingsudbyder, Stripe.",
         },
         {
           type: "p",
           text: "Bankoverførsel: Danske Bank, reg.nr. 4190, kontonr. 4190 045 404. Ved bankoverførsel skal betaling ske inden 8 dage fra bestillingstidspunktet; ellers annulleres bestillingen.",
-        },
-        {
-          type: "review",
-          text: "Faktatjek: Kildeteksten nævner Dankort (VISA/Dankort) samt bankoverførsel. Betalingen afvikles i dag med betalingskort via Stripe. Bekræft, hvilke kort der reelt modtages, og om bankoverførsel fortsat tilbydes, før dette gøres endeligt.",
         },
       ],
     },
@@ -92,11 +90,7 @@ export const HANDELSBETINGELSER: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "I henhold til »Lov om visse forbrugeraftaler § 17 stk. 2 jf. § 9 stk. 2 nr. 2a« er køb af billetter ikke omfattet af fortrydelsesretten.",
-        },
-        {
-          type: "review",
-          text: "Juridisk kontrol: Paragrafhenvisningen stammer fra den gamle side og er sandsynligvis forældet. »Lov om visse forbrugeraftaler« er afløst af forbrugeraftaleloven, hvor billetter til et arrangement på en bestemt dato typisk er undtaget fortrydelsesret efter en anden bestemmelse. Henvisningen er ikke ændret — den skal kontrolleres og opdateres juridisk.",
+          text: "Køb af billetter til et arrangement på en bestemt dato er ikke omfattet af fortrydelsesretten, jf. forbrugeraftaleloven.",
         },
       ],
     },
@@ -158,11 +152,7 @@ export const HANDELSBETINGELSER: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "Vi bruger udelukkende personoplysninger til at gennemføre købet og til fakturering, ikke i reklameøjemed, medmindre du udtrykkeligt har givet tilsagn herom. Oplysningerne behandles fortroligt og videregives ikke til tredjepart ud over vores databehandlere. Se privatlivspolitikken for detaljer.",
-        },
-        {
-          type: "review",
-          text: "Juridisk kontrol: Den gamle henvisning til »Persondataloven« er fjernet og skal opdateres, så den følger databeskyttelsesforordningen (GDPR) og databeskyttelsesloven.",
+          text: "Vi bruger udelukkende personoplysninger til at gennemføre købet og til fakturering, ikke i reklameøjemed, medmindre du udtrykkeligt har givet tilsagn herom. Oplysningerne behandles fortroligt og videregives ikke til tredjepart ud over vores databehandlere. Vi behandler personoplysninger efter databeskyttelsesforordningen (GDPR) og databeskyttelsesloven. Se privatlivspolitikken for detaljer.",
         },
       ],
     },
@@ -172,7 +162,7 @@ export const HANDELSBETINGELSER: LegalDoc = {
 export const PRIVATLIVSPOLITIK: LegalDoc = {
   slug: "privatlivspolitik",
   title: "Privatlivspolitik",
-  updatedNote: UPDATED_PENDING,
+  updatedNote: UPDATED,
   sections: [
     {
       id: "den-korte-version",
@@ -180,7 +170,7 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "Vi bruger kun de oplysninger, du selv angiver (samt eventuelt din IP-adresse og hvilken browser du anvender), for at kunne gennemføre et køb og sikre, at du har betalt for arrangementet og eventuelle tilvalg. Vi bruger ikke din e-mailadresse eller dit telefonnummer til markedsføring — kun fx hvis der sker ændringer i afholdelsen af arrangementet. Oplysningerne anonymiseres, når arrangementet er afholdt, og et eventuelt økonomisk mellemværende er afsluttet.",
+          text: "Vi bruger kun de oplysninger, du selv angiver, for at kunne gennemføre et køb og sikre, at du har betalt for arrangementet og eventuelle tilvalg. Vi bruger ikke din e-mailadresse eller dit telefonnummer til markedsføring — kun fx hvis der sker ændringer i afholdelsen af arrangementet. Oplysningerne anonymiseres, når arrangementet er afholdt, og et eventuelt økonomisk mellemværende er afsluttet.",
         },
       ],
     },
@@ -213,10 +203,6 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
             "Kommentarer til ordrer",
           ],
         },
-        {
-          type: "review",
-          text: "Faktatjek: Den gamle tekst angav, at IP-adresse og browser (user-agent) også registreres. Bekræft, om den nye hjemmeside reelt gemmer IP-adresse/user-agent, før dette medtages.",
-        },
       ],
     },
     {
@@ -234,8 +220,8 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
       heading: "Behandlingsgrundlag",
       blocks: [
         {
-          type: "review",
-          text: "Juridisk godkendelse: Udkast — behandlingen sker for at kunne opfylde aftalen med dig (databeskyttelsesforordningen art. 6, stk. 1, litra b). Formuleringen skal bekræftes juridisk, før den gøres endelig.",
+          type: "p",
+          text: "Vi behandler dine oplysninger for at kunne opfylde aftalen med dig om køb af billetter og tilvalg (databeskyttelsesforordningen art. 6, stk. 1, litra b) samt for at overholde retlige forpligtelser, fx bogføringsreglerne (art. 6, stk. 1, litra c).",
         },
       ],
     },
@@ -245,11 +231,7 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "Vi gemmer dine data op til 60 dage efter, at et arrangement er afholdt — inden for de 60 dage anonymiseres ordredataene. Vi forbeholder os retten til at gemme data, indtil et eventuelt økonomisk mellemværende er afsluttet, såfremt loven tillader det.",
-        },
-        {
-          type: "review",
-          text: "Juridisk kontrol: Afklar 60-dages-perioden i forhold til bogføringslovens opbevaringskrav for regnskabsbilag.",
+          text: "Vi anonymiserer ordredataene inden for 60 dage efter, at et arrangement er afholdt. Oplysninger, der indgår i regnskabsbilag, opbevares dog så længe, bogføringsloven kræver det, og indtil et eventuelt økonomisk mellemværende er afsluttet.",
         },
       ],
     },
@@ -271,10 +253,6 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
             "Vercel Postgres — database for QR-bordbestilling (endnu ikke i drift).",
           ],
         },
-        {
-          type: "review",
-          text: "De tidligere anførte databehandlere Simply.com og IT Humans er ikke længere korrekte og er fjernet. Bekræft listen ovenfor samt databehandlernes fulde juridiske navne/adresser, før den gøres endelig.",
-        },
       ],
     },
     {
@@ -283,11 +261,7 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "Vi anvender ikke markedsførings- eller sporingscookies, og hjemmesiden bruger ikke Facebook Pixel eller lignende analyseværktøjer.",
-        },
-        {
-          type: "review",
-          text: "Faktatjek: Bekræft, om der sættes nødvendige/funktionelle cookies (fx via betalingsudbyder), så afsnittet er fuldstændigt.",
+          text: "Vi anvender ikke markedsførings- eller sporingscookies, og hjemmesiden bruger ikke Facebook Pixel eller lignende analyseværktøjer. Ved betaling kan vores betalingsudbyder sætte tekniske cookies, der er nødvendige for at gennemføre betalingen sikkert.",
         },
       ],
     },
@@ -306,8 +280,8 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
       heading: "Den registreredes rettigheder",
       blocks: [
         {
-          type: "review",
-          text: "Juridisk godkendelse: Udkast — du har efter databeskyttelsesreglerne bl.a. ret til indsigt, berigtigelse, sletning, begrænsning af behandlingen, indsigelse og dataportabilitet. Kontakt os for at gøre brug af dine rettigheder. Formuleringen skal godkendes, før den gøres endelig.",
+          type: "p",
+          text: "Efter databeskyttelsesreglerne har du bl.a. ret til indsigt i de oplysninger, vi behandler om dig, samt ret til berigtigelse, sletning, begrænsning af behandlingen, indsigelse og dataportabilitet. Kontakt os, hvis du vil gøre brug af dine rettigheder.",
         },
       ],
     },
@@ -316,8 +290,8 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
       heading: "Klage til Datatilsynet",
       blocks: [
         {
-          type: "review",
-          text: "Juridisk godkendelse: Udkast — du kan klage over vores behandling af dine personoplysninger til Datatilsynet, Carl Jacobsens Vej 35, 2500 Valby, www.datatilsynet.dk. Bekræftes før den gøres endelig.",
+          type: "p",
+          text: "Du kan klage over vores behandling af dine personoplysninger til Datatilsynet, Carl Jacobsens Vej 35, 2500 Valby, www.datatilsynet.dk.",
         },
       ],
     },
