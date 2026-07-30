@@ -6,7 +6,7 @@ import { formatKroner } from "@/lib/money";
 export const metadata: Metadata = {
   title: "Drikkekort & priser — Bakkens Hvile",
   description:
-    "Se hele drikkekortet på Bakkens Hvile: øl, vin, drinks, spiritus og snacks. Køb online sammen med billetten og få 10% rabat.",
+    "Se hele drikkekortet i Bakkens Hvile: øl, vin, drinks, spiritus og snacks. Bestil online sammen med billetten senest kl. 12.00 på forestillingsdagen og få 10 % rabat.",
 };
 
 export const runtime = "nodejs";
@@ -52,10 +52,15 @@ export default async function PriserPage() {
               lineHeight: 1.6,
             }}
           >
-            Priserne herunder gælder ved bestilling hos tjeneren i salen. Køber du
-            drikkevarer <strong style={{ color: "var(--gold)" }}>online</strong> —
-            sammen med billetten eller via QR-koden ved bordet — får du dem{" "}
-            <strong style={{ color: "var(--gold)" }}>10% billigere</strong>.
+            Priserne herunder er de almindelige priser — ved bestilling hos
+            tjeneren, via QR-koden ved bordet og på selve forestillingsdagen
+            efter kl. 12.00. Bestiller du drikkevarer{" "}
+            <strong style={{ color: "var(--gold)" }}>online</strong> sammen med
+            billetten senest{" "}
+            <strong style={{ color: "var(--gold)" }}>
+              kl. 12.00 på forestillingsdagen
+            </strong>
+            , får du <strong style={{ color: "var(--gold)" }}>10 % rabat</strong>.
           </p>
 
           {groups.length === 0 ? (

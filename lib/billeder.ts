@@ -223,6 +223,15 @@ export const billeder = {
     maksVisningsbredde: 1100,
   },
 
+  // --- Kapelmester sammen med syngepigerne ---
+  kennethMedSyngepigerne: {
+    src: "/KSai.jpg",
+    alt: "Kapelmester Kenneth Sichlau sammen med syngepigerne i Bakkens Hvile",
+    bredde: 1248,
+    hoejde: 832,
+    maksVisningsbredde: 1248,
+  },
+
   // --- Sangerinde-portrætter (dedikerede lokale kopier) ---
   // Erstatter tidligere hotlinks til bakkenshvile.dk, som lukkes ned.
   annFarholt: {

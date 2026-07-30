@@ -27,8 +27,6 @@ const GALLERI: { billede: Billede; objectPosition: string }[] = [
   { billede: billeder.denTommeSal, objectPosition: "center 55%" },
   { billede: billeder.blomstersangen, objectPosition: "72% 70%" },
   { billede: billeder.dotAleneMedRose, objectPosition: "center 30%" },
-  { billede: billeder.garderobenFoerShow, objectPosition: "center 35%" },
-  { billede: billeder.trePigerVedTaeppet, objectPosition: "center 28%" },
 ];
 
 export default function Home() {
@@ -140,6 +138,22 @@ export default function Home() {
               </div>
             ))}
           </div>
+          <figure className="kapelmesterFeature">
+            <div className="kapelmesterPhoto">
+              <Image
+                src={billeder.kennethMedSyngepigerne.src}
+                alt={billeder.kennethMedSyngepigerne.alt}
+                width={billeder.kennethMedSyngepigerne.bredde}
+                height={billeder.kennethMedSyngepigerne.hoejde}
+                loading="lazy"
+                sizes="(max-width: 900px) 100vw, 900px"
+                style={{ objectPosition: "center 30%" }}
+              />
+            </div>
+            <figcaption className="kapelmesterCaption">
+              Kapelmester Kenneth Sichlau med syngepigerne
+            </figcaption>
+          </figure>
         </div>
       </section>
 
@@ -151,7 +165,7 @@ export default function Home() {
           <h2 className="sectionTitle">Priser</h2>
           <p
             style={{
-              maxWidth: 620,
+              maxWidth: 640,
               margin: "0 auto",
               textAlign: "center",
               color: "var(--paper-dim)",
@@ -159,9 +173,23 @@ export default function Home() {
               lineHeight: 1.6,
             }}
           >
-            Køber du drikkevarer online sammen med din billet, får du dem{" "}
-            <strong style={{ color: "var(--gold)" }}>10% billigere</strong> end
-            ved køb i salen.
+            Bestil drikkevarer online med{" "}
+            <strong style={{ color: "var(--gold)" }}>10 % rabat</strong> senest
+            kl. 12.00 på forestillingsdagen. Herefter gælder de almindelige
+            priser. Bestilling via QR-systemet og ved bordene sker til fuld pris.
+          </p>
+          <p
+            style={{
+              maxWidth: 640,
+              margin: "16px auto 0",
+              textAlign: "center",
+              color: "var(--paper-dim)",
+              fontSize: 16,
+              lineHeight: 1.6,
+            }}
+          >
+            Drikkevarer bestilles ved bordet — enten via QR-systemet eller hos
+            tjenerne. Der modtages ikke bestillinger i baren.
           </p>
           <div
             style={{

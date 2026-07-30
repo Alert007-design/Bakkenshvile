@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
               total: `${paidKr} kr.`,
               grandTotal: `${grandTotalKr} kr.`,
               footerNote:
-                "Vi har lagt drikkevarerne til din bestilling. Vi glæder os til at se dig på Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.",
+                "Vi har lagt drikkevarerne til din bestilling. Vi glæder os til at se dig i Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.",
             }),
           });
         } else {
@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
               totalLabel: "I alt",
               total: `${paidKr} kr.`,
               footerNote:
-                "Vis dette bookingnummer ved indgangen. Vi glæder os til at se dig på Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.",
+                "Vis dette bookingnummer ved indgangen. Vi glæder os til at se dig i Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.",
             }),
           });
         }
