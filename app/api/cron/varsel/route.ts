@@ -7,6 +7,7 @@ import {
   FIELDS,
 } from "@/lib/airtable";
 import { sendMail } from "@/lib/resend";
+import { siteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -158,7 +159,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Uautoriseret" }, { status: 401 });
   }
 
-  const origin = process.env.SITE_URL || req.nextUrl.origin;
+  const origin = siteUrl();
   const target = danishDatePlus(2);
 
   let sent = 0;

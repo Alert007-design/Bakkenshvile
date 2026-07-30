@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { kronerToOre, mapVivaStatus, vivaProvider } from "@/lib/payments/viva";
+import {
+  kronerToOre,
+  mapVivaStatus,
+  normalizeVivaCurrency,
+  vivaProvider,
+} from "@/lib/payments/viva";
 import { extractOrderCode } from "@/lib/payments/viva-client";
 
 describe("kronerToOre — Viva kroner (decimaltal) → øre", () => {
@@ -30,6 +35,17 @@ describe("mapVivaStatus — kun 'F' er betalt", () => {
       expect(mapVivaStatus(s)).not.toBe("paid");
       expect(mapVivaStatus(s)).toBe("pending");
     }
+  });
+});
+
+describe("normalizeVivaCurrency — ISO-numerisk → intern streng", () => {
+  it("DKK (208) → dkk", () => {
+    expect(normalizeVivaCurrency("208")).toBe("dkk");
+    expect(normalizeVivaCurrency(208)).toBe("dkk");
+  });
+  it("andre koder matcher aldrig dkk (fail-closed)", () => {
+    expect(normalizeVivaCurrency("978")).not.toBe("dkk"); // EUR
+    expect(normalizeVivaCurrency("")).not.toBe("dkk");
   });
 });
 

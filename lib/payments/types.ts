@@ -12,10 +12,11 @@ export type PaymentProviderName = "stripe" | "viva";
 export interface CreatePaymentInput {
   orderId: string;
   orderNumber: string;
-  publicToken: string;
   eventId: string;
-  tableNumber: number;
   totalOre: number; // altid øre, altid serverberegnet
+  // Bord-/Stripe-specifikke felter (bruges kun af bordbestilling + Stripe).
+  publicToken?: string;
+  tableNumber?: number;
   currency: "dkk";
   description: string;
   origin: string;
@@ -23,6 +24,17 @@ export interface CreatePaymentInput {
   // Findes en betalingsreference allerede på ordren, genbruges den i stedet for
   // at oprette en ny betaling (vores egen idempotens).
   existingRef?: string | null;
+  // Hvilken Viva payment source betalingen skal oprettes på (success/failure-URL
+  // sidder på sourcen, ikke på den enkelte betaling). Udelades → providerens
+  // default. Ignoreres af Stripe.
+  sourceCode?: string;
+  // Entydig reference, der kan læses tilbage fra en verificeret transaktion:
+  //  - tags[0] dirigerer webhooken (fx "billet" | "genbestil" | "bordbestilling")
+  //  - efterfølgende tags bærer id'er (fx bookingId / eventId)
+  // Udelades ved Viva → provideren falder tilbage på bordbestillingens tags.
+  tags?: string[];
+  // Fritekst der vises i Vivas dashboard. Udelades → orderNumber.
+  merchantTrns?: string;
 }
 
 export interface CreatePaymentResult {

@@ -40,12 +40,12 @@ async function createPayment(input: CreatePaymentInput): Promise<CreatePaymentRe
       metadata: {
         kind: "table-order",
         orderId: input.orderId,
-        tableNumber: String(input.tableNumber),
+        tableNumber: String(input.tableNumber ?? ""),
         eventId: input.eventId,
       },
       // publicToken lægges med, så kvitteringssiden kan polle egen ordre.
-      success_url: `${input.origin}/bord/${input.tableNumber}/kvittering?session_id={CHECKOUT_SESSION_ID}&t=${input.publicToken}`,
-      cancel_url: `${input.origin}/bord/${input.tableNumber}?afbrudt=1`,
+      success_url: `${input.origin}/bord/${input.tableNumber ?? ""}/kvittering?session_id={CHECKOUT_SESSION_ID}&t=${input.publicToken ?? ""}`,
+      cancel_url: `${input.origin}/bord/${input.tableNumber ?? ""}?afbrudt=1`,
     },
     // Idempotency: dobbelt-POST for samme kladde giver samme session.
     { idempotencyKey: `table-checkout-${input.orderId}` }

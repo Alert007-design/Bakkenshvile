@@ -4,7 +4,9 @@
 //   TABLE_QR_SECRET=... npm run qr:sheet
 //
 // Valgfrie env-variabler:
-//   QR_BASE_URL       basis-URL (default https://bakkenshvile.dk)
+//   SITE_URL          sitets basis-URL (default https://bakkenshvile.vercel.app)
+//                     — ENESTE kilde til QR-koderne, så et domæneskift kun
+//                     kræver at denne variabel ændres.
 //   TABLE_TOKEN_VERSION  tokenversion/sæson (default 2026)
 //   QR_OUT            outputsti (default scripts/output/qr-ark.html)
 //
@@ -15,8 +17,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { buildQrSheet, renderQrSvg } from "@/lib/qr-sheet";
+import { siteUrl } from "@/lib/site-url";
 
-const BASE_URL = process.env.QR_BASE_URL || "https://bakkenshvile.dk";
+const BASE_URL = siteUrl();
 const OUT = process.env.QR_OUT || "scripts/output/qr-ark.html";
 
 function escapeHtml(s: string): string {

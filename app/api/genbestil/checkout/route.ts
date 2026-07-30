@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listRecords, getRecord, TABLES, FIELDS } from "@/lib/airtable";
-import { getStripe } from "@/lib/stripe";
-import { addonsTotalDiscountKr, ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
-import { authenticateBooking, reorderClosed, buildBookingView } from "@/lib/genbestil";
+import { getDb } from "@/lib/db";
+import { getPaymentProvider } from "@/lib/payments";
+import { vivaSourceCode } from "@/lib/payments/viva-client";
+import { createTicketPayment, type TicketLineItem } from "@/lib/ticket-payments";
+import { addonsTotalDiscountKr } from "@/lib/pricing";
+import { authenticateBooking, buildBookingView } from "@/lib/genbestil";
+
+// Betalingen udløber efter 30 min. (samme vindue som billetkøbet).
+const CHECKOUT_EXPIRY_MINUTES = 30;
 
 const GENERIC_ERROR =
   "Vi kunne ikke finde en booking, der matcher. Tjek oplysningerne og prøv igen.";
@@ -59,49 +65,49 @@ export async function POST(req: NextRequest) {
       customerEmail = String(cust.fields[FIELDS.customer.email] ?? "") || undefined;
     }
 
-    // 5) Stripe-session med kun tilvalgslinjer + rabat-coupon. Markeres som
-    //    genbestilling i metadata, så webhooken lægger oven i bookingen frem
-    //    for at oprette en ny.
+    // 5) Betaling hos den valgte udbyder (Viva) på tickets-sourcen. Markeres som
+    //    genbestilling via tags[0]="genbestil", så webhooken lægger oven i
+    //    bookingen frem for at oprette en ny. Beløb i øre, serverberegnet.
     const origin = req.nextUrl.origin;
-    const stripe = getStripe();
 
-    let discountParam: { coupon: string }[] | undefined;
-    if (discount > 0) {
-      const coupon = await stripe.coupons.create({
-        amount_off: Math.round(discount * 100),
-        currency: "dkk",
-        duration: "once",
-        name: ADDON_DISCOUNT_LABEL,
-      });
-      discountParam = [{ coupon: coupon.id }];
-    }
+    const ledgerLines: TicketLineItem[] = lineItems.map((li) => ({
+      description: li.name,
+      quantity: li.quantity,
+      amountSubtotalOre: Math.round(li.price * 100) * li.quantity,
+    }));
+    const discountOre = Math.round(discount * 100);
+    const expectedTotalOre =
+      ledgerLines.reduce((sum, l) => sum + l.amountSubtotalOre, 0) - discountOre;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      locale: "da",
-      line_items: lineItems.map((li) => ({
-        quantity: li.quantity,
-        price_data: {
-          currency: "dkk",
-          unit_amount: Math.round(li.price * 100),
-          product_data: { name: li.name },
-        },
-      })),
-      discounts: discountParam,
-      customer_email: customerEmail,
-      metadata: {
-        reorder: "true",
-        bookingId: booking.id,
-        bookingNo: view.bookingNo,
-      },
-      success_url: `${origin}/success?booking=${view.bookingNo}&genbestil=1`,
-      cancel_url: `${origin}/genbestil?ref=${encodeURIComponent(
-        view.bookingNo
-      )}&cancelled=1`,
+    const provider = getPaymentProvider();
+    const payment = await provider.createPayment({
+      orderId: booking.id,
+      orderNumber: view.bookingNo,
+      eventId:
+        (booking.fields[FIELDS.booking.show] as string[] | undefined)?.[0] ?? "",
+      totalOre: expectedTotalOre,
+      currency: "dkk",
+      description: `Bakkens Hvile · ekstra bestilling · ${view.bookingNo}`,
+      origin,
+      expiresInMinutes: CHECKOUT_EXPIRY_MINUTES,
+      sourceCode: vivaSourceCode("tickets"),
+      tags: ["genbestil", booking.id],
+      merchantTrns: `${view.bookingNo} · genbestilling`,
     });
 
-    return NextResponse.json({ url: session.url });
+    await createTicketPayment(getDb(), {
+      paymentRef: payment.paymentRef,
+      flow: "genbestil",
+      bookingId: booking.id,
+      bookingNo: view.bookingNo,
+      customerEmail: customerEmail ?? null,
+      customerName: view.name || null,
+      expectedTotalOre,
+      discountOre,
+      lineItems: ledgerLines,
+    });
+
+    return NextResponse.json({ url: payment.redirectUrl });
   } catch (err) {
     console.error("Genbestil-checkout fejlede", err);
     return NextResponse.json(
