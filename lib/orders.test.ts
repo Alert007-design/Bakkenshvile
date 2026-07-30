@@ -3,9 +3,10 @@ import { PGlite } from "@electric-sql/pglite";
 import { applyMigrations, type Queryable } from "@/lib/db";
 import {
   createDraftOrder,
-  attachCheckoutSession,
-  markOrderPaid,
-  markOrderRefunded,
+  attachPaymentRef,
+  getPaymentRef,
+  markOrderPaidByRef,
+  markOrderRefundedByRef,
   getOrderForGuest,
   setFulfillmentStatus,
   listActiveOrders,
@@ -69,6 +70,17 @@ describe("migration", () => {
     expect(names).toContain("order_lines");
     expect(names).toContain("hall_state");
   });
+
+  it("002 tilføjer payment_provider/ref/txn-kolonner", async () => {
+    const { rows } = await db.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_name='orders' AND table_schema='public'`
+    );
+    const cols = rows.map((r) => r.column_name);
+    expect(cols).toContain("payment_provider");
+    expect(cols).toContain("payment_ref");
+    expect(cols).toContain("payment_txn_id");
+  });
 });
 
 describe("createDraftOrder", () => {
@@ -84,19 +96,30 @@ describe("createDraftOrder", () => {
   });
 });
 
-describe("markOrderPaid — idempotens og beløbskontrol", () => {
+describe("attachPaymentRef / getPaymentRef", () => {
+  it("gemmer og læser referencen tilbage", async () => {
+    const o = await createDraftOrder(db, draft());
+    expect(await getPaymentRef(db, o.id)).toBeNull();
+    await attachPaymentRef(db, o.id, "viva", "1234567890123456");
+    expect(await getPaymentRef(db, o.id)).toBe("1234567890123456");
+  });
+});
+
+describe("markOrderPaidByRef — idempotens og beløbskontrol", () => {
   it("markerer betalt én gang og er idempotent ved gentagne kald", async () => {
     const o = await createDraftOrder(db, draft());
-    await attachCheckoutSession(db, o.id, "cs_test_1");
+    await attachPaymentRef(db, o.id, "stripe", "cs_test_1");
 
-    const first = await markOrderPaid(db, {
-      sessionId: "cs_test_1",
-      paymentIntentId: "pi_1",
+    const first = await markOrderPaidByRef(db, {
+      provider: "stripe",
+      paymentRef: "cs_test_1",
+      transactionId: "pi_1",
       amountTotalOre: 10000,
       currency: "dkk",
     });
-    const second = await markOrderPaid(db, {
-      sessionId: "cs_test_1",
+    const second = await markOrderPaidByRef(db, {
+      provider: "stripe",
+      paymentRef: "cs_test_1",
       amountTotalOre: 10000,
       currency: "dkk",
     });
@@ -112,11 +135,35 @@ describe("markOrderPaid — idempotens og beløbskontrol", () => {
     expect(rows[0].paid_at).not.toBeNull();
   });
 
-  it("afviser forkert beløb", async () => {
+  it("er idempotent ved to samtidige kald (kun én bliver 'paid')", async () => {
     const o = await createDraftOrder(db, draft());
-    await attachCheckoutSession(db, o.id, "cs_test_2");
-    const r = await markOrderPaid(db, {
-      sessionId: "cs_test_2",
+    await attachPaymentRef(db, o.id, "viva", "1000000000000001");
+
+    const [a, b] = await Promise.all([
+      markOrderPaidByRef(db, {
+        provider: "viva",
+        paymentRef: "1000000000000001",
+        amountTotalOre: 10000,
+        currency: "dkk",
+      }),
+      markOrderPaidByRef(db, {
+        provider: "viva",
+        paymentRef: "1000000000000001",
+        amountTotalOre: 10000,
+        currency: "dkk",
+      }),
+    ]);
+
+    const statuses = [a.status, b.status].sort();
+    expect(statuses).toEqual(["already_paid", "paid"]);
+  });
+
+  it("afviser forkert beløb (amount_mismatch, forbliver pending)", async () => {
+    const o = await createDraftOrder(db, draft());
+    await attachPaymentRef(db, o.id, "stripe", "cs_test_2");
+    const r = await markOrderPaidByRef(db, {
+      provider: "stripe",
+      paymentRef: "cs_test_2",
       amountTotalOre: 9999,
       currency: "dkk",
     });
@@ -130,40 +177,66 @@ describe("markOrderPaid — idempotens og beløbskontrol", () => {
 
   it("afviser forkert valuta", async () => {
     const o = await createDraftOrder(db, draft());
-    await attachCheckoutSession(db, o.id, "cs_test_3");
-    const r = await markOrderPaid(db, {
-      sessionId: "cs_test_3",
+    await attachPaymentRef(db, o.id, "stripe", "cs_test_3");
+    const r = await markOrderPaidByRef(db, {
+      provider: "stripe",
+      paymentRef: "cs_test_3",
       amountTotalOre: 10000,
       currency: "eur",
     });
     expect(r.status).toBe("amount_mismatch");
   });
 
-  it("returnerer not_found for ukendt session", async () => {
-    const r = await markOrderPaid(db, {
-      sessionId: "cs_unknown",
+  it("returnerer not_found for ukendt reference", async () => {
+    const r = await markOrderPaidByRef(db, {
+      provider: "stripe",
+      paymentRef: "cs_unknown",
       amountTotalOre: 10000,
       currency: "dkk",
     });
     expect(r.status).toBe("not_found");
   });
-});
 
-describe("unik constraint på stripe_checkout_session_id", () => {
-  it("kan ikke binde samme session til to ordrer (ingen dobbeltordre)", async () => {
+  it("adskiller udbydere: samme reference-streng under to udbydere er to ordrer", async () => {
     const a = await createDraftOrder(db, draft());
     const b = await createDraftOrder(db, draft());
-    await attachCheckoutSession(db, a.id, "cs_dup");
-    await expect(attachCheckoutSession(db, b.id, "cs_dup")).rejects.toThrow();
+    // Samme ref-tekst, men forskellig udbyder → to selvstændige bindinger.
+    await attachPaymentRef(db, a.id, "stripe", "REF-XYZ");
+    await attachPaymentRef(db, b.id, "viva", "REF-XYZ");
+
+    const stripePaid = await markOrderPaidByRef(db, {
+      provider: "stripe",
+      paymentRef: "REF-XYZ",
+      amountTotalOre: 10000,
+      currency: "dkk",
+    });
+    expect(stripePaid.status).toBe("paid");
+    if (stripePaid.status === "paid") expect(stripePaid.orderId).toBe(a.id);
+  });
+});
+
+describe("unik constraint på (payment_provider, payment_ref)", () => {
+  it("kan ikke binde samme betaling til to ordrer (ingen dobbeltordre)", async () => {
+    const a = await createDraftOrder(db, draft());
+    const b = await createDraftOrder(db, draft());
+    await attachPaymentRef(db, a.id, "viva", "9999999999999999");
+    await expect(
+      attachPaymentRef(db, b.id, "viva", "9999999999999999")
+    ).rejects.toThrow();
   });
 });
 
 describe("refundering", () => {
   it("markerer en betalt ordre som refunderet", async () => {
     const o = await createDraftOrder(db, draft());
-    await attachCheckoutSession(db, o.id, "cs_refund");
-    await markOrderPaid(db, { sessionId: "cs_refund", amountTotalOre: 10000, currency: "dkk" });
-    expect(await markOrderRefunded(db, "cs_refund")).toBe(true);
+    await attachPaymentRef(db, o.id, "viva", "cs_refund");
+    await markOrderPaidByRef(db, {
+      provider: "viva",
+      paymentRef: "cs_refund",
+      amountTotalOre: 10000,
+      currency: "dkk",
+    });
+    expect(await markOrderRefundedByRef(db, "viva", "cs_refund")).toBe(true);
     const { rows } = await db.query<{ payment_status: string }>(
       `SELECT payment_status FROM orders WHERE id=$1`,
       [o.id]
@@ -194,8 +267,13 @@ describe("getOrderForGuest — isolation", () => {
 describe("setFulfillmentStatus — gyldige overgange", () => {
   async function paidOrder() {
     const o = await createDraftOrder(db, draft());
-    await attachCheckoutSession(db, o.id, `cs_${o.id}`);
-    await markOrderPaid(db, { sessionId: `cs_${o.id}`, amountTotalOre: 10000, currency: "dkk" });
+    await attachPaymentRef(db, o.id, "stripe", `cs_${o.id}`);
+    await markOrderPaidByRef(db, {
+      provider: "stripe",
+      paymentRef: `cs_${o.id}`,
+      amountTotalOre: 10000,
+      currency: "dkk",
+    });
     return o;
   }
 
@@ -228,26 +306,33 @@ describe("setFulfillmentStatus — gyldige overgange", () => {
 });
 
 describe("listActiveOrders", () => {
+  async function pay(id: string, ref: string) {
+    await attachPaymentRef(db, id, "stripe", ref);
+    await markOrderPaidByRef(db, {
+      provider: "stripe",
+      paymentRef: ref,
+      amountTotalOre: 10000,
+      currency: "dkk",
+    });
+  }
+
   it("viser kun betalte, ikke-afsluttede ordrer for eventet, ældste først", async () => {
     const paid = await createDraftOrder(db, draft({ tableNumber: 11 }));
-    await attachCheckoutSession(db, paid.id, "cs_a");
-    await markOrderPaid(db, { sessionId: "cs_a", amountTotalOre: 10000, currency: "dkk" });
+    await pay(paid.id, "cs_a");
 
     // Ubetalt → skal ikke med.
     await createDraftOrder(db, draft({ tableNumber: 12 }));
 
     // Leveret → skal ikke med.
     const done = await createDraftOrder(db, draft({ tableNumber: 13 }));
-    await attachCheckoutSession(db, done.id, "cs_b");
-    await markOrderPaid(db, { sessionId: "cs_b", amountTotalOre: 10000, currency: "dkk" });
+    await pay(done.id, "cs_b");
     await setFulfillmentStatus(db, done.id, "preparing");
     await setFulfillmentStatus(db, done.id, "ready");
     await setFulfillmentStatus(db, done.id, "delivered");
 
     // Andet event → skal ikke med.
     const other = await createDraftOrder(db, draft({ eventId: "evt2", tableNumber: 14 }));
-    await attachCheckoutSession(db, other.id, "cs_c");
-    await markOrderPaid(db, { sessionId: "cs_c", amountTotalOre: 10000, currency: "dkk" });
+    await pay(other.id, "cs_c");
 
     const active = await listActiveOrders(db, "evt1");
     expect(active.map((o) => o.tableNumber)).toEqual([11]);

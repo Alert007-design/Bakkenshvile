@@ -198,6 +198,13 @@
   font-family: var(--font-display);
   color: var(--gold);
 }
+.bord-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--gold);
+  font-weight: 600;
+  text-decoration: underline;
+}
 
 .error-line {
   color: oklch(0.7 0.15 25);

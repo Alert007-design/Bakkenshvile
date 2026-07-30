@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStripe } from "@/lib/stripe";
 import { getDb } from "@/lib/db";
 import { getMenuMap } from "@/lib/menu";
 import { validateCheckout } from "@/lib/checkout";
-import { createDraftOrder, attachCheckoutSession } from "@/lib/orders";
+import { createDraftOrder, attachPaymentRef, getPaymentRef } from "@/lib/orders";
+import { getPaymentProvider, getConfiguredProviderName, assertVivaLiveAllowed } from "@/lib/payments";
+import type { PaymentProvider } from "@/lib/payments/types";
 import { isOrderingOpen } from "@/lib/hall-state";
 import { parseTableNumber } from "@/lib/tables";
 import { verifyTableToken } from "@/lib/table-tokens";
@@ -23,9 +24,17 @@ export async function POST(req: NextRequest) {
   if (!isOrderingEnabled()) {
     return NextResponse.json({ error: "Bordbestilling er ikke aktiv." }, { status: 403 });
   }
-  // Livebetaling er umulig uden eksplicit live-tilstand (fejler lukket).
+  // Livebetaling er umulig uden eksplicit live-tilstand (fejler lukket) — for
+  // begge udbydere. Viva-værnet ligger i getPaymentProvider(); Stripe-værnet
+  // tjekker nøglen direkte.
+  let provider: PaymentProvider;
   try {
-    assertLivePaymentAllowed(process.env.STRIPE_SECRET_KEY);
+    if (getConfiguredProviderName() === "viva") {
+      assertVivaLiveAllowed();
+    } else {
+      assertLivePaymentAllowed(process.env.STRIPE_SECRET_KEY);
+    }
+    provider = getPaymentProvider();
   } catch {
     return NextResponse.json({ error: "Bordbestilling er ikke aktiv." }, { status: 403 });
   }
@@ -70,49 +79,46 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Ordrekladde oprettes FØR Stripe-sessionen, så dens ID kan ligge i metadata.
+    // Ordrekladde oprettes FØR betalingen, så dens ID kan ligge i metadata/tags.
     const order = await createDraftOrder(db, result.draft);
-    const stripe = getStripe();
     const origin = req.nextUrl.origin;
 
-    const session = await stripe.checkout.sessions.create(
-      {
-        mode: "payment",
-        // payment_method_types udelades bevidst: Stripe Checkout viser så de
-        // metoder der er slået til i Dashboard (MobilePay + kort) og vælger
-        // selv visning/rækkefølge ud fra enhed, beløb og gæstens placering.
-        locale: "da",
-        currency: "dkk",
-        line_items: result.stripeLines.map((l) => ({
-          quantity: l.quantity,
-          price_data: {
-            currency: "dkk",
-            unit_amount: l.unitAmountOre, // allerede i øre
-            product_data: { name: l.name },
-          },
-        })),
-        expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_EXPIRY_MINUTES * 60,
-        metadata: {
-          kind: "table-order",
-          orderId: order.id,
-          tableNumber: String(result.draft.tableNumber),
-          eventId,
-        },
-        // publicToken lægges med, så kvitteringssiden kan polle egen ordre.
-        success_url: `${origin}/bord/${result.draft.tableNumber}/kvittering?session_id={CHECKOUT_SESSION_ID}&t=${order.publicToken}`,
-        cancel_url: `${origin}/bord/${result.draft.tableNumber}?afbrudt=1`,
-      },
-      // Idempotency: dobbelt-POST for samme kladde giver samme session.
-      { idempotencyKey: `table-checkout-${order.id}` }
-    );
+    // Findes der allerede en reference (dobbelt-POST), genbruges den — vores
+    // egen idempotens, uafhængigt af udbyder.
+    const existingRef = await getPaymentRef(db, order.id);
 
-    await attachCheckoutSession(db, order.id, session.id);
+    const payment = await provider.createPayment({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      publicToken: order.publicToken,
+      eventId,
+      tableNumber: result.draft.tableNumber,
+      totalOre: result.draft.totalOre,
+      currency: "dkk",
+      description: `Bakkens Hvile · bord ${result.draft.tableNumber} · ${order.orderNumber}`,
+      origin,
+      expiresInMinutes: CHECKOUT_EXPIRY_MINUTES,
+      existingRef,
+    });
 
-    return NextResponse.json({
-      url: session.url,
+    await attachPaymentRef(db, order.id, provider.name, payment.paymentRef);
+
+    const res = NextResponse.json({
+      url: payment.redirectUrl,
       orderNumber: order.orderNumber,
       publicToken: order.publicToken,
     });
+    // Kvitteringssiden kan finde ordren efter redirect fra Viva (som ikke kan
+    // bære publicToken i success-URL'en, da den er fælles for alle betalinger).
+    // sameSite=lax, så cookien overlever redirect'et tilbage.
+    res.cookies.set("bh_bord_ordre", order.publicToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/bord",
+      maxAge: 3600,
+    });
+    return res;
   } catch (err) {
     console.error("Bordbestilling-checkout fejlede", err);
     return NextResponse.json(

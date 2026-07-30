@@ -13,5 +13,10 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
+    // Bordbestillingens tests booter en indlejret Postgres (pglite/WASM) i en
+    // beforeAll-hook. Boot + migrationer kan være langsomt i et koldt/sandkasse-
+    // miljø, så både hook- og test-timeout hæves fra standardens 5–10 sek.
+    hookTimeout: 60_000,
+    testTimeout: 30_000,
   },
 });
