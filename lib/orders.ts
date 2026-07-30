@@ -3,13 +3,17 @@
 //
 // Kernegarantier:
 //  - En betaling kan aldrig give to ordrer (unik constraint på
-//    stripe_checkout_session_id + idempotent markOrderPaid).
+//    (payment_provider, payment_ref) + idempotent markOrderPaidByRef).
 //  - Gæsten kan kun tilgå sin egen ordre (opslag via hemmeligt public_token).
 //  - Leveringsstatus kan kun flyttes gennem gyldige overgange (SELECT FOR
 //    UPDATE + statusmaskine), også når to medarbejdere rører samme ordre.
+//
+// Betalingsfunktionerne er udbyder-uafhængige: de slår op på (payment_provider,
+// payment_ref), hvor payment_ref er Stripes session-id ELLER Vivas orderCode.
 
 import { randomBytes } from "crypto";
 import type { Queryable } from "@/lib/db";
+import type { PaymentProviderName } from "@/lib/payments/types";
 import {
   assertFulfillmentTransition,
   type FulfillmentStatus,
@@ -118,18 +122,32 @@ export async function createDraftOrder(
 }
 
 /**
- * Kobler Stripe Checkout-sessionens ID på ordrekladden. Den unikke constraint
- * gør, at samme session aldrig kan bindes til to ordrer.
+ * Kobler en udbyders betalingsreference (Stripe session-id eller Vivas
+ * orderCode) på ordrekladden. Den unikke constraint på (payment_provider,
+ * payment_ref) gør, at samme betaling aldrig kan bindes til to ordrer.
  */
-export async function attachCheckoutSession(
+export async function attachPaymentRef(
   db: Queryable,
   orderId: string,
-  sessionId: string
+  provider: PaymentProviderName,
+  paymentRef: string
 ): Promise<void> {
   await db.query(
-    `UPDATE orders SET stripe_checkout_session_id = $1 WHERE id = $2`,
-    [sessionId, orderId]
+    `UPDATE orders SET payment_provider = $1, payment_ref = $2 WHERE id = $3`,
+    [provider, paymentRef, orderId]
   );
+}
+
+/** Henter ordrens nuværende betalingsreference (null hvis ingen). */
+export async function getPaymentRef(
+  db: Queryable,
+  orderId: string
+): Promise<string | null> {
+  const { rows } = await db.query<{ payment_ref: string | null }>(
+    `SELECT payment_ref FROM orders WHERE id = $1`,
+    [orderId]
+  );
+  return rows[0]?.payment_ref ?? null;
 }
 
 export type MarkPaidResult =
@@ -139,16 +157,17 @@ export type MarkPaidResult =
   | { status: "amount_mismatch"; orderId: string };
 
 /**
- * Markerer ordren som betalt ud fra en verificeret Stripe-session. Idempotent
- * og sikker ved samtidige kald: kun overgangen pending → paid udføres, og kun
- * én gang. Beløb og valuta kontrolleres mod kladden, så en forfalsket eller
- * forkert betaling afvises.
+ * Markerer ordren som betalt ud fra en verificeret betaling. Idempotent og
+ * sikker ved samtidige kald: kun overgangen pending → paid udføres, og kun én
+ * gang. Beløb og valuta kontrolleres mod kladden, så en forfalsket eller
+ * forkert betaling afvises. Opslag sker på (payment_provider, payment_ref).
  */
-export async function markOrderPaid(
+export async function markOrderPaidByRef(
   db: Queryable,
   params: {
-    sessionId: string;
-    paymentIntentId?: string | null;
+    provider: PaymentProviderName;
+    paymentRef: string;
+    transactionId?: string | null;
     amountTotalOre: number;
     currency: string;
   }
@@ -160,8 +179,8 @@ export async function markOrderPaid(
     payment_status: PaymentStatus;
   }>(
     `SELECT id, total_ore, currency, payment_status
-       FROM orders WHERE stripe_checkout_session_id = $1`,
-    [params.sessionId]
+       FROM orders WHERE payment_provider = $1 AND payment_ref = $2`,
+    [params.provider, params.paymentRef]
   );
   const order = rows[0];
   if (!order) return { status: "not_found" };
@@ -182,42 +201,44 @@ export async function markOrderPaid(
     `UPDATE orders
         SET payment_status = 'paid',
             fulfillment_status = 'new',
-            stripe_payment_intent_id = COALESCE($2, stripe_payment_intent_id),
+            payment_txn_id = COALESCE($2, payment_txn_id),
             paid_at = now()
       WHERE id = $1 AND payment_status = 'pending'
       RETURNING id`,
-    [order.id, params.paymentIntentId ?? null]
+    [order.id, params.transactionId ?? null]
   );
   if (upd.rows.length === 0) return { status: "already_paid", orderId: order.id };
   return { status: "paid", orderId: order.id };
 }
 
 /** Markerer en ubetalt ordre som fejlet (udløbet/afvist betaling). */
-export async function markOrderFailed(
+export async function markOrderFailedByRef(
   db: Queryable,
-  sessionId: string
+  provider: PaymentProviderName,
+  paymentRef: string
 ): Promise<boolean> {
   const upd = await db.query<{ id: string }>(
     `UPDATE orders
         SET payment_status = 'failed'
-      WHERE stripe_checkout_session_id = $1 AND payment_status = 'pending'
+      WHERE payment_provider = $1 AND payment_ref = $2 AND payment_status = 'pending'
       RETURNING id`,
-    [sessionId]
+    [provider, paymentRef]
   );
   return upd.rows.length > 0;
 }
 
 /** Markerer en betalt ordre som refunderet. */
-export async function markOrderRefunded(
+export async function markOrderRefundedByRef(
   db: Queryable,
-  sessionId: string
+  provider: PaymentProviderName,
+  paymentRef: string
 ): Promise<boolean> {
   const upd = await db.query<{ id: string }>(
     `UPDATE orders
         SET payment_status = 'refunded', refunded_at = now()
-      WHERE stripe_checkout_session_id = $1 AND payment_status = 'paid'
+      WHERE payment_provider = $1 AND payment_ref = $2 AND payment_status = 'paid'
       RETURNING id`,
-    [sessionId]
+    [provider, paymentRef]
   );
   return upd.rows.length > 0;
 }

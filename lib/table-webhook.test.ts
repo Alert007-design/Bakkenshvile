@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import type Stripe from "stripe";
 import { applyMigrations, type Queryable } from "@/lib/db";
-import { createDraftOrder, attachCheckoutSession, type DraftOrderInput } from "@/lib/orders";
+import { createDraftOrder, attachPaymentRef, type DraftOrderInput } from "@/lib/orders";
 import { handleTableWebhookEvent } from "@/lib/table-webhook";
 
 let db: Queryable;
@@ -53,7 +53,7 @@ beforeEach(async () => {
 
 async function paidOrderSession(sessionId: string) {
   const o = await createDraftOrder(db, draft());
-  await attachCheckoutSession(db, o.id, sessionId);
+  await attachPaymentRef(db, o.id, "stripe", sessionId);
   return o;
 }
 

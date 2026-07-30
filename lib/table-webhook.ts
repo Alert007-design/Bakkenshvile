@@ -3,14 +3,14 @@
 // færdig-verificerede event og opdaterer databasen idempotent.
 //
 // Beløb og valuta aflæses direkte på sessionen i eventet og kontrolleres mod
-// ordrekladden i markOrderPaid — en forkert eller forfalsket betaling afvises.
+// ordrekladden i markOrderPaidByRef — en forkert eller forfalsket betaling afvises.
 
 import type Stripe from "stripe";
 import type { Queryable } from "@/lib/db";
 import {
-  markOrderFailed,
-  markOrderPaid,
-  markOrderRefunded,
+  markOrderFailedByRef,
+  markOrderPaidByRef,
+  markOrderRefundedByRef,
   type MarkPaidResult,
 } from "@/lib/orders";
 
@@ -36,9 +36,10 @@ export async function handleTableWebhookEvent(
       if (session.payment_status !== "paid") {
         return { handled: true, type: event.type };
       }
-      const result = await markOrderPaid(db, {
-        sessionId: session.id,
-        paymentIntentId:
+      const result = await markOrderPaidByRef(db, {
+        provider: "stripe",
+        paymentRef: session.id,
+        transactionId:
           typeof session.payment_intent === "string" ? session.payment_intent : null,
         amountTotalOre: session.amount_total ?? -1,
         currency: session.currency ?? "",
@@ -50,7 +51,7 @@ export async function handleTableWebhookEvent(
     case "checkout.session.async_payment_failed": {
       const session = event.data.object as Stripe.Checkout.Session;
       if (!isTableOrderSession(session)) return { handled: false, type: event.type };
-      const result = await markOrderFailed(db, session.id);
+      const result = await markOrderFailedByRef(db, "stripe", session.id);
       return { handled: true, type: event.type, result };
     }
 
@@ -60,7 +61,7 @@ export async function handleTableWebhookEvent(
       // separat af sales-registration ved refundering.
       const sessionId = charge.metadata?.checkoutSessionId;
       if (!sessionId) return { handled: false, type: event.type };
-      const result = await markOrderRefunded(db, sessionId);
+      const result = await markOrderRefundedByRef(db, "stripe", sessionId);
       return { handled: true, type: event.type, result };
     }
 
