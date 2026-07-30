@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRecord, getRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { getStripe } from "@/lib/stripe";
 import { addonsTotalDiscountKr, ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
-import { addonBreakdown, generateBookingKey } from "@/lib/genbestil";
+import {
+  addonBreakdown,
+  generateBookingKey,
+  onlineDiscountActive,
+} from "@/lib/genbestil";
 
 type LineItem = {
   name: string;
@@ -38,6 +42,7 @@ export async function POST(req: NextRequest) {
       lineItems,
       showId,
       matching,
+      acceptTerms,
     }: {
       customer: {
         name: string;
@@ -59,10 +64,23 @@ export async function POST(req: NextRequest) {
         drinkPreference?: string;
         note?: string;
       };
+      acceptTerms?: boolean;
     } = body;
     if (!customer?.name || (!customer?.phone && !customer?.email)) {
       return NextResponse.json(
         { error: "Navn samt telefon eller email er påkrævet" },
+        { status: 400 }
+      );
+    }
+    // Obligatorisk accept af handelsbetingelser + privatlivspolitik. Håndhæves
+    // også serverside, så købet aldrig kan gennemføres uden accept — heller
+    // ikke hvis klienten omgås.
+    if (acceptTerms !== true) {
+      return NextResponse.json(
+        {
+          error:
+            "Du skal acceptere handelsbetingelserne og have læst privatlivspolitikken.",
+        },
         { status: 400 }
       );
     }
@@ -74,6 +92,9 @@ export async function POST(req: NextRequest) {
     }
     // Serverside-værn: en udsolgt dato må aldrig kunne føres til betaling,
     // heller ikke hvis klienten manipuleres til at sende showId'et alligevel.
+    // Samme opslag giver os forestillingsdatoen, som rabatgrænsen beregnes ud
+    // fra (kl. 12.00 dansk tid på forestillingsdagen).
+    let showDate = "";
     if (showId) {
       const event = await getRecord(TABLES.events, showId);
       if (event.fields[FIELDS.event.soldOut]) {
@@ -82,7 +103,12 @@ export async function POST(req: NextRequest) {
           { status: 409 }
         );
       }
+      showDate = String(event.fields[FIELDS.event.date] ?? "");
     }
+    // Onlinerabatten gælder kun indtil kl. 12.00 dansk tid på forestillingsdagen.
+    // Uden en kendt dato gives ingen rabat (fuld pris). Beregnes serverside, så
+    // browserens tid aldrig kan omgå grænsen.
+    const discountActive = showDate ? onlineDiscountActive(showDate) : false;
     const customerRecord = await createRecord(TABLES.customers, {
       [FIELDS.customer.name]: customer.name,
       [FIELDS.customer.company]: customer.company || "",
@@ -99,14 +125,18 @@ export async function POST(req: NextRequest) {
       lineItems.filter((li) => li.kind === "addon")
     );
 
-    // Onlinerabat: 10% på tilvalg. Beregnes serverside som summen af de
-    // enhedsfloorede rabatter via den delte hjælpefunktion — nøjagtig samme
-    // tal som frontend viser, så det viste og det trukne aldrig kan afvige.
-    const discount = addonsTotalDiscountKr(
-      lineItems
-        .filter((li) => li.kind === "addon")
-        .map((li) => ({ unitKr: li.unitAmount, quantity: li.quantity }))
-    );
+    // Onlinerabat: 10% på tilvalg — men KUN indtil kl. 12.00 dansk tid på
+    // forestillingsdagen. Efter deadline er der ingen rabat (fuld pris).
+    // Beregnes serverside som summen af de enhedsfloorede rabatter via den
+    // delte hjælpefunktion — nøjagtig samme tal som frontend viser, så det
+    // viste og det trukne aldrig kan afvige.
+    const discount = discountActive
+      ? addonsTotalDiscountKr(
+          lineItems
+            .filter((li) => li.kind === "addon")
+            .map((li) => ({ unitKr: li.unitAmount, quantity: li.quantity }))
+        )
+      : 0;
 
     const bookingFields: Record<string, unknown> = {
       [FIELDS.booking.bookingNo]: bookingNo,

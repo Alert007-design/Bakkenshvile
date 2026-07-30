@@ -41,8 +41,8 @@ export default function BordClient({
     for (const [id, n] of Object.entries(qty)) {
       const item = itemById.get(id);
       if (item && n > 0) {
-        // Online-pris (10% billigere end i salen) — det gæsten betaler.
-        totalOre += item.onlineUnitPriceOre * n;
+        // Bestilling ved bordet/via QR sker altid til fuld pris.
+        totalOre += item.unitPriceOre * n;
         totalCount += n;
       }
     }
@@ -105,8 +105,9 @@ export default function BordClient({
           {row}. række · {position}. bord fra baren
         </div>
         <div className="bord-note">
-          Priserne her er online-priser — 10% billigere end ved bestilling hos
-          tjeneren i salen.
+          Priserne her er de almindelige priser. Onlinerabatten på 10% gælder
+          kun drikkevarer forudbestilt sammen med billetten, senest kl. 12.00 på
+          forestillingsdagen.
         </div>
         {isShow ? (
           <div className="bord-note">
@@ -130,10 +131,7 @@ export default function BordClient({
                       <div className="menu-item-desc">{item.description}</div>
                     ) : null}
                     <div className="menu-item-price">
-                      {formatKroner(item.onlineUnitPriceOre)}
-                      {item.onlineUnitPriceOre < item.unitPriceOre ? (
-                        <span className="menu-item-full">{formatKroner(item.unitPriceOre)}</span>
-                      ) : null}
+                      {formatKroner(item.unitPriceOre)}
                     </div>
                   </div>
                   <div className="qty">

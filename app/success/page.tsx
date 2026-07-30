@@ -22,7 +22,7 @@ export default function SuccessPage({
           <p style={{ opacity: 0.8, fontSize: 14 }}>
             {isReorder
               ? "Vi har lagt drikkevarerne til din bestilling. Du modtager en bekræftelse på email snarest."
-              : "Du modtager en bekræftelse på email snarest. Vi glæder os til at se dig på Bakkens Hvile."}
+              : "Du modtager en bekræftelse på email snarest. Vi glæder os til at se dig i Bakkens Hvile."}
           </p>
         </div>
       </div>

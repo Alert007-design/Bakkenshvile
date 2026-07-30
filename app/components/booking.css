@@ -736,3 +736,26 @@
   padding: 24px 16px;
   margin-bottom: 28px;
 }
+
+/* Obligatorisk accept af handelsbetingelser + privatlivspolitik */
+.terms-accept {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.terms-accept input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.terms-accept a {
+  color: var(--bh-gold);
+  text-decoration: underline;
+}

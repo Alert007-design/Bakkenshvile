@@ -13,7 +13,6 @@ import {
   type AirtableRecord,
 } from "@/lib/airtable";
 import { kronerToOre } from "@/lib/money";
-import { discountedAddonUnitOre } from "@/lib/pricing";
 
 // Standard dansk moms hvis en vare ikke har en eksplicit sats sat.
 export const DEFAULT_VAT_RATE = 25;
@@ -45,10 +44,12 @@ export interface MenuItem {
   name: string;
   description: string;
   group: string;
-  /** Fuld salpris i øre (som i salen / på /priser). */
+  /**
+   * Salpris i øre — den fulde pris. Bestilling ved bordet/via QR sker altid til
+   * fuld pris; onlinerabatten gælder kun forudbestilte drikkevarer sammen med
+   * billetten (senest kl. 12.00 på forestillingsdagen) og håndteres dér.
+   */
   unitPriceOre: number;
-  /** Online-pris i øre = fuld pris minus 10% (det gæsten betaler online). */
-  onlineUnitPriceOre: number;
   vatRate: number;
   sort: number;
 }
@@ -85,7 +86,6 @@ function toMenuItem(rec: AirtableRecord): MenuItem | null {
     description: String(f[FIELDS.addOn.description] ?? "").trim(),
     group: priceGroupName(f[FIELDS.addOn.category]) || "Andet",
     unitPriceOre,
-    onlineUnitPriceOre: discountedAddonUnitOre(unitPriceOre),
     vatRate,
     sort: Number.isFinite(sortRaw) ? sortRaw : 0,
   };

@@ -97,8 +97,6 @@ describe("menu — filtrering og mapping", () => {
     );
     const [item] = await menu.getMenuItems();
     expect(item.unitPriceOre).toBe(4500);
-    // Online-pris = 45 kr − 10% (floor pr. enhed = 4 kr) = 41 kr.
-    expect(item.onlineUnitPriceOre).toBe(4100);
     expect(item.vatRate).toBe(menu.DEFAULT_VAT_RATE);
   });
 

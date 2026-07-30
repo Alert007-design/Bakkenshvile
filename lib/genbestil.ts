@@ -109,6 +109,16 @@ export function reorderClosed(showDateIso: string, now = new Date()): boolean {
   return now.getTime() >= deadline.getTime();
 }
 
+// Onlinerabatten på drikkevarer (10%) er kun aktiv indtil kl. 12.00 dansk tid
+// på forestillingsdagen. Efter deadline — og altid ved QR-/bordbestilling —
+// gælder de almindelige priser. Beregnes serverside i Europe/Copenhagen med
+// korrekt sommer-/vintertid, uafhængigt af browserens tid. Ukendt dato → ingen
+// rabat (fuld pris). Dette er den autoritative kilde til rabatgrænsen; både
+// billet-tilvalg og genbestilling bruger den.
+export function onlineDiscountActive(showDateIso: string, now = new Date()): boolean {
+  return !reorderClosed(showDateIso, now);
+}
+
 // --- Visning af bookingen på siden ---
 
 export type BookingView = {

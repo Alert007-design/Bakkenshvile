@@ -35,17 +35,3 @@ export function addonsTotalDiscountKr(
     0
   );
 }
-
-// --- Øre-varianter (bordbestilling regner i hele øre) ------------------------
-// Samme rabatregel som billet-tilvalgene: 10% pr. enhed, rundet ned til hele
-// kroner. Priserne er hele kroner (øre er derfor multipla af 100), så
-// omregningen er eksakt. Deles af QR-menuen og QR-checkout, så online-prisen er
-// identisk med billet-flowets.
-
-export function addonUnitDiscountOre(unitPriceOre: number): number {
-  return addonUnitDiscountKr(Math.round(unitPriceOre / 100)) * 100;
-}
-
-export function discountedAddonUnitOre(unitPriceOre: number): number {
-  return unitPriceOre - addonUnitDiscountOre(unitPriceOre);
-}

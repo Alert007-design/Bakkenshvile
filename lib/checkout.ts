@@ -121,23 +121,25 @@ export function validateCheckout(body: unknown, ctx: CheckoutContext): CheckoutR
     }
     totalItems += quantity;
 
-    // Online-pris (fuld pris minus 10%) er det, gæsten betaler ved QR-/online-
-    // bestilling. Linjesnapshot og Stripe-beløb bruger online-prisen, så
-    // ordren summerer præcis til det trukne beløb.
-    const unitOnlineOre = item.onlineUnitPriceOre;
-    const lineTotal = lineTotalOre(unitOnlineOre, quantity);
+    // QR-/bordbestilling sker ALTID til fuld pris. Onlinerabatten på 10% gælder
+    // udelukkende forudbestilling af drikkevarer sammen med billetten, og kun
+    // indtil kl. 12.00 dansk tid på forestillingsdagen — aldrig ved bordet
+    // eller via QR-koden. Linjesnapshot og Stripe-beløb bruger derfor menuens
+    // fulde pris, så ordren summerer præcis til det trukne beløb.
+    const unitOre = item.unitPriceOre;
+    const lineTotal = lineTotalOre(unitOre, quantity);
     lines.push({
       menuItemId: item.id,
       productCode: item.productCode,
       name: item.name,
       quantity,
-      unitPriceOre: unitOnlineOre,
+      unitPriceOre: unitOre,
       vatRate: item.vatRate,
       lineTotalOre: lineTotal,
     });
     stripeLines.push({
       name: item.name,
-      unitAmountOre: unitOnlineOre,
+      unitAmountOre: unitOre,
       quantity,
     });
   }

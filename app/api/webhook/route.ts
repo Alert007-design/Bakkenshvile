@@ -3,7 +3,12 @@ import { getStripe } from "@/lib/stripe";
 import { updateRecord, getRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { sendMail } from "@/lib/resend";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
-import { addonBreakdown, mergeAddonBreakdowns } from "@/lib/genbestil";
+import {
+  addonBreakdown,
+  mergeAddonBreakdowns,
+  buildBookingView,
+} from "@/lib/genbestil";
+import { ticketEmailHtml, daDateShort, showYear } from "@/lib/ticket-email";
 import Stripe from "stripe";
 
 // Fælles e-mail-skabelon for både billetkøb og genbestilling — samme design.
@@ -183,24 +188,49 @@ export async function POST(req: NextRequest) {
               total: `${paidKr} kr.`,
               grandTotal: `${grandTotalKr} kr.`,
               footerNote:
-                "Vi har lagt drikkevarerne til din bestilling. Vi glæder os til at se dig på Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.",
+                "Vi har lagt drikkevarerne til din bestilling. Vi glæder os til at se dig i Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.",
             }),
           });
         } else {
+          // Hent forestillingens dato/tid/titel + billetkategori-fordeling til
+          // billetten. Fejler opslaget, sendes billetten stadig — blot uden de
+          // detaljer, vi ikke kunne hente (aldrig en manglende bekræftelse).
+          let showTitle = "";
+          let showDateIso = "";
+          let showTime = "";
+          let seats = "";
+          if (bookingId) {
+            try {
+              const bk = await getRecord(TABLES.bookings, bookingId);
+              const view = await buildBookingView(bk);
+              showTitle = view.showTitle;
+              showDateIso = view.showDate;
+              showTime = view.showTime;
+              seats = view.ticketBreakdown;
+            } catch (e) {
+              console.error("Kunne ikke hente forestillingsdata til billet", e);
+            }
+          }
+          // Normalpris = det betalte + evt. rabat. Jubilæumsbanner kun for 2027.
+          const subtotalKr = paidKr + discountKr;
           await sendMail({
             to: email,
-            subject: `Dine billetter til Bakkens Hvile — ${bookingNo}`,
-            html: orderEmailHtml({
-              heading: `Tak for din billetbestilling${
-                customerName ? ", " + customerName : ""
-              }!`,
+            subject: showDateIso
+              ? `Din billet til Bakkens Hvile ${daDateShort(showDateIso)} — ${bookingNo}`
+              : `Din billet til Bakkens Hvile — ${bookingNo}`,
+            html: ticketEmailHtml({
+              customerName,
               bookingNo,
+              showTitle,
+              showDateIso,
+              showTime,
+              seats,
+              isJubilee: showYear(showDateIso) === 2027,
               lineItems: lineItems.data,
+              subtotalKr,
               discountKr,
-              totalLabel: "I alt",
-              total: `${paidKr} kr.`,
-              footerNote:
-                "Vis dette bookingnummer ved indgangen. Vi glæder os til at se dig på Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.",
+              totalKr: paidKr,
+              discountLabel: ADDON_DISCOUNT_LABEL,
             }),
           });
         }

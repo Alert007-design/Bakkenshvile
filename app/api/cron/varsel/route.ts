@@ -120,8 +120,9 @@ function varselEmailHtml(params: {
 
       <h2 style="font-size:17px;color:#c9a227;margin:0 0 10px;">Drikkevarer</h2>
       <p style="font-size:14px;line-height:1.7;color:#d8d3c2;margin:0 0 14px;">
-        Drikkevarer bestilt online er 10% billigere end bestilt i salen. Har du
-        ikke allerede bestilt, kan det nås frem til kl. 12.00 på selve showdagen:
+        Husk, at du kan bestille drikkevarer online med 10 % rabat indtil
+        kl. 12.00 på forestillingsdagen. Herefter — og ved bestilling via
+        QR-systemet eller ved bordet — gælder de almindelige priser.
       </p>
       <p style="margin:0 0 18px;">
         <a href="${reorderUrl}" style="display:inline-block;background:#c9a227;color:#0d3b2e;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:4px;font-size:14px;">
@@ -132,8 +133,8 @@ function varselEmailHtml(params: {
         Forudbestilte drikkevarer står klar ved bordet, når I ankommer.
       </p>
       <p style="font-size:14px;line-height:1.7;color:#d8d3c2;margin:0 0 24px;">
-        Bestilling i salen sker udelukkende ved bordene via tjenerne — ikke ved
-        baren.
+        Bestilling i salen sker udelukkende ved bordene via tjenerne eller via
+        QR-koden — ikke ved baren.
       </p>
 
       <p style="font-size:15px;line-height:1.7;color:#f6f1e4;margin:24px 0 4px;">
