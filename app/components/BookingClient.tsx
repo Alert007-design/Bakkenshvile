@@ -476,6 +476,7 @@ export default function BookingClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSeatingChart, setShowSeatingChart] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const selectedShow = showDates.find((s) => s.id === selectedId) ?? null;
 
@@ -583,6 +584,12 @@ export default function BookingClient({
       setError("Udfyld navn samt telefon eller email.");
       return;
     }
+    if (!acceptedTerms) {
+      setError(
+        "Du skal acceptere handelsbetingelserne og have læst privatlivspolitikken."
+      );
+      return;
+    }
     setSubmitting(true);
     try {
       const showLabel = `${formatShortDate(selectedShow.date)} kl. ${selectedShow.time}`;
@@ -616,6 +623,7 @@ export default function BookingClient({
           }`,
           lineItems,
           showId: selectedShow.id,
+          acceptTerms: acceptedTerms,
           matching: wantsMatching ? { wantsMatching, ...matching } : undefined,
         }),
       });
@@ -1012,6 +1020,27 @@ export default function BookingClient({
         )}
       </div>
 
+      <div className="section">
+        <label className="terms-accept">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+          />
+          <span>
+            Jeg accepterer Bakkens Hviles{" "}
+            <a href="/handelsbetingelser" target="_blank" rel="noopener noreferrer">
+              handelsbetingelser
+            </a>{" "}
+            og har læst{" "}
+            <a href="/privatlivspolitik" target="_blank" rel="noopener noreferrer">
+              privatlivspolitikken
+            </a>
+            .
+          </span>
+        </label>
+      </div>
+
       <div className="summary">
         <div>
           {discount > 0 && (
@@ -1034,7 +1063,7 @@ export default function BookingClient({
         <button
           className="submit-btn"
           onClick={submit}
-          disabled={submitting}
+          disabled={submitting || !acceptedTerms}
         >
           {submitting ? "Sender..." : "Gå til betaling"}
         </button>

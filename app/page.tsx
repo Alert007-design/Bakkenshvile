@@ -323,6 +323,10 @@ export default function Home() {
 
       <footer className="footer">
         <div className="brand">BAKKENS HVILE</div>
+        <div className="footerLinks">
+          <Link href="/handelsbetingelser">Handelsbetingelser</Link>
+          <Link href="/privatlivspolitik">Privatlivspolitik</Link>
+        </div>
         <div className="meta">
           Dyrehavsbakken 38 · 2930 Klampenborg · © {year}
         </div>

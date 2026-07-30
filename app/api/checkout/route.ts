@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
       lineItems,
       showId,
       matching,
+      acceptTerms,
     }: {
       customer: {
         name: string;
@@ -63,10 +64,23 @@ export async function POST(req: NextRequest) {
         drinkPreference?: string;
         note?: string;
       };
+      acceptTerms?: boolean;
     } = body;
     if (!customer?.name || (!customer?.phone && !customer?.email)) {
       return NextResponse.json(
         { error: "Navn samt telefon eller email er påkrævet" },
+        { status: 400 }
+      );
+    }
+    // Obligatorisk accept af handelsbetingelser + privatlivspolitik. Håndhæves
+    // også serverside, så købet aldrig kan gennemføres uden accept — heller
+    // ikke hvis klienten omgås.
+    if (acceptTerms !== true) {
+      return NextResponse.json(
+        {
+          error:
+            "Du skal acceptere handelsbetingelserne og have læst privatlivspolitikken.",
+        },
         { status: 400 }
       );
     }
