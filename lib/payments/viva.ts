@@ -13,6 +13,8 @@ import {
   createVivaOrder,
   retrieveVivaTransaction,
   vivaCheckoutUrl,
+  vivaSourceCode,
+  type VivaTransaction,
 } from "@/lib/payments/viva-client";
 
 /**
@@ -47,8 +49,23 @@ export function mapVivaStatus(statusId: string): "paid" | "pending" {
  * DKK = 208 → "dkk". Andre koder returneres i småt, så de aldrig ved en fejl
  * matcher "dkk" i beløbskontrollen (fail-closed).
  */
-function normalizeVivaCurrency(code: string | number): string {
+export function normalizeVivaCurrency(code: string | number): string {
   return String(code) === "208" ? "dkk" : String(code).toLowerCase();
+}
+
+/**
+ * Oversætter en verificeret Viva-transaktion til vores fælles VerifiedPayment.
+ * Beløb → øre, valuta → normaliseret, status via mapVivaStatus. Deles af
+ * verifyPayment og den fælles webhook, så konverteringen kun findes ét sted.
+ */
+export function verifiedFromTransaction(txn: VivaTransaction): VerifiedPayment {
+  return {
+    paymentRef: txn.orderCode,
+    transactionId: txn.transactionId,
+    amountOre: kronerToOre(txn.amount),
+    currency: normalizeVivaCurrency(txn.currencyCode),
+    status: mapVivaStatus(txn.statusId),
+  };
 }
 
 async function createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
@@ -64,13 +81,14 @@ async function createPayment(input: CreatePaymentInput): Promise<CreatePaymentRe
   const orderCode = await createVivaOrder({
     amountOre: input.totalOre,
     customerTrns: input.description,
-    merchantTrns: input.orderNumber,
+    merchantTrns: input.merchantTrns ?? input.orderNumber,
     paymentTimeoutSeconds: input.expiresInMinutes * 60,
-    tags: [
-      `ordre:${input.orderId}`,
-      `bord:${input.tableNumber}`,
-      `event:${input.eventId}`,
-    ],
+    // Sourcen bestemmer success/failure-URL. Udelades den, falder vi tilbage på
+    // bordbestillingens source (bagudkompatibelt).
+    sourceCode: input.sourceCode ?? vivaSourceCode("table"),
+    // tags[0] dirigerer den fælles webhook. Uden eksplicitte tags antages
+    // bordbestilling (bagudkompatibelt for eksisterende kaldere).
+    tags: input.tags ?? ["bordbestilling", input.eventId],
   });
 
   return {
@@ -97,13 +115,7 @@ async function verifyPayment(lookup: {
     );
   }
 
-  return {
-    paymentRef: txn.orderCode,
-    transactionId: txn.transactionId,
-    amountOre: kronerToOre(txn.amount),
-    currency: normalizeVivaCurrency(txn.currencyCode),
-    status: mapVivaStatus(txn.statusId),
-  };
+  return verifiedFromTransaction(txn);
 }
 
 export const vivaProvider: PaymentProvider = {

@@ -7,7 +7,13 @@
 //
 // Teksten er samlet ét sted, så den let kan redigeres uden at røre webhook-koden.
 
-import type Stripe from "stripe";
+// Udbyder-uafhængig linje til mails. Beløbet er i øre, så mailen kan bygges
+// uden at kalde betalingsudbyderen igen (fx fra vores egen ledger).
+export interface EmailLineItem {
+  description: string;
+  quantity: number;
+  amountSubtotalOre: number;
+}
 
 const WEEKDAYS_LONG = [
   "søndag",
@@ -60,7 +66,7 @@ export interface TicketEmailParams {
   seats: string;
   /** Sand for forestillinger i 2027 (150-års-jubilæet). */
   isJubilee: boolean;
-  lineItems: Stripe.LineItem[];
+  lineItems: EmailLineItem[];
   subtotalKr: number;
   discountKr: number;
   totalKr: number;
@@ -119,7 +125,7 @@ export function ticketEmailHtml(params: TicketEmailParams): string {
         <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;">${li.description}</td>
         <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;text-align:center;">${li.quantity}</td>
         <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;text-align:right;">${
-          li.amount_subtotal != null ? (li.amount_subtotal / 100).toFixed(0) : ""
+          li.amountSubtotalOre != null ? (li.amountSubtotalOre / 100).toFixed(0) : ""
         } kr.</td>
       </tr>`
     )

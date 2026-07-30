@@ -44,6 +44,29 @@ export function vivaCheckoutUrl(orderCode: string, env: VivaEnv = getVivaEnv()):
   return `${vivaHosts(env).checkout}?ref=${encodeURIComponent(orderCode)}`;
 }
 
+/**
+ * Vælger Viva payment source pr. flow. Success-/failure-URL sidder på sourcen,
+ * så billetter/genbestilling og bordbestilling bruger hver sin. VIVA_SOURCE_CODE
+ * beholdes som fallback, så bordbestillingen ikke knækker, hvis de nye variabler
+ * ikke er sat endnu.
+ */
+export function vivaSourceCode(kind: "table" | "tickets"): string {
+  const fallback = process.env.VIVA_SOURCE_CODE || "";
+  const specific =
+    kind === "table"
+      ? process.env.VIVA_SOURCE_CODE_TABLE
+      : process.env.VIVA_SOURCE_CODE_TICKETS;
+  const code = specific || fallback;
+  if (!code) {
+    throw new Error(
+      `Viva source code mangler (${kind}): sæt VIVA_SOURCE_CODE_${
+        kind === "table" ? "TABLE" : "TICKETS"
+      } eller VIVA_SOURCE_CODE`
+    );
+  }
+  return code;
+}
+
 // --- OAuth2-token med cache pr. serverinstans --------------------------------
 
 interface TokenCache {
@@ -121,6 +144,7 @@ export interface CreateVivaOrderInput {
   customerTrns: string; // vises for gæsten
   merchantTrns: string; // vores interne reference
   paymentTimeoutSeconds: number;
+  sourceCode: string; // hvilken payment source (bestemmer success/failure-URL)
   tags?: string[];
 }
 
@@ -131,7 +155,7 @@ export interface CreateVivaOrderInput {
 export async function createVivaOrder(input: CreateVivaOrderInput): Promise<string> {
   const hosts = vivaHosts();
   const token = await getVivaAccessToken();
-  const sourceCode = requireEnv("VIVA_SOURCE_CODE");
+  const sourceCode = input.sourceCode;
 
   const res = await fetch(`${hosts.api}/checkout/v2/orders`, {
     method: "POST",
@@ -172,12 +196,15 @@ export interface VivaTransaction {
   statusId: string; // fx "F" (Finished)
   amount: number; // i KRONER (decimaltal) — konverteres i provideren
   currencyCode: string; // ISO-numerisk, fx "208" for DKK
+  merchantTrns: string; // vores dashboard-reference (ekko fra ordren)
+  tags: string[]; // vores entydige reference (ekko fra ordren)
 }
 
 /**
  * Henter en transaktion hos Viva. Returnerer null ved 404 (ukendt
  * transaktion). orderCode læses som streng ud af rå tekst; de øvrige felter er
- * ufarlige at JSON.parse'e.
+ * ufarlige at JSON.parse'e. tags/merchantTrns er de værdier, vi selv satte ved
+ * oprettelsen — de kommer fra Vivas verificerede svar, aldrig fra webhooken.
  */
 export async function retrieveVivaTransaction(
   transactionId: string
@@ -198,17 +225,24 @@ export async function retrieveVivaTransaction(
     statusId?: string;
     amount?: number | string;
     currencyCode?: string | number;
+    merchantTrns?: string;
+    tags?: unknown;
   };
   const orderCode = extractOrderCode(rawText);
   if (!orderCode) {
     throw new Error("Viva transaktions-svar manglede orderCode");
   }
+  const tags = Array.isArray(parsed.tags)
+    ? parsed.tags.filter((t): t is string => typeof t === "string")
+    : [];
   return {
     transactionId,
     orderCode,
     statusId: String(parsed.statusId ?? ""),
     amount: Number(parsed.amount ?? NaN),
     currencyCode: String(parsed.currencyCode ?? ""),
+    merchantTrns: String(parsed.merchantTrns ?? ""),
+    tags,
   };
 }
 

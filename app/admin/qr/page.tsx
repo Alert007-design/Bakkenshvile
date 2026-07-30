@@ -1,4 +1,5 @@
 import { buildQrSheet, renderQrSvg, type QrSheetEntry } from "@/lib/qr-sheet";
+import { siteUrl } from "@/lib/site-url";
 import "./qr.css";
 
 export const runtime = "nodejs";
@@ -38,8 +39,8 @@ export default async function AdminQrPage({
     return <AccessMessage />;
   }
 
-  // QR-koderne peger på produktionsdomænet, uanset hvor admin ses.
-  const baseUrl = process.env.SITE_URL || "https://bakkenshvile.dk";
+  // QR-koderne peger på sitets kanoniske URL (SITE_URL), uanset hvor admin ses.
+  const baseUrl = siteUrl();
 
   let entries: QrSheetEntry[];
   try {

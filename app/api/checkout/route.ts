@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRecord, getRecord, TABLES, FIELDS } from "@/lib/airtable";
-import { getStripe } from "@/lib/stripe";
-import { addonsTotalDiscountKr, ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
+import { getDb } from "@/lib/db";
+import { getPaymentProvider } from "@/lib/payments";
+import { vivaSourceCode } from "@/lib/payments/viva-client";
+import { createTicketPayment, type TicketLineItem } from "@/lib/ticket-payments";
+import { addonsTotalDiscountKr } from "@/lib/pricing";
 import {
   addonBreakdown,
   generateBookingKey,
   onlineDiscountActive,
 } from "@/lib/genbestil";
+
+// Betalingen udløber efter 30 min. (samme vindue som bordbestillingen).
+const CHECKOUT_EXPIRY_MINUTES = 30;
 
 type LineItem = {
   name: string;
@@ -164,46 +170,53 @@ export async function POST(req: NextRequest) {
     }
     const bookingRecord = await createRecord(TABLES.bookings, bookingFields);
     const origin = req.nextUrl.origin;
-    const stripe = getStripe();
 
-    // Rabatten lægges på som en engangs-coupon (amount_off) frem for en
-    // negativ linje — Stripe tillader ikke negative line items, og en coupon
-    // giver den pæneste kvittering med en selvstændig rabatlinje. Beløbet er
-    // det floored kronebeløb ganget op til øre, så det trukne total stemmer
-    // præcis med det viste (linjesum − rabat).
-    let discountParam: { coupon: string }[] | undefined;
-    if (discount > 0) {
-      const coupon = await stripe.coupons.create({
-        amount_off: Math.round(discount * 100),
-        currency: "dkk",
-        duration: "once",
-        name: ADDON_DISCOUNT_LABEL,
-      });
-      discountParam = [{ coupon: coupon.id }];
-    }
+    // Beløb genberegnes serverside og opgøres i øre. Linjebeløbene lægges op
+    // til det forventede total, som rabatten (floored kronebeløb → øre) trækkes
+    // fra. Præcis dette beløb oprettes betalingen på, så det trukne stemmer med
+    // det viste (linjesum − rabat).
+    const ledgerLines: TicketLineItem[] = lineItems.map((li) => ({
+      description: li.name,
+      quantity: li.quantity,
+      amountSubtotalOre: Math.round(li.unitAmount * 100) * li.quantity,
+    }));
+    const discountOre = Math.round(discount * 100);
+    const expectedTotalOre =
+      ledgerLines.reduce((sum, l) => sum + l.amountSubtotalOre, 0) - discountOre;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      locale: "da",
-      line_items: lineItems.map((li) => ({
-        quantity: li.quantity,
-        price_data: {
-          currency: "dkk",
-          unit_amount: Math.round(li.unitAmount * 100),
-          product_data: { name: li.name },
-        },
-      })),
-      discounts: discountParam,
-      customer_email: customer.email || undefined,
-      metadata: {
-        bookingId: bookingRecord.id,
-        bookingNo,
-      },
-      success_url: `${origin}/success?booking=${bookingNo}`,
-      cancel_url: `${origin}/?cancelled=1`,
+    // Betaling oprettes hos den valgte udbyder (Viva) på tickets-sourcen.
+    // tags[0] dirigerer webhooken; tags[1] bærer bookingId, så referencen kan
+    // læses tilbage fra en verificeret transaktion — aldrig fra payloaden.
+    const provider = getPaymentProvider();
+    const payment = await provider.createPayment({
+      orderId: bookingRecord.id,
+      orderNumber: bookingNo,
+      eventId: showId ?? "",
+      totalOre: expectedTotalOre,
+      currency: "dkk",
+      description: `Bakkens Hvile · billetter · ${bookingNo}`,
+      origin,
+      expiresInMinutes: CHECKOUT_EXPIRY_MINUTES,
+      sourceCode: vivaSourceCode("tickets"),
+      tags: ["billet", bookingRecord.id],
+      merchantTrns: `${bookingNo} · billetter`,
     });
-    return NextResponse.json({ url: session.url });
+
+    // Gem det forventede total (til beløbskontrol) + linjer (til mailen) FØR
+    // gæsten sendes til betaling. Fejler dette, sendes gæsten ikke afsted.
+    await createTicketPayment(getDb(), {
+      paymentRef: payment.paymentRef,
+      flow: "billet",
+      bookingId: bookingRecord.id,
+      bookingNo,
+      customerEmail: customer.email || null,
+      customerName: customer.name,
+      expectedTotalOre,
+      discountOre,
+      lineItems: ledgerLines,
+    });
+
+    return NextResponse.json({ url: payment.redirectUrl });
   } catch (err) {
     console.error(err);
     return NextResponse.json(

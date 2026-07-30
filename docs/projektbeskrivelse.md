@@ -19,7 +19,9 @@ admin-værktøjer til bordplan og QR-print.
 Det hele er **ét Next.js-site**, der deployes på **Vercel**. Data ligger dels i
 **Airtable** (events, billetter, tilvalg/menu, kunder, bookinger), dels i en
 **Vercel Postgres**-database (den transaktionelle bordbestilling). Betalinger
-går gennem **Stripe Checkout**, og mails sendes via **Resend**.
+går gennem **Viva.com Smart Checkout** (hele sitet — billet, genbestilling og
+bordbestilling), og mails sendes via **Resend**. Stripe-koden er bevaret som død
+kode, så man kan skifte tilbage, men bruges ikke længere af noget flow.
 
 - Produktion: `https://bakkenshvile.vercel.app` (domæne `bakkenshvile.dk`)
 - Repo: `Alert007-design/bakkenshvile`
@@ -70,27 +72,28 @@ går gennem **Stripe Checkout**, og mails sendes via **Resend**.
 - **`/admin/qr`** — Printbart QR-ark med én kode pr. bord.
 
 ### API-ruter
-- `POST /api/checkout` — opretter Stripe-session for billetkøb.
-- `POST /api/webhook` — Stripe-webhook for billetter (`checkout.session.completed`).
+- `POST /api/checkout` — opretter booking + Viva-betaling for billetkøb.
+- `POST /api/genbestil/lookup`, `POST /api/genbestil/checkout` — genbestilling
+  (login + Viva-betaling af ekstra tilvalg).
+- `POST /api/table-orders/checkout` — opretter bordbestilling + Viva-betaling.
+- `GET/POST /api/table-orders/viva/webhook` — **fælles** Viva-webhook for HELE
+  sitet (GET = verifikations-handshake, POST = event). Dirigerer på transaktionens
+  første tag: `billet` / `genbestil` / `bordbestilling`.
+- `POST /api/webhook`, `POST /api/table-orders/webhook` — **udfasede** Stripe-
+  webhooks. Nu tomme stubs (returnerer 200), så en gammel Stripe-konfiguration
+  ikke giver fejl.
 - `GET /api/orders/[publicToken]` — gæstens egen bordordre (via hemmeligt token).
-- `POST /api/table-orders/checkout` — opretter bordbestilling + betaling hos den
-  valgte udbyder (Stripe eller Viva).
-- `POST /api/table-orders/webhook` — Stripe-webhook for bordbestilling (separat
-  secret; aktiv når `PAYMENT_PROVIDER=stripe`).
-- `GET/POST /api/table-orders/viva/webhook` — Viva-webhook for bordbestilling
-  (GET = verifikations-handshake, POST = event; aktiv når `PAYMENT_PROVIDER=viva`).
 - `POST /api/bar/login` — barlogin, sætter signeret session-cookie.
 - `GET/POST /api/bar/orders`, `POST /api/bar/orders/[id]/status` — barens ordreliste og statusskift.
 - `GET/POST /api/bar/hall-state` — salens tilstand.
 - `GET/POST /api/admin/bookings` — bookinger til bordplanen.
-- `POST /api/genbestil/lookup`, `POST /api/genbestil/checkout` — genbestilling.
 - `GET /api/cron/varsel` — daglig cron, sender varselmail to dage før show.
 
 ---
 
 ## 4. To hovedflows
 
-### 4.1 Billetkøb (Airtable + Stripe)
+### 4.1 Billetkøb (Airtable + Viva)
 1. `/book` henter det først oprettede, aktive event fra Airtable med tilhørende
    billettyper (pris, gebyr, max antal, priskategori) og tilvalg (drikkevarer).
 2. Gæsten vælger antal billetter (op til max pr. kategori) og evt. tilvalg. En
@@ -98,11 +101,21 @@ går gennem **Stripe Checkout**, og mails sendes via **Resend**.
    spørgsmål (alder, hjemby, drikkepræference, interesser, fritekst) til brug
    for bordsammensætning.
 3. Ved "Gå til betaling" oprettes en **Customer**- og **Booking**-post i
-   Airtable med status *"Afventer betaling"*, og gæsten sendes til Stripe Checkout.
-4. Stripe-webhooken (`checkout.session.completed`) opdaterer bookingens status
-   til *"Betalt"*, og gæsten lander på `/success`.
+   Airtable med status *"Afventer betaling"*. Det forventede total (i øre) +
+   linjerne gemmes i Postgres-ledgeren `ticket_payments` (til beløbskontrol og
+   bekræftelsesmail), og gæsten sendes til **Viva** (tickets-source) med
+   `tags: ["billet", <bookingId>]`.
+4. Den fælles Viva-webhook dirigerer på tag `billet`, henter transaktionen hos
+   Viva, kontrollerer beløbet mod ledgeren, sætter bookingens status til
+   *"Betalt"* (idempotent, præcis én gang) og sender billet-mailen. Gæsten lander
+   på `/success` (Viva sender `?s={orderCode}` — bookingnr. slås op i ledgeren).
+   Ved afbrudt/afvist betaling lander gæsten på `/afbrudt`.
 
-### 4.2 QR-bordbestilling (Postgres + Viva/Stripe)
+Genbestilling (`/genbestil`) følger samme mønster med `tags: ["genbestil",
+<bookingId>]` og samme tickets-source; webhooken lægger tilvalgene oven i den
+eksisterende booking.
+
+### 4.2 QR-bordbestilling (Postgres + Viva)
 1. Hvert bord har et fysisk QR-skilt, der peger på `/bord/[nummer]?k=<token>`.
 2. Gæsten scanner, ser menuen (samme AddOns-liste som billettilvalgene) og
    bestiller. Browseren sender **kun** `menuItemId + antal` (plus bord, token,
@@ -112,8 +125,8 @@ går gennem **Stripe Checkout**, og mails sendes via **Resend**.
    den valgte udbyder.
 4. **Udbyder-abstraktion:** Stripe og Viva ligger begge bag ét fælles interface
    (`lib/payments/`), og `PAYMENT_PROVIDER` (`stripe` | `viva`) vælger hvem der
-   bruges. Der kan skiftes tilbage til Stripe med én miljøvariabel. Bordbestillingen
-   kører pt. **Viva.com Smart Checkout** (demo); billetkøbet er uændret på Stripe.
+   bruges — for alle tre flows. Hele sitet kører pt. **Viva.com Smart Checkout**
+   (demo); Stripe er bevaret som død kode og bruges ikke længere.
 5. Ved Viva sendes gæsten til Vivas checkout (`?ref={orderCode}`). Vivas success-
    og failure-URL er fælles for alle betalinger (sat i Vivas dashboard):
    `/bord/kvittering` og `/bord/afbrudt`. Da success-URL'en ikke kan bære gæstens
@@ -173,6 +186,16 @@ eneste værn mod dobbeltordrer. Skema i `migrations/001_table_orders.sql`:
   `migrations/001_table_orders.sql` + `migrations/002_payment_provider.sql`.
 - **`order_lines`** — linjesnapshot (navn, produktkode, antal, enhedspris, moms,
   linjetotal) fastfrosset ved købet.
+- **`ticket_payments`** (`migrations/003_ticket_payments.sql`) — betalingsledger
+  for **billet og genbestilling** (Viva). Airtable er autoritativt for selve
+  bookingen, men kan hverken lave en atomar "kun hvis ubetalt"-opdatering eller
+  en unik constraint. Denne tabel giver derfor to garantier, webhooken kræver:
+  (1) **beløbskontrol** — det forventede total (`expected_total_ore`) gemmes ved
+  checkout og sammenlignes med det, Viva rent faktisk trak; (2) **idempotens /
+  "præcis én gang"** — den guardede overgang `pending → paid` vinder kun for ét
+  af flere samtidige webhook-kald. Nøgle: `payment_ref` = Vivas orderCode.
+  `line_items` (JSON) gemmes, så bekræftelsesmailen kan gendannes uden at kalde
+  Viva igen.
 
 ---
 
@@ -204,6 +227,12 @@ eneste værn mod dobbeltordrer. Skema i `migrations/001_table_orders.sql`:
   ved samtidige webhook-kald (guardet `UPDATE ... WHERE payment_status='pending'`).
   Opslag sker på `(payment_provider, payment_ref)`, og den unikke constraint på
   samme par sikrer, at én betaling aldrig kan give to ordrer — uanset udbyder.
+- **Billet/genbestilling har samme garanti** via ledgeren `ticket_payments`
+  (`lib/ticket-payments.ts`): `markTicketPaidByRef` kontrollerer beløb + valuta
+  mod det gemte total og udfører `pending → paid` præcis én gang (guardet UPDATE,
+  primærnøgle-lås). Fejler en efterfølgende sideeffekt (Airtable/mail), frigives
+  overgangen igen, så Vivas genforsøg kan prøve på ny — intet markeres betalt
+  uden fuldført sideeffekt.
 - **Udbyder-abstraktion** (`lib/payments/`): Stripe og Viva bag ét interface
   (`PaymentProvider`). Alle beløb i abstraktionslaget er i **øre**; kun den
   enkelte provider omregner (Vivas kroner-decimaltal ↔ øre, ét sted i
@@ -237,14 +266,18 @@ Bordbestillingen er **under opbygning og ikke i drift endnu**. To flag styrer de
 - Tilsvarende for Viva: `VIVA_ENV=live` afvises hårdt, hvis `TABLE_ORDERING_LIVE`
   ikke er `true` (`assertVivaLiveAllowed`, kaldes i `getPaymentProvider`, så den
   ikke kan omgås ved at importere provideren direkte).
-- **Viva-webhooken** (`/api/table-orders/viva/webhook`): Viva **signerer ikke**
-  sine webhooks, så payloadens beløb/status bruges aldrig — transaktionen hentes
-  altid hos Viva og kontrolleres mod kladden (fail-closed). Adgang beskyttes med
-  en delt hemmelighed i URL'ens `?k=` (timing-safe mod `VIVA_WEBHOOK_TOKEN`);
-  ukendt nøgle → 404. Kun `EventTypeId 1798` (failed) og `1797` (reversal) samt
-  transaktionsstatus `"F"` (paid) udløser en tilstandsændring — der gættes ikke
-  på andre koder. Vivas 16-cifrede `orderCode` læses altid som **streng** (aldrig
-  som JavaScript-tal, der ville miste præcision).
+- **Den fælles Viva-webhook** (`/api/table-orders/viva/webhook`): Viva sender
+  alle transaktioner på kontoen til ét endpoint, så vi **dirigerer på
+  transaktionens første tag** (`billet` / `genbestil` / `bordbestilling`).
+  Referencen (tag + bookingId/eventId) læses fra den **verificerede transaktion**,
+  aldrig fra webhook-payloaden. Viva **signerer ikke** sine webhooks, så
+  payloadens beløb/status bruges aldrig — transaktionen hentes altid hos Viva og
+  kontrolleres mod det gemte total (fail-closed). Adgang beskyttes med en delt
+  hemmelighed i URL'ens `?k=` (timing-safe mod `VIVA_WEBHOOK_TOKEN`); ukendt/manglende
+  tag eller nøgle → ingen ændring / 404. Kun `EventTypeId 1798` (failed) og `1797`
+  (reversal) samt transaktionsstatus `"F"` (paid) udløser en tilstandsændring —
+  der gættes ikke på andre koder. Vivas 16-cifrede `orderCode` læses altid som
+  **streng** (aldrig som JavaScript-tal, der ville miste præcision).
 - **Lovpligtig digital salgsregistrering** (`lib/sales-registration.ts`):
   kassesystemet er endnu ikke afklaret. I testtilstand registreres salg som
   testdata (CSV, ikke godkendt produktion); i livetilstand **fejler modulet
@@ -259,10 +292,9 @@ Bordbestillingen er **under opbygning og ikke i drift endnu**. To flag styrer de
   Display + Work Sans. Styling i global CSS med sort/guld-tema.
 - **Test**: Vitest. Bordbestilling og pengelogik testes mod en indlejret Postgres
   (`@electric-sql/pglite`). Kør med `npm test`.
-- **Integrationer**: Airtable (REST), Stripe (Checkout + webhooks — billetter og
-  som valgbar udbyder for bordbestilling), **Viva.com Smart Checkout** (OAuth2 +
-  Checkout v2 + webhooks — bordbestillingens aktuelle udbyder), Resend (mail),
-  Vercel Postgres.
+- **Integrationer**: Airtable (REST), **Viva.com Smart Checkout** (OAuth2 +
+  Checkout v2 + webhooks — betalingsudbyder for HELE sitet), Resend (mail),
+  Vercel Postgres. Stripe er bevaret som død kode (rollback) men bruges ikke.
 - **Cron**: Vercel-cron kalder `/api/cron/varsel` dagligt og sender varselmail to
   dage før et show (autoriseret med `CRON_SECRET`).
 - **Mail**: afsenderdomæne `send.bakkenshvile.dk` (verificeret i Resend, region
@@ -271,23 +303,28 @@ Bordbestillingen er **under opbygning og ikke i drift endnu**. To flag styrer de
 - **QR-ark**: `npm run qr:sheet` genererer et printbart ark (kræver `TABLE_QR_SECRET`).
 
 ### Miljøvariabler (server-only)
-`AIRTABLE_TOKEN`, `AIRTABLE_BASE_ID`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
-`RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_KEY`, `CRON_SECRET`, `SITE_URL`,
-`TABLE_QR_SECRET`, `TABLE_TOKEN_VERSION`, `BAR_SCREEN_PASSWORD`,
-`BAR_SESSION_SECRET`, `STRIPE_TABLE_WEBHOOK_SECRET`, `TABLE_ORDERING_ENABLED`,
-`TABLE_ORDERING_LIVE`, `POSTGRES_URL(_NON_POOLING)`.
-Betalingsudbyder for bordbestilling: `PAYMENT_PROVIDER` (`stripe` | `viva`) og —
-for Viva — `VIVA_ENV` (`demo` | `live`), `VIVA_SOURCE_CODE`, `VIVA_CLIENT_ID`,
-`VIVA_CLIENT_SECRET`, `VIVA_MERCHANT_ID`, `VIVA_API_KEY`, `VIVA_WEBHOOK_TOKEN`.
-Ingen af bordbestillingens hemmeligheder må eksponeres via `NEXT_PUBLIC_*`.
+`AIRTABLE_TOKEN`, `AIRTABLE_BASE_ID`, `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_KEY`,
+`CRON_SECRET`, `SITE_URL` (eneste kilde til absolutte URL'er / QR — må ikke pege
+på det gamle site), `TABLE_QR_SECRET`, `TABLE_TOKEN_VERSION`, `BAR_SCREEN_PASSWORD`,
+`BAR_SESSION_SECRET`, `TABLE_ORDERING_ENABLED`, `TABLE_ORDERING_LIVE`,
+`POSTGRES_URL(_NON_POOLING)`.
+Betaling (hele sitet): `PAYMENT_PROVIDER` (sæt til `viva`), `VIVA_ENV`
+(`demo` | `live`), `VIVA_CLIENT_ID`, `VIVA_CLIENT_SECRET`, `VIVA_MERCHANT_ID`,
+`VIVA_API_KEY`, `VIVA_WEBHOOK_TOKEN`, samt payment sources
+`VIVA_SOURCE_CODE_TABLE` (bord), `VIVA_SOURCE_CODE_TICKETS` (billet + genbestil)
+og `VIVA_SOURCE_CODE` (fallback). Stripe-nøglerne (`STRIPE_*`) er udfaset og kun
+nødvendige, hvis man vil aktivere den døde Stripe-kode igen.
+Ingen af disse hemmeligheder må eksponeres via `NEXT_PUBLIC_*`.
 
 ### Deploy
-Push til GitHub → Vercel bygger og deployer automatisk. Stripe-webhooks peger på
-`/api/webhook` (billetter) og `/api/table-orders/webhook` (bordbestilling på
-Stripe) med hver sin signing secret. Kører bordbestillingen på Viva, peger Vivas
-webhook på `/api/table-orders/viva/webhook?k=<VIVA_WEBHOOK_TOKEN>`, og Vivas
-success/failure-URL (fælles for alle betalinger) sættes i Vivas dashboard til
-`https://bakkenshvile.dk/bord/kvittering` og `https://bakkenshvile.dk/bord/afbrudt`.
+Push til GitHub → Vercel bygger og deployer automatisk. Migrationerne i
+`migrations/` køres manuelt mod Vercel Postgres (kaldes ikke automatisk i drift)
+— husk `002_payment_provider.sql` og `003_ticket_payments.sql`. Vivas webhook
+(én for hele sitet) peger på
+`/api/table-orders/viva/webhook?k=<VIVA_WEBHOOK_TOKEN>`. Success/failure-URL
+sidder på hver payment source i Vivas dashboard:
+bord-sourcen → `<SITE_URL>/bord/kvittering` og `<SITE_URL>/bord/afbrudt`;
+tickets-sourcen → `<SITE_URL>/success` og `<SITE_URL>/afbrudt`.
 
 ---
 
@@ -296,24 +333,31 @@ success/failure-URL (fælles for alle betalinger) sættes i Vivas dashboard til
 **I drift:** forside, billetkøb, drikkekort, genbestilling, bordplan, QR-print,
 varsel-cron.
 
-**Under opbygning (ikke live):** QR-bordbestilling og barskærm — koden er bygget
-med testtilstand og fail-closed sikkerhedskontakter. Bordbestillingen bruges som
-**pilot for Viva.com Smart Checkout** og kører pt. i **demo** (`VIVA_ENV=demo`,
-`PAYMENT_PROVIDER=viva`); der kan skiftes tilbage til Stripe med ét
-miljøvariabel-skift. Før live mangler:
-- Valg og tilkobling af et **lovligt kassesystem** til salgsregistrering (fælles
-  blokering — gælder uanset betalingsudbyder).
-- Verifikation af Viva-webhooken i Vivas dashboard (GET-handshake mod
-  `/api/table-orders/viva/webhook?k=…`).
-- Skift fra demo til live (`VIVA_ENV=live`, eller Stripe live-nøgler) og
-  aktivering af begge `TABLE_ORDERING_*`-flag.
+**Betaling — hele sitet på Viva (demo):** billet, genbestilling og
+bordbestilling betaler nu via **Viva.com Smart Checkout** gennem én fælles
+udbyder-abstraktion (`PAYMENT_PROVIDER=viva`, `VIVA_ENV=demo`). Stripe er død
+kode (rollback). Før **live** mangler:
+- Verifikation af den fælles Viva-webhook i Vivas dashboard (GET-handshake mod
+  `/api/table-orders/viva/webhook?k=…`) og oprettelse af tickets-sourcen med
+  korrekte success/failure-URL'er.
+- Kørsel af migration `003_ticket_payments.sql` (og `002`) mod Vercel Postgres.
+- Skift til live: `VIVA_ENV=live`. **Bemærk:** live-værnet `assertVivaLiveAllowed`
+  er pt. koblet til `TABLE_ORDERING_LIVE` (arv fra bordbestillings-piloten). Går
+  billetterne live på Viva, før bordbestillingen gør, skal den kobling
+  genovervejes, så billetbetaling ikke blokeres af et bord-flag.
+- **Bordbestilling** kræver desuden stadig et **lovligt kassesystem** til
+  salgsregistrering + `TABLE_ORDERING_*`-flag (uændret).
 
 **Kendte begrænsninger i billetflowet:**
 - Sitet viser i øjeblikket kun **det første** event i Airtable (ingen håndtering
   af flere samtidige events endnu).
 - Koblingen mellem de konkrete valgte billetter/tilvalg og selve Booking-posten
   er delvis — det samlede antal og særlige ønsker gemmes, mens linjedetaljerne
-  ligger i Stripe-kvitteringen.
+  ligger i betalingsledgeren (`ticket_payments`) og bekræftelsesmailen.
+- Billetpriserne bygger fortsat på de linjer, browseren sender (uændret fra
+  Stripe-flowet). Beløbet, gæsten trækkes, kontrolleres mod det serverberegnede
+  total, men en fuldt server-autoritativ prisberegning af billetlinjer (som ved
+  QR-bordbestillingen) er et selvstændigt næste skridt.
 
 ---
 
