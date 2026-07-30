@@ -19,11 +19,10 @@ import {
  * Omregner et Viva-beløb i KRONER (decimaltal) til hele øre.
  *
  * Faldgrube: /checkout/v2/orders tager beløb i øre, men Retrieve Transaction og
- * webhook-payloads returnerer kroner som decimaltal (fx 100.5). Flydende komma
- * gør, at 1.005 * 100 = 100.4999… og ville runde forkert ned. En lille margin
- * (Number.EPSILON) sikrer, at et præcist decimaltal rundes korrekt op:
+ * webhook-payloads returnerer kroner som decimaltal (fx 100.5). Viva returnerer
+ * altid højst to decimaler, så en enkel afrunding er tilstrækkelig:
+ *   100.5 → 10050
  *   8.15  → 815
- *   1.005 → 101
  * Kun ét sted i koden må lave denne konvertering.
  */
 export function kronerToOre(amount: number | string): number {
@@ -31,7 +30,7 @@ export function kronerToOre(amount: number | string): number {
   if (!Number.isFinite(n)) {
     throw new Error(`Ugyldigt Viva-beløb: ${amount}`);
   }
-  return Math.round((n + Number.EPSILON) * 100);
+  return Math.round(n * 100);
 }
 
 /**

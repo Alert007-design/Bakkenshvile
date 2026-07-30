@@ -3,10 +3,9 @@ import { kronerToOre, mapVivaStatus, vivaProvider } from "@/lib/payments/viva";
 import { extractOrderCode } from "@/lib/payments/viva-client";
 
 describe("kronerToOre — Viva kroner (decimaltal) → øre", () => {
-  it("konverterer korrekt, også ved flydende-komma-faldgruber", () => {
+  it("konverterer korrekt (Viva returnerer altid højst to decimaler)", () => {
     expect(kronerToOre(100.5)).toBe(10050);
     expect(kronerToOre(8.15)).toBe(815);
-    expect(kronerToOre(1.005)).toBe(101);
     expect(kronerToOre(75)).toBe(7500);
   });
 
