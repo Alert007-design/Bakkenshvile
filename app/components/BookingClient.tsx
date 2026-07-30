@@ -39,6 +39,10 @@ type ShowDate = {
   priceGroup: string;
   // Udsolgt-flag fra Events. Udsolgte datoer vises, men kan ikke bookes.
   soldOut: boolean;
+  // Om onlinerabatten på drikkevarer stadig er aktiv for datoen (før kl. 12.00
+  // dansk tid på forestillingsdagen). Beregnet serverside; checkout håndhæver
+  // det samme, så visningen aldrig lover en rabat, der ikke gives.
+  discountActive: boolean;
   // Valgfrit "Få pladser"/"premiere"-hint. Findes ikke i Airtable endnu;
   // "soldout" udledes nu i stedet af feltet soldOut ovenfor.
   status?: ShowStatus;
@@ -517,17 +521,24 @@ export default function BookingClient({
     return sum;
   }, [addons, addonQty]);
 
+  // Onlinerabatten gælder kun indtil kl. 12.00 dansk tid på forestillingsdagen.
+  // Er datoen forbi grænsen, er der ingen rabat — hverken i visningen her eller
+  // i checkout (som håndhæver det samme serverside).
+  const discountActive = selectedShow?.discountActive ?? false;
+
   // Rabatten er summen af de enhedsfloorede rabatter via den delte
   // hjælpefunktion — nøjagtig samme tal som Stripe-checkout bruger, og
-  // linjerne summerer præcis til totalen.
+  // linjerne summerer præcis til totalen. Nul når rabatvinduet er lukket.
   const discount = useMemo(
     () =>
-      addonsTotalDiscountKr(
-        addons
-          .filter((a) => addonQty[a.id])
-          .map((a) => ({ unitKr: a.price, quantity: addonQty[a.id] }))
-      ),
-    [addons, addonQty]
+      discountActive
+        ? addonsTotalDiscountKr(
+            addons
+              .filter((a) => addonQty[a.id])
+              .map((a) => ({ unitKr: a.price, quantity: addonQty[a.id] }))
+          )
+        : 0,
+    [addons, addonQty, discountActive]
   );
 
   const total = ticketsTotal + addonSubtotal - discount;
@@ -767,7 +778,9 @@ export default function BookingClient({
         <div className="section">
           <div className="section-title">Tilvalg</div>
           <div className="section-sub">
-            Drikkevarer og snacks til bordet — 10% onlinerabat er trukket fra
+            {discountActive
+              ? "Drikkevarer og snacks til bordet — 10 % onlinerabat er trukket fra. Rabatten gælder til kl. 12.00 på forestillingsdagen."
+              : "Drikkevarer og snacks til bordet. Onlinerabatten er udløbet (den gælder til kl. 12.00 på forestillingsdagen), så de almindelige priser gælder."}
           </div>
           <div className="addon-groups">
             {groupedAddons.map(([category, items]) => (
@@ -778,10 +791,16 @@ export default function BookingClient({
                     <span className="addon-name">{a.name}</span>
                     <div className="addon-controls">
                       <span className="addon-price">
-                        <span className="addon-price-full">{kr(a.price)}</span>{" "}
-                        <span className="addon-price-discounted">
-                          {kr(discountedAddonUnitKr(a.price))}
-                        </span>
+                        {discountActive ? (
+                          <>
+                            <span className="addon-price-full">{kr(a.price)}</span>{" "}
+                            <span className="addon-price-discounted">
+                              {kr(discountedAddonUnitKr(a.price))}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="addon-price-discounted">{kr(a.price)}</span>
+                        )}
                       </span>
                       <div className="stepper">
                         <button

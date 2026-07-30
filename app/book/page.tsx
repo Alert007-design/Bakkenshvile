@@ -1,4 +1,5 @@
 import { listRecords, TABLES, FIELDS, priceGroupName } from "@/lib/airtable";
+import { onlineDiscountActive } from "@/lib/genbestil";
 import BookingClient from "../components/BookingClient";
 import BookingShell from "../components/BookingShell";
 
@@ -12,16 +13,23 @@ export default async function Page() {
   ]);
 
   const showDates = events
-    .map((r) => ({
-      id: r.id,
-      title: String(r.fields[FIELDS.event.title] ?? "Kommende show"),
-      date: String(r.fields[FIELDS.event.date] ?? ""),
-      time: String(r.fields[FIELDS.event.time] ?? ""),
-      duration: String(r.fields[FIELDS.event.duration] ?? ""),
-      notes: String(r.fields[FIELDS.event.notes] ?? ""),
-      priceGroup: priceGroupName(r.fields[FIELDS.event.priceGroup]),
-      soldOut: Boolean(r.fields[FIELDS.event.soldOut]),
-    }))
+    .map((r) => {
+      const date = String(r.fields[FIELDS.event.date] ?? "");
+      return {
+        id: r.id,
+        title: String(r.fields[FIELDS.event.title] ?? "Kommende show"),
+        date,
+        time: String(r.fields[FIELDS.event.time] ?? ""),
+        duration: String(r.fields[FIELDS.event.duration] ?? ""),
+        notes: String(r.fields[FIELDS.event.notes] ?? ""),
+        priceGroup: priceGroupName(r.fields[FIELDS.event.priceGroup]),
+        soldOut: Boolean(r.fields[FIELDS.event.soldOut]),
+        // Onlinerabatten på drikkevarer er kun aktiv indtil kl. 12.00 dansk tid
+        // på forestillingsdagen. Beregnes serverside (per request, da siden er
+        // force-dynamic), så visningen matcher det checkout håndhæver.
+        discountActive: date ? onlineDiscountActive(date) : false,
+      };
+    })
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const tickets = ticketTypes.map((r) => ({
