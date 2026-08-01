@@ -22,6 +22,7 @@ import {
   markOrderRefundedByRef,
 } from "@/lib/orders";
 import {
+  getTicketPayment,
   markTicketFailedByRef,
   markTicketPaidByRef,
   markTicketRefundedByRef,
@@ -35,7 +36,6 @@ import {
   extractOrderCode,
   retrieveVivaTransaction,
 } from "@/lib/payments/viva-client";
-import { routeByTag } from "@/lib/viva-webhook";
 import { getRecord, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { addonBreakdown, mergeAddonBreakdowns, buildBookingView } from "@/lib/genbestil";
 import { ticketEmailHtml, daDateShort, showYear } from "@/lib/ticket-email";
@@ -118,20 +118,19 @@ export async function POST(req: NextRequest) {
     }
 
     const db = getDb();
-    const flow = routeByTag(txn.tags);
     const verified = verifiedFromTransaction(txn);
 
-    // Ukendt/manglende tag → ingen tilstandsændring (fail-closed). Logges, så
-    // et tavst "gør intet" (fx hvis Viva ikke returnerer vores tags) kan ses.
-    if (!flow) {
-      console.warn("Viva-webhook: ingen handling — ukendt/manglende tag", {
-        eventTypeId,
-        rawTags: txn.tags,
-      });
-      return NextResponse.json({ received: true });
-    }
+    // Dirigering på VORES EGEN reference — ikke på tags. Viva returnerer ikke
+    // pålideligt de tags, vi satte på ordren, tilbage på den hentede transaktion
+    // (demo giver fx en tom liste), så tags kan ikke bruges til at afgøre flowet.
+    // Findes orderCode i billet-ledgeren, er det et billet/genbestil-flow (rækken
+    // kender selv hvilket via ticket.flow); ellers behandles det som en
+    // bordbestilling. Begge veje er fail-closed: en ukendt reference giver
+    // "not_found" og ingen tilstandsændring.
+    const ticket = await getTicketPayment(db, verified.paymentRef);
 
-    if (flow === "bordbestilling") {
+    if (!ticket) {
+      // Bordbestilling (eller en reference vi ikke kender → ingen ændring).
       if (eventTypeId === EVENT_TRANSACTION_REVERSAL) {
         await markOrderRefundedByRef(db, "viva", verified.paymentRef);
       } else if (verified.status === "paid") {
@@ -153,7 +152,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    // flow === "billet" | "genbestil"
+    // Billet/genbestil (ticket.flow er det præcise flow; fulfill håndterer begge).
     if (eventTypeId === EVENT_TRANSACTION_REVERSAL) {
       await markTicketRefundedByRef(db, verified.paymentRef);
       return NextResponse.json({ received: true });
@@ -198,7 +197,7 @@ export async function POST(req: NextRequest) {
     // Hverken betalt, refunderet eller fejlet — fx en status vi ikke reagerer
     // på. Logges, så tavse "gør intet"-tilfælde kan diagnosticeres.
     console.warn("Viva-webhook: ingen handling — uventet status", {
-      flow,
+      flow: ticket.flow,
       mappedStatus: verified.status,
       eventTypeId,
     });
