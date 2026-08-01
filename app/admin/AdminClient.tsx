@@ -39,6 +39,12 @@ function primaryCategory(row: Row): string {
   return match ? match[1].trim() : first || UKENDT_KATEGORI;
 }
 
+// En booking er en fribillet, hvis bookingnummeret har fribillet-præfikset
+// (sat af /api/admin/comp).
+function isComp(bookingNo: string): boolean {
+  return bookingNo.startsWith("BH-FRI-");
+}
+
 function normalize(s: string): string {
   return s.trim().toLowerCase();
 }
@@ -121,6 +127,8 @@ export default function AdminClient({
   const [loading, setLoading] = useState(false);
   const [suggestion, setSuggestion] = useState<TableGroup[] | null>(null);
   const [applying, setApplying] = useState(false);
+  // Status pr. booking for "gensend billet"-knappen.
+  const [resend, setResend] = useState<Record<string, "sending" | "sent" | "error">>({});
 
   useEffect(() => {
     if (!showId) return;
@@ -141,6 +149,29 @@ export default function AdminClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ bookingId, tableNumber }),
     });
+  }
+
+  // Gensender billet-mailen til bookingens kunde (henter email + linjer
+  // serverside). Nyttigt hvis gæsten har mistet mailen, eller efter en fribillet.
+  async function resendTicket(bookingId: string) {
+    setResend((p) => ({ ...p, [bookingId]: "sending" }));
+    try {
+      const res = await fetch(`/api/admin/resend-ticket?key=${adminKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResend((p) => ({ ...p, [bookingId]: "error" }));
+        alert(data.error || "Kunne ikke gensende billetten.");
+        return;
+      }
+      setResend((p) => ({ ...p, [bookingId]: "sent" }));
+    } catch {
+      setResend((p) => ({ ...p, [bookingId]: "error" }));
+      alert("Kunne ikke gensende billetten.");
+    }
   }
 
   const byTable = useMemo(() => {
@@ -217,7 +248,15 @@ export default function AdminClient({
     : 0;
 
   return (
-    <div style={{ padding: "32px 40px", fontFamily: "sans-serif", color: "#1a1a16" }}>
+    <div
+      style={{
+        padding: "32px 40px",
+        fontFamily: "sans-serif",
+        color: "#1a1a16",
+        background: "#fff",
+        minHeight: "100vh",
+      }}
+    >
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -393,12 +432,31 @@ export default function AdminClient({
                   <th style={{ padding: 8 }}>Antal gæster</th>
                   <th style={{ padding: 8 }}>Match-info</th>
                   <th style={{ padding: 8 }}>Bord</th>
+                  <th style={{ padding: 8 }}>Billet</th>
                 </tr>
               </thead>
               <tbody>
                 {categoryRows.map((r) => (
                   <tr key={r.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: 8 }}>{r.bookingNo}</td>
+                    <td style={{ padding: 8 }}>
+                      {r.bookingNo}
+                      {isComp(r.bookingNo) && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 11,
+                            background: "#c9a227",
+                            color: "#1a1a16",
+                            padding: "1px 6px",
+                            borderRadius: 10,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Fribillet
+                        </span>
+                      )}
+                    </td>
                     <td style={{ padding: 8 }}>
                       {r.customerName}
                       <br />
@@ -431,6 +489,28 @@ export default function AdminClient({
                         onBlur={(e) => saveTable(r.id, e.target.value)}
                       />
                     </td>
+                    <td style={{ padding: 8 }}>
+                      <button
+                        onClick={() => resendTicket(r.id)}
+                        disabled={resend[r.id] === "sending"}
+                        style={{
+                          padding: "4px 10px",
+                          fontSize: 12,
+                          background: resend[r.id] === "sent" ? "#0d3b2e" : "#eee",
+                          color: resend[r.id] === "sent" ? "white" : "#1a1a16",
+                          border: "1px solid #ccc",
+                          borderRadius: 3,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {resend[r.id] === "sending"
+                          ? "Sender…"
+                          : resend[r.id] === "sent"
+                          ? "Sendt ✓"
+                          : "Gensend billet"}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -451,6 +531,7 @@ export default function AdminClient({
                 <li key={g.id}>
                   {g.customerName} — {g.ticketCount} pers.
                   {g.ticketBreakdown ? ` (${g.ticketBreakdown})` : ""}
+                  {isComp(g.bookingNo) ? " · fribillet" : ""}
                   {g.wantsMatching && g.note ? ` — ${g.note}` : ""}
                 </li>
               ))}

@@ -29,6 +29,13 @@ function formatShowDate(iso: string): string {
   return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()}. ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
+// Admin-siderne vises oven på sitets mørke tema; en eksplicit hvid fuldside-
+// baggrund gør den mørke tekst læsbar.
+const pageWrap: React.CSSProperties = {
+  background: "#fff",
+  color: "#1a1a16",
+  minHeight: "100vh",
+};
 const box: React.CSSProperties = {
   maxWidth: 620,
   margin: "0 auto",
@@ -131,7 +138,8 @@ export default function FribilletClient({
   }
 
   return (
-    <div style={box}>
+    <div style={pageWrap}>
+      <div style={box}>
       <h1 style={{ fontSize: 24 }}>Udsted fribillet</h1>
       <p style={{ color: "#555", fontSize: 14 }}>
         Opretter en gratis booking (0 kr), markerer den betalt uden om betaling,
@@ -237,6 +245,7 @@ export default function FribilletClient({
       >
         {submitting ? "Opretter…" : "Udsted fribillet"}
       </button>
+      </div>
     </div>
   );
 }

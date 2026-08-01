@@ -15,7 +15,15 @@ export default async function FribilletPage({
   const key = searchParams.key || "";
   if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
     return (
-      <div style={{ padding: 48, fontFamily: "sans-serif" }}>
+      <div
+        style={{
+          padding: 48,
+          fontFamily: "sans-serif",
+          background: "#fff",
+          color: "#1a1a16",
+          minHeight: "100vh",
+        }}
+      >
         <h1>Fribilletter — adgang</h1>
         <p>
           Tilføj din nøgle i URL&apos;en, fx{" "}

@@ -94,6 +94,10 @@ kode, så man kan skifte tilbage, men bruges ikke længere af noget flow.
   admin-nøglen; genbruger billetvalideringen (rette prisgruppe, gyldige antal),
   men tillader udsolgte shows. Opretter kunde + booking (status *"Betalt"*,
   betalt beløb 0) og sender billet-mailen.
+- `POST /api/admin/resend-ticket` — gensender billet-mailen for en booking. Bag
+  admin-nøglen; henter de præcise linjer fra billet-ledgeren (Viva-betalt) eller
+  genskaber dem af billetnedbrydningen (fribillet). Bruges fra bordplanen, hvor
+  hver booking har en "Gensend billet"-knap, og fribilletter er markeret.
 - `GET /api/cron/varsel` — daglig cron, sender varselmail to dage før show.
 
 ---
