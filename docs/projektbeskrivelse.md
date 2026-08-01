@@ -70,6 +70,9 @@ kode, så man kan skifte tilbage, men bruges ikke længere af noget flow.
   salens tilstand (åben/lukket bestilling m.m.).
 - **`/admin`** — Bordplan til udsolgte shows. Bag en simpel `?key=`-nøgle.
 - **`/admin/qr`** — Printbart QR-ark med én kode pr. bord.
+- **`/admin/fribillet`** — Udsted en gratis billet (comp) til en forestilling.
+  Bag samme `?key=`-nøgle. Opretter en booking til 0 kr, markerer den betalt uden
+  om Viva og sender billet-mailen.
 
 ### API-ruter
 - `POST /api/checkout` — opretter booking + Viva-betaling for billetkøb.
@@ -87,6 +90,10 @@ kode, så man kan skifte tilbage, men bruges ikke længere af noget flow.
 - `GET/POST /api/bar/orders`, `POST /api/bar/orders/[id]/status` — barens ordreliste og statusskift.
 - `GET/POST /api/bar/hall-state` — salens tilstand.
 - `GET/POST /api/admin/bookings` — bookinger til bordplanen.
+- `POST /api/admin/comp` — udsteder en fribillet (0 kr, ingen betaling). Bag
+  admin-nøglen; genbruger billetvalideringen (rette prisgruppe, gyldige antal),
+  men tillader udsolgte shows. Opretter kunde + booking (status *"Betalt"*,
+  betalt beløb 0) og sender billet-mailen.
 - `GET /api/cron/varsel` — daglig cron, sender varselmail to dage før show.
 
 ---

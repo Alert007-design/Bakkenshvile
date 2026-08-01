@@ -71,6 +71,23 @@ describe("validateTicketCheckout — forestillingens tilstand", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.status).toBe(400);
   });
+
+  it("tillader udsolgt event når allowSoldOut er sat (fribillet)", () => {
+    const r = validateTicketCheckout(
+      { tickets: [{ ticketTypeId: "tkAplus", quantity: 1 }], addons: [] },
+      ctx({ show: show({ soldOut: true }), allowSoldOut: true })
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it("allowSoldOut åbner ikke for afholdte datoer", () => {
+    const r = validateTicketCheckout(
+      { tickets: [{ ticketTypeId: "tkAplus", quantity: 1 }], addons: [] },
+      ctx({ show: show({ date: "2026-07-31", soldOut: true }), allowSoldOut: true })
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.status).toBe(400);
+  });
 });
 
 describe("validateTicketCheckout — billettyper", () => {

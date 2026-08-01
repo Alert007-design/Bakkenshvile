@@ -79,6 +79,20 @@ fra, drikkepræference, interesser, og en fritekst-note), som vises ud for
 hver booking i bordplanen, så I kan sætte selskaber sammen, der passer godt
 sammen.
 
+## Fribilletter (/admin/fribillet)
+
+Til æresgæster o.l. kan I udstede en gratis billet uden betaling:
+
+1. Tilgå `https://bakkenshvile.vercel.app/admin/fribillet?key=DIN-NOEGLE`
+   (samme `ADMIN_KEY` som bordplanen).
+2. Vælg forestilling, billettype(r) og antal, og udfyld gæstens navn (og gerne
+   email).
+3. Klik "Udsted fribillet". Der oprettes en booking til 0 kr med status "Betalt"
+   uden om betalingen, og billet-mailen sendes til gæsten, hvis der er en email.
+
+Fribilletter kan gives til udsolgte (men kommende) shows. Kun personale med
+nøglen kan udstede dem — siden er ikke tilgængelig for gæster.
+
 ## Hvad der endnu mangler, før den er helt "live"
 
 - Test-tilstand: brug Stripes testkort (4242 4242 4242 4242) indtil I er

@@ -47,6 +47,12 @@ export interface TicketCheckoutContext {
   showLabel: string;
   /** Dagens dato i dansk tid (til afholdt-tjek). Default: isUpcoming's egen. */
   today?: string;
+  /**
+   * Tillad booking selvom showet er udsolgt. Bruges KUN af admin-fribilletter
+   * (en æresgæst kan få plads til et udsolgt show); det almindelige billetkøb
+   * sætter den aldrig.
+   */
+  allowSoldOut?: boolean;
 }
 
 /** Én valideret linje. Beløb i øre er ALTID fuld pris (rabatten er separat). */
@@ -126,7 +132,7 @@ export function validateTicketCheckout(
       error: "Denne dato er afholdt og kan ikke bestilles.",
     };
   }
-  if (ctx.show.soldOut) {
+  if (ctx.show.soldOut && !ctx.allowSoldOut) {
     return {
       ok: false,
       status: 400,
