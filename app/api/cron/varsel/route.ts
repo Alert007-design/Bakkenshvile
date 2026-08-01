@@ -6,6 +6,7 @@ import {
   TABLES,
   FIELDS,
 } from "@/lib/airtable";
+import { danishToday } from "@/lib/events";
 import { sendMail } from "@/lib/resend";
 import { siteUrl } from "@/lib/site-url";
 
@@ -37,14 +38,10 @@ const MONTHS = [
 ];
 
 // Dagens dato i dansk tid + n dage, som YYYY-MM-DD. Cron kører 08:00 UTC,
-// hvor det stadig er samme kalenderdag i Danmark.
+// hvor det stadig er samme kalenderdag i Danmark. Dagens dato genbruges fra
+// den fælles kilde (lib/events), så dansk-tid-logikken kun findes ét sted.
 function danishDatePlus(days: number): string {
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Copenhagen",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  const today = danishToday();
   const base = new Date(`${today}T00:00:00Z`);
   base.setUTCDate(base.getUTCDate() + days);
   return base.toISOString().slice(0, 10);

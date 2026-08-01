@@ -45,9 +45,15 @@ stedet for den gamle eksterne TicketCloud-side.
 
 ## Hvad siden gør lige nu
 
-- Henter det først oprettede event, billettyper og tilvalg direkte fra Airtable
-- Lader gæsten vælge antal billetter (op til max pr. kategori) og tilvalg
-- Viser en løbende total nederst
+- Henter alle kommende events (afholdte datoer filtreres fra), billettyper og
+  tilvalg direkte fra Airtable, og lader gæsten vælge dato i en datovælger
+- Lader gæsten vælge antal billetter (op til max pr. kategori) og tilvalg —
+  kun billettyper i eventets prisgruppe vises for den valgte dato
+- Viser en løbende total nederst (rent kosmetisk — se næste punkt)
+- Billetpriser genberegnes altid serverside ud fra eventets prisgruppe:
+  browseren sender kun hvilke billettyper/tilvalg der er valgt og antal —
+  aldrig beløb — så en manipuleret klient ikke kan parre en billig prisgruppe
+  med et dyrt show
 - Ved "Gå til betaling" oprettes en `Customer`- og `Booking`-post i Airtable
   (status "Afventer betaling"), og gæsten sendes til Stripe Checkout
 - Når betalingen er gennemført, opdaterer en webhook automatisk bookingens
@@ -78,7 +84,6 @@ sammen.
 - Test-tilstand: brug Stripes testkort (4242 4242 4242 4242) indtil I er
   klar til at skifte til live-nøgler
 - Kobling mellem de specifikke valgte billetter/tilvalg og selve
-  Booking-posten (lige nu gemmes kun det samlede antal billetter og
-  særlige ønsker — selve linjerne ligger i Stripe-kvitteringen)
-- Håndtering af flere events ad gangen (siden viser i øjeblikket kun det
-  første event i Airtable)
+  Booking-posten (lige nu gemmes det samlede antal billetter, billetopdelingen
+  og særlige ønsker — de fulde linjer ligger i betalingsledgeren og
+  bekræftelsesmailen)

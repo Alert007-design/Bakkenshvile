@@ -1,4 +1,5 @@
 import { listRecords, TABLES, FIELDS, priceGroupName } from "@/lib/airtable";
+import { listShowDates } from "@/lib/events";
 import { onlineDiscountActive } from "@/lib/genbestil";
 import BookingClient from "../components/BookingClient";
 import BookingShell from "../components/BookingShell";
@@ -6,31 +7,21 @@ import BookingShell from "../components/BookingShell";
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const [events, ticketTypes, addOns] = await Promise.all([
-    listRecords(TABLES.events),
+  // Kun kommende datoer vises i billetkøbet — afholdte forestillinger filtreres
+  // fra i den fælles kilde (lib/events).
+  const [shows, ticketTypes, addOns] = await Promise.all([
+    listShowDates(),
     listRecords(TABLES.ticketTypes),
     listRecords(TABLES.addOns),
   ]);
 
-  const showDates = events
-    .map((r) => {
-      const date = String(r.fields[FIELDS.event.date] ?? "");
-      return {
-        id: r.id,
-        title: String(r.fields[FIELDS.event.title] ?? "Kommende show"),
-        date,
-        time: String(r.fields[FIELDS.event.time] ?? ""),
-        duration: String(r.fields[FIELDS.event.duration] ?? ""),
-        notes: String(r.fields[FIELDS.event.notes] ?? ""),
-        priceGroup: priceGroupName(r.fields[FIELDS.event.priceGroup]),
-        soldOut: Boolean(r.fields[FIELDS.event.soldOut]),
-        // Onlinerabatten på drikkevarer er kun aktiv indtil kl. 12.00 dansk tid
-        // på forestillingsdagen. Beregnes serverside (per request, da siden er
-        // force-dynamic), så visningen matcher det checkout håndhæver.
-        discountActive: date ? onlineDiscountActive(date) : false,
-      };
-    })
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const showDates = shows.map((s) => ({
+    ...s,
+    // Onlinerabatten på drikkevarer er kun aktiv indtil kl. 12.00 dansk tid
+    // på forestillingsdagen. Beregnes serverside (per request, da siden er
+    // force-dynamic), så visningen matcher det checkout håndhæver.
+    discountActive: s.date ? onlineDiscountActive(s.date) : false,
+  }));
 
   const tickets = ticketTypes.map((r) => ({
     id: r.id,

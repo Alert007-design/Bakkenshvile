@@ -1,4 +1,5 @@
 import { listRecords, TABLES, FIELDS } from "@/lib/airtable";
+import { listShowDates } from "@/lib/events";
 import AdminClient from "./AdminClient";
 export const dynamic = "force-dynamic";
 export default async function AdminPage({
@@ -19,18 +20,18 @@ export default async function AdminPage({
       </div>
     );
   }
-  const [events, ticketTypes] = await Promise.all([
-    listRecords(TABLES.events),
+  // Bordplanen skal også kunne slå afholdte shows op, så her tages afholdte
+  // datoer med (includePast). Den fælles kilde sorterer kronologisk.
+  const [showDates, ticketTypes] = await Promise.all([
+    listShowDates({ includePast: true }),
     listRecords(TABLES.ticketTypes),
   ]);
-  const shows = events
-    .map((r) => ({
-      id: r.id,
-      title: String(r.fields[FIELDS.event.title] ?? ""),
-      date: String(r.fields[FIELDS.event.date] ?? ""),
-      time: String(r.fields[FIELDS.event.time] ?? ""),
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const shows = showDates.map((s) => ({
+    id: s.id,
+    title: s.title,
+    date: s.date,
+    time: s.time,
+  }));
 
   // Kategori-rækkefølge, dyreste først — samme sortering som på
   // selve bookingsiden. Bruges af AdminClient til at gruppere

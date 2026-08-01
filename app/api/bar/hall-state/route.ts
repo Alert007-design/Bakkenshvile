@@ -7,23 +7,22 @@ import {
   setHallState,
   type HallStateValue,
 } from "@/lib/hall-state";
-import { cachedListRecords, TABLES, FIELDS } from "@/lib/airtable";
+import { listShowDates } from "@/lib/events";
 
 export const runtime = "nodejs";
 
 const STATES: HallStateValue[] = ["before_show", "show", "interval", "closed"];
 
-// Kommende forestillinger, så baren kan bekræfte aftenens event.
+// Kun kommende forestillinger, så baren kan bekræfte aftenens event uden at
+// afholdte datoer roder listen til. Datoerne kommer fra den fælles kilde.
 async function upcomingEvents() {
-  const records = await cachedListRecords(TABLES.events, 60_000);
-  return records
-    .map((r) => ({
-      id: r.id,
-      title: String(r.fields[FIELDS.event.title] ?? ""),
-      date: String(r.fields[FIELDS.event.date] ?? ""),
-      time: String(r.fields[FIELDS.event.time] ?? ""),
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const shows = await listShowDates();
+  return shows.map((s) => ({
+    id: s.id,
+    title: s.title,
+    date: s.date,
+    time: s.time,
+  }));
 }
 
 export async function GET(req: NextRequest) {
