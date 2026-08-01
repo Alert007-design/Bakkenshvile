@@ -121,8 +121,13 @@ export async function POST(req: NextRequest) {
     const flow = routeByTag(txn.tags);
     const verified = verifiedFromTransaction(txn);
 
-    // Ukendt/manglende tag → ingen tilstandsændring (fail-closed).
+    // Ukendt/manglende tag → ingen tilstandsændring (fail-closed). Logges, så
+    // et tavst "gør intet" (fx hvis Viva ikke returnerer vores tags) kan ses.
     if (!flow) {
+      console.warn("Viva-webhook: ingen handling — ukendt/manglende tag", {
+        eventTypeId,
+        rawTags: txn.tags,
+      });
       return NextResponse.json({ received: true });
     }
 
@@ -168,6 +173,10 @@ export async function POST(req: NextRequest) {
       }
       if (result.status !== "paid") {
         // not_found (ukendt ref) eller already_paid (idempotent) → ingen mail.
+        console.warn("Viva-webhook: ingen handling — billet ikke markeret", {
+          reason: result.status,
+          paymentRef: verified.paymentRef,
+        });
         return NextResponse.json({ received: true });
       }
       // Kun vinderen af pending → paid når hertil (præcis én gang). Fejler en
@@ -184,7 +193,15 @@ export async function POST(req: NextRequest) {
 
     if (eventTypeId === EVENT_PAYMENT_FAILED) {
       await markTicketFailedByRef(db, verified.paymentRef);
+      return NextResponse.json({ received: true });
     }
+    // Hverken betalt, refunderet eller fejlet — fx en status vi ikke reagerer
+    // på. Logges, så tavse "gør intet"-tilfælde kan diagnosticeres.
+    console.warn("Viva-webhook: ingen handling — uventet status", {
+      flow,
+      mappedStatus: verified.status,
+      eventTypeId,
+    });
     return NextResponse.json({ received: true });
   } catch (err) {
     console.error("Viva-webhook: fejl under håndtering");
