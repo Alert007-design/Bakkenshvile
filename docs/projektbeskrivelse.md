@@ -94,8 +94,11 @@ kode, så man kan skifte tilbage, men bruges ikke længere af noget flow.
 ## 4. To hovedflows
 
 ### 4.1 Billetkøb (Airtable + Viva)
-1. `/book` henter det først oprettede, aktive event fra Airtable med tilhørende
-   billettyper (pris, gebyr, max antal, priskategori) og tilvalg (drikkevarer).
+1. `/book` henter alle kommende events fra Airtable (afholdte datoer filtreres
+   fra) og viser dem i en datovælger. For den valgte dato vises kun billettyper
+   (pris, gebyr, max antal, priskategori) i eventets prisgruppe samt tilvalg
+   (drikkevarer). Forestillingerne læses gennem den fælles kilde `lib/events.ts`,
+   så billetkøb, bordplan og barskærm aldrig er uenige om samme show.
 2. Gæsten vælger antal billetter (op til max pr. kategori) og evt. tilvalg. En
    løbende total vises nederst. Ved købet kan gæsten frivilligt svare på et par
    spørgsmål (alder, hjemby, drikkepræference, interesser, fritekst) til brug
@@ -348,16 +351,22 @@ kode (rollback). Før **live** mangler:
 - **Bordbestilling** kræver desuden stadig et **lovligt kassesystem** til
   salgsregistrering + `TABLE_ORDERING_*`-flag (uændret).
 
-**Kendte begrænsninger i billetflowet:**
-- Sitet viser i øjeblikket kun **det første** event i Airtable (ingen håndtering
-  af flere samtidige events endnu).
+**Billetpriser (server-autoritative):**
+- Flere samtidige events håndteres: `/book` viser alle kommende datoer, og
+  billettyperne filtreres på eventets prisgruppe.
+- **Priser genberegnes altid serverside** ud fra eventets prisgruppe. Browseren
+  sender kun `showId`, valgte billettype-/tilvalgs-id'er og antal — aldrig
+  beløb. `POST /api/checkout` slår forestillingen (`getShowDate`), billettyperne
+  og tilvalgene op i Airtable og kører en ren, testbar validering
+  (`lib/ticket-checkout.ts`): ukendt/afholdt/udsolgt show, ukendt billettype
+  eller tilvalg, en billettype uden for eventets prisgruppe, eller et antal over
+  `maxCount` afvises alle. Onlinerabatten (10 %) gælder kun tilvalg — aldrig
+  billetpriser eller gebyrer. En manipuleret klient kan dermed ikke parre en
+  billig prisgruppe med et dyrt show.
 - Koblingen mellem de konkrete valgte billetter/tilvalg og selve Booking-posten
-  er delvis — det samlede antal og særlige ønsker gemmes, mens linjedetaljerne
-  ligger i betalingsledgeren (`ticket_payments`) og bekræftelsesmailen.
-- Billetpriserne bygger fortsat på de linjer, browseren sender (uændret fra
-  Stripe-flowet). Beløbet, gæsten trækkes, kontrolleres mod det serverberegnede
-  total, men en fuldt server-autoritativ prisberegning af billetlinjer (som ved
-  QR-bordbestillingen) er et selvstændigt næste skridt.
+  er delvis — det samlede antal, billetopdelingen (`ticketBreakdown`) og særlige
+  ønsker gemmes, mens de fulde linjedetaljer ligger i betalingsledgeren
+  (`ticket_payments`) og bekræftelsesmailen.
 
 ---
 

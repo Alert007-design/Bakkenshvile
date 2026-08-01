@@ -593,35 +593,27 @@ export default function BookingClient({
     setSubmitting(true);
     try {
       const showLabel = `${formatShortDate(selectedShow.date)} kl. ${selectedShow.time}`;
-      const lineItems = [
-        ...visibleTickets
-          .filter((t) => ticketQty[t.id])
-          .map((t) => ({
-            name: `Billet: ${t.category} — ${showLabel}`,
-            unitAmount: t.price + t.fee,
-            quantity: ticketQty[t.id],
-            kind: "ticket" as const,
-          })),
-        ...addons
-          .filter((a) => addonQty[a.id])
-          .map((a) => ({
-            name: a.name,
-            unitAmount: a.price,
-            quantity: addonQty[a.id],
-            kind: "addon" as const,
-          })),
-      ];
+      // Ny kontrakt: browseren sender KUN id'er og antal — aldrig priser eller
+      // navne. Serveren slår priser og prisgruppe op i Airtable og er den
+      // autoritative kilde til beløbet. Klientens total ovenfor er rent
+      // kosmetisk.
+      const ticketSelection = visibleTickets
+        .filter((t) => ticketQty[t.id])
+        .map((t) => ({ ticketTypeId: t.id, quantity: ticketQty[t.id] }));
+      const addonSelection = addons
+        .filter((a) => addonQty[a.id])
+        .map((a) => ({ addonId: a.id, quantity: addonQty[a.id] }));
 
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customer,
-          ticketCount: totalTickets,
           specialRequests: `Show: ${showLabel}${
             specialRequests ? " — " + specialRequests : ""
           }`,
-          lineItems,
+          tickets: ticketSelection,
+          addons: addonSelection,
           showId: selectedShow.id,
           acceptTerms: acceptedTerms,
           matching: wantsMatching ? { wantsMatching, ...matching } : undefined,

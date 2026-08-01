@@ -1,41 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRecord, getRecord, TABLES, FIELDS } from "@/lib/airtable";
+import {
+  createRecord,
+  cachedListRecords,
+  TABLES,
+  FIELDS,
+  priceGroupName,
+} from "@/lib/airtable";
+import { getShowDate, type ShowDate } from "@/lib/events";
+import {
+  validateTicketCheckout,
+  type TicketTypeDef,
+  type AddonDef,
+} from "@/lib/ticket-checkout";
 import { getDb } from "@/lib/db";
 import { getPaymentProvider } from "@/lib/payments";
 import { vivaSourceCode } from "@/lib/payments/viva-client";
 import { createTicketPayment, type TicketLineItem } from "@/lib/ticket-payments";
-import { addonsTotalDiscountKr } from "@/lib/pricing";
-import {
-  addonBreakdown,
-  generateBookingKey,
-  onlineDiscountActive,
-} from "@/lib/genbestil";
+import { generateBookingKey, onlineDiscountActive } from "@/lib/genbestil";
 
 // Betalingen udløber efter 30 min. (samme vindue som bordbestillingen).
 const CHECKOUT_EXPIRY_MINUTES = 30;
 
-type LineItem = {
-  name: string;
-  unitAmount: number;
-  quantity: number;
-  kind?: "ticket" | "addon";
-};
+const WEEKDAYS_SHORT = ["søn", "man", "tir", "ons", "tor", "fre", "lør"];
+const MONTHS = [
+  "januar",
+  "februar",
+  "marts",
+  "april",
+  "maj",
+  "juni",
+  "juli",
+  "august",
+  "september",
+  "oktober",
+  "november",
+  "december",
+];
 
-// Trækker billetkategorierne ud af lineItems og opsummerer antal pr.
-// kategori, fx "A+ x2, B x1". Kun linjer der matcher det navneformat,
-// BookingClient sender for billetter ("Billet: <kategori> — <showlabel>"),
-// tælles med — tilvalg (drinks/mad) har ikke dette præfiks og ignoreres.
-function summarizeTicketCategories(lineItems: LineItem[]): string {
-  const totals = new Map<string, number>();
-  for (const li of lineItems) {
-    const match = li.name.match(/^Billet: (.+?) —/);
-    if (!match) continue;
-    const category = match[1].trim();
-    totals.set(category, (totals.get(category) || 0) + li.quantity);
-  }
-  return Array.from(totals.entries())
-    .map(([category, qty]) => `${category} x${qty}`)
-    .join(", ");
+// Vis-label til billetlinjens navn ("Billet: <kategori> — <showlabel>").
+// Bygges serverside (i UTC, så en UTC-server ikke forskyder datoen), da
+// browseren ikke længere sender linjenavne.
+function showLabelFor(show: ShowDate): string {
+  const d = new Date(`${show.date}T00:00:00Z`);
+  const datePart = isNaN(d.getTime())
+    ? show.date
+    : `${WEEKDAYS_SHORT[d.getUTCDay()]} ${d.getUTCDate()}. ${MONTHS[d.getUTCMonth()]}`;
+  return show.time ? `${datePart} kl. ${show.time}` : datePart;
 }
 
 export async function POST(req: NextRequest) {
@@ -44,8 +54,6 @@ export async function POST(req: NextRequest) {
     const {
       customer,
       specialRequests,
-      ticketCount,
-      lineItems,
       showId,
       matching,
       acceptTerms,
@@ -59,8 +67,6 @@ export async function POST(req: NextRequest) {
         email?: string;
       };
       specialRequests?: string;
-      ticketCount: number;
-      lineItems: LineItem[];
       showId?: string;
       matching?: {
         wantsMatching?: boolean;
@@ -90,31 +96,50 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (!lineItems?.length) {
-      return NextResponse.json(
-        { error: "Vælg mindst én billet" },
-        { status: 400 }
-      );
-    }
-    // Serverside-værn: en udsolgt dato må aldrig kunne føres til betaling,
-    // heller ikke hvis klienten manipuleres til at sende showId'et alligevel.
-    // Samme opslag giver os forestillingsdatoen, som rabatgrænsen beregnes ud
-    // fra (kl. 12.00 dansk tid på forestillingsdagen).
-    let showDate = "";
-    if (showId) {
-      const event = await getRecord(TABLES.events, showId);
-      if (event.fields[FIELDS.event.soldOut]) {
-        return NextResponse.json(
-          { error: "Denne dato er udsolgt og kan ikke bestilles." },
-          { status: 409 }
-        );
+
+    // Forestillingen, billettyperne og tilvalgene slås op serverside — aldrig
+    // klientens tal. Datoen (og dermed rabatgrænsen) og prisgruppen kommer
+    // fra Airtable, så priser og prisgruppe ikke kan manipuleres i browseren.
+    const show = showId ? await getShowDate(showId) : null;
+    const [ticketTypeRecords, addonRecords] = await Promise.all([
+      cachedListRecords(TABLES.ticketTypes, 60_000),
+      cachedListRecords(TABLES.addOns, 60_000),
+    ]);
+    const ticketTypes: TicketTypeDef[] = ticketTypeRecords.map((r) => ({
+      id: r.id,
+      category: String(r.fields[FIELDS.ticketType.category] ?? ""),
+      price: Number(r.fields[FIELDS.ticketType.price] ?? 0),
+      fee: Number(r.fields[FIELDS.ticketType.fee] ?? 0),
+      maxCount: Number(r.fields[FIELDS.ticketType.maxCount] ?? 0),
+      priceGroup: priceGroupName(r.fields[FIELDS.ticketType.priceGroup]),
+    }));
+    const addons: AddonDef[] = addonRecords.map((r) => ({
+      id: r.id,
+      name: String(r.fields[FIELDS.addOn.name] ?? ""),
+      price: Number(r.fields[FIELDS.addOn.price] ?? 0),
+    }));
+
+    // Onlinerabatten (10 % på tilvalg) gælder kun indtil kl. 12.00 dansk tid på
+    // forestillingsdagen. Uden en kendt dato gives ingen rabat. Beregnes
+    // serverside, så browserens tid aldrig kan omgå grænsen.
+    const discountActive = show?.date ? onlineDiscountActive(show.date) : false;
+
+    // Al validering og prisberegning ligger i den rene funktion — alle beløb
+    // udledes af Airtable-værdierne, aldrig af input.
+    const result = validateTicketCheckout(
+      { tickets: body.tickets, addons: body.addons },
+      {
+        show,
+        ticketTypes,
+        addons,
+        discountActive,
+        showLabel: show ? showLabelFor(show) : "",
       }
-      showDate = String(event.fields[FIELDS.event.date] ?? "");
+    );
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
-    // Onlinerabatten gælder kun indtil kl. 12.00 dansk tid på forestillingsdagen.
-    // Uden en kendt dato gives ingen rabat (fuld pris). Beregnes serverside, så
-    // browserens tid aldrig kan omgå grænsen.
-    const discountActive = showDate ? onlineDiscountActive(showDate) : false;
+
     const customerRecord = await createRecord(TABLES.customers, {
       [FIELDS.customer.name]: customer.name,
       [FIELDS.customer.company]: customer.company || "",
@@ -124,35 +149,18 @@ export async function POST(req: NextRequest) {
       [FIELDS.customer.email]: customer.email || "",
     });
     const bookingNo = `BH-${Date.now().toString().slice(-8)}`;
-    const ticketBreakdown = summarizeTicketCategories(lineItems);
-    // Tilvalg gemmes på bookingen (én linje pr. vare), så en senere
-    // genbestilling kan lægges oven i dem.
-    const addonsText = addonBreakdown(
-      lineItems.filter((li) => li.kind === "addon")
-    );
-
-    // Onlinerabat: 10% på tilvalg — men KUN indtil kl. 12.00 dansk tid på
-    // forestillingsdagen. Efter deadline er der ingen rabat (fuld pris).
-    // Beregnes serverside som summen af de enhedsfloorede rabatter via den
-    // delte hjælpefunktion — nøjagtig samme tal som frontend viser, så det
-    // viste og det trukne aldrig kan afvige.
-    const discount = discountActive
-      ? addonsTotalDiscountKr(
-          lineItems
-            .filter((li) => li.kind === "addon")
-            .map((li) => ({ unitKr: li.unitAmount, quantity: li.quantity }))
-        )
-      : 0;
 
     const bookingFields: Record<string, unknown> = {
       [FIELDS.booking.bookingNo]: bookingNo,
-      [FIELDS.booking.ticketCount]: ticketCount || 0,
+      [FIELDS.booking.ticketCount]: result.totals.ticketCount,
       [FIELDS.booking.specialRequests]: specialRequests || "",
       [FIELDS.booking.status]: "Afventer betaling",
-      [FIELDS.booking.discount]: discount,
+      [FIELDS.booking.discount]: result.totals.discountKr,
       [FIELDS.booking.customer]: [customerRecord.id],
-      [FIELDS.booking.ticketBreakdown]: ticketBreakdown,
-      [FIELDS.booking.addons]: addonsText,
+      [FIELDS.booking.ticketBreakdown]: result.ticketBreakdown,
+      // Tilvalg gemmes på bookingen (én linje pr. vare), så en senere
+      // genbestilling kan lægges oven i dem.
+      [FIELDS.booking.addons]: result.addonBreakdown,
       // Ugættelig nøgle til genbestilling (/genbestil?ref=<nr>&n=<nøgle>).
       [FIELDS.booking.key]: generateBookingKey(),
     };
@@ -171,18 +179,16 @@ export async function POST(req: NextRequest) {
     const bookingRecord = await createRecord(TABLES.bookings, bookingFields);
     const origin = req.nextUrl.origin;
 
-    // Beløb genberegnes serverside og opgøres i øre. Linjebeløbene lægges op
-    // til det forventede total, som rabatten (floored kronebeløb → øre) trækkes
-    // fra. Præcis dette beløb oprettes betalingen på, så det trukne stemmer med
-    // det viste (linjesum − rabat).
-    const ledgerLines: TicketLineItem[] = lineItems.map((li) => ({
-      description: li.name,
-      quantity: li.quantity,
-      amountSubtotalOre: Math.round(li.unitAmount * 100) * li.quantity,
+    // Ledger-linjer og forventet total kommer direkte fra de validerede linjer
+    // (fuld pris pr. linje; rabatten er trukket fra i totalen). Præcis dette
+    // beløb oprettes betalingen på, så det trukne stemmer med det viste.
+    const ledgerLines: TicketLineItem[] = result.lines.map((l) => ({
+      description: l.description,
+      quantity: l.quantity,
+      amountSubtotalOre: l.amountSubtotalOre,
     }));
-    const discountOre = Math.round(discount * 100);
-    const expectedTotalOre =
-      ledgerLines.reduce((sum, l) => sum + l.amountSubtotalOre, 0) - discountOre;
+    const expectedTotalOre = result.totals.totalOre;
+    const discountOre = result.totals.discountOre;
 
     // Betaling oprettes hos den valgte udbyder (Viva) på tickets-sourcen.
     // tags[0] dirigerer webhooken; tags[1] bærer bookingId, så referencen kan
