@@ -122,6 +122,32 @@ export async function getTicketPayment(
   return rows[0] ? toRow(rows[0]) : null;
 }
 
+/**
+ * Nyeste ledger-post for en booking (evt. filtreret på flow). Bruges ved
+ * gensend af billet-mailen, hvor de præcise linjer/beløb skal hentes for en
+ * Viva-betalt booking. Returnerer null for fx en fribillet uden ledger-post.
+ */
+export async function getLatestTicketPaymentByBooking(
+  db: Queryable,
+  bookingId: string,
+  flow?: TicketFlow
+): Promise<TicketPaymentRow | null> {
+  const { rows } = flow
+    ? await db.query<TicketPaymentDbRow>(
+        `SELECT * FROM ticket_payments
+          WHERE booking_id = $1 AND flow = $2
+          ORDER BY created_at DESC LIMIT 1`,
+        [bookingId, flow]
+      )
+    : await db.query<TicketPaymentDbRow>(
+        `SELECT * FROM ticket_payments
+          WHERE booking_id = $1
+          ORDER BY created_at DESC LIMIT 1`,
+        [bookingId]
+      );
+  return rows[0] ? toRow(rows[0]) : null;
+}
+
 export type MarkTicketPaidResult =
   | { status: "paid"; payment: TicketPaymentRow }
   | { status: "already_paid"; payment: TicketPaymentRow }
