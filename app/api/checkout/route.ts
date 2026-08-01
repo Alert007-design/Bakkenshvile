@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
     // Betaling oprettes hos den valgte udbyder (Viva) på tickets-sourcen.
     // tags[0] dirigerer webhooken; tags[1] bærer bookingId, så referencen kan
     // læses tilbage fra en verificeret transaktion — aldrig fra payloaden.
-    const provider = getPaymentProvider();
+    const provider = getPaymentProvider("tickets");
     const payment = await provider.createPayment({
       orderId: bookingRecord.id,
       orderNumber: bookingNo,

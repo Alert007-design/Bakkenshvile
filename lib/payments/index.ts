@@ -1,6 +1,6 @@
-// Valg af betalingsudbyder. PAYMENT_PROVIDER styrer, om bordbestillingen bruger
-// Stripe eller Viva — skift tilbage til Stripe kræver kun ét miljøvariabel-
-// skift. Live-værnet for Viva håndhæves her (i getPaymentProvider), så det
+// Valg af betalingsudbyder. PAYMENT_PROVIDER styrer, om sitet bruger Stripe
+// eller Viva — skift tilbage til Stripe kræver kun ét miljøvariabel-skift.
+// Live-værnet for Viva håndhæves her (i getPaymentProvider), pr. flow, så det
 // ikke kan omgås ved at importere en provider direkte.
 
 import type { PaymentProvider, PaymentProviderName } from "@/lib/payments/types";
@@ -9,6 +9,19 @@ import { vivaProvider } from "@/lib/payments/viva";
 import { getVivaEnv } from "@/lib/payments/viva-client";
 import { isLiveMode } from "@/lib/table-ordering-config";
 
+/**
+ * Live-værnets omfang. Billet og genbestilling deler tickets-flowet; bord-
+ * bestillingen har sit eget. De to flows går live uafhængigt, så hvert har sit
+ * eget flag — ellers kunne billetter ikke gå live uden også at tænde bord-
+ * bestillingen (som desuden kræver et lovligt kassesystem).
+ */
+export type LiveScope = "tickets" | "table";
+
+/** Billet/genbestillings live-flag. Default false (fejler lukket mod live). */
+export function ticketsLiveMode(): boolean {
+  return process.env.TICKETS_LIVE === "true";
+}
+
 /** Den konfigurerede udbyder ud fra PAYMENT_PROVIDER. Default: stripe. */
 export function getConfiguredProviderName(): PaymentProviderName {
   return process.env.PAYMENT_PROVIDER === "viva" ? "viva" : "stripe";
@@ -16,22 +29,28 @@ export function getConfiguredProviderName(): PaymentProviderName {
 
 /**
  * Værn mod utilsigtet Viva-livebetaling: VIVA_ENV=live må aldrig bruges, når
- * TABLE_ORDERING_LIVE ikke er true. Kaster (fail-closed), hvis kombinationen er
- * ulovlig. Samme princip som assertLivePaymentAllowed for Stripe.
+ * det pågældende flows live-flag ikke er true. Tickets-flowet (billet +
+ * genbestilling) gates på TICKETS_LIVE; bordbestillingen på TABLE_ORDERING_LIVE.
+ * De to er bevidst afkoblede, så billetter kan gå live uafhængigt af bordpiloten.
+ * Kaster (fail-closed), hvis kombinationen er ulovlig. Kaldes i
+ * getPaymentProvider, så den ikke kan omgås ved at importere provideren direkte.
  */
-export function assertVivaLiveAllowed(): void {
-  if (getVivaEnv() === "live" && !isLiveMode()) {
+export function assertVivaLiveAllowed(scope: LiveScope): void {
+  if (getVivaEnv() !== "live") return;
+  const allowed = scope === "table" ? isLiveMode() : ticketsLiveMode();
+  if (!allowed) {
+    const flag = scope === "table" ? "TABLE_ORDERING_LIVE" : "TICKETS_LIVE";
     throw new Error(
-      "Viva live er slået fra (TABLE_ORDERING_LIVE=false), men VIVA_ENV=live."
+      `Viva live er slået fra (${flag}=false), men VIVA_ENV=live.`
     );
   }
 }
 
-/** Returnerer den valgte, live-godkendte betalingsudbyder. */
-export function getPaymentProvider(): PaymentProvider {
+/** Returnerer den valgte, live-godkendte betalingsudbyder for det givne flow. */
+export function getPaymentProvider(scope: LiveScope): PaymentProvider {
   const name = getConfiguredProviderName();
   if (name === "viva") {
-    assertVivaLiveAllowed();
+    assertVivaLiveAllowed(scope);
     return vivaProvider;
   }
   return stripeProvider;
