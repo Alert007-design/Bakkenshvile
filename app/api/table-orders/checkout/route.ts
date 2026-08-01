@@ -30,11 +30,11 @@ export async function POST(req: NextRequest) {
   let provider: PaymentProvider;
   try {
     if (getConfiguredProviderName() === "viva") {
-      assertVivaLiveAllowed();
+      assertVivaLiveAllowed("table");
     } else {
       assertLivePaymentAllowed(process.env.STRIPE_SECRET_KEY);
     }
-    provider = getPaymentProvider();
+    provider = getPaymentProvider("table");
   } catch {
     return NextResponse.json({ error: "Bordbestilling er ikke aktiv." }, { status: 403 });
   }

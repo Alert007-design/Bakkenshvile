@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     const expectedTotalOre =
       ledgerLines.reduce((sum, l) => sum + l.amountSubtotalOre, 0) - discountOre;
 
-    const provider = getPaymentProvider();
+    const provider = getPaymentProvider("tickets");
     const payment = await provider.createPayment({
       orderId: booking.id,
       orderNumber: view.bookingNo,

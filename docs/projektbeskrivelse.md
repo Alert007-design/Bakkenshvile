@@ -266,9 +266,12 @@ Bordbestillingen er **under opbygning og ikke i drift endnu**. To flag styrer de
   **og** lovpligtig salgsregistrering er konfigureret.
 - En **live** Stripe-nøgle (`sk_live_`) afvises hårdt, hvis `TABLE_ORDERING_LIVE`
   ikke er `true` (`assertLivePaymentAllowed`).
-- Tilsvarende for Viva: `VIVA_ENV=live` afvises hårdt, hvis `TABLE_ORDERING_LIVE`
-  ikke er `true` (`assertVivaLiveAllowed`, kaldes i `getPaymentProvider`, så den
-  ikke kan omgås ved at importere provideren direkte).
+- For Viva håndhæves live-værnet **pr. flow** (`assertVivaLiveAllowed(scope)`,
+  kaldes i `getPaymentProvider`, så det ikke kan omgås ved at importere
+  provideren direkte): `VIVA_ENV=live` afvises hårdt for **billet/genbestilling**,
+  hvis `TICKETS_LIVE` ikke er `true`, og for **bordbestilling**, hvis
+  `TABLE_ORDERING_LIVE` ikke er `true`. De to flows går altså live uafhængigt af
+  hinanden — billetter kan gå live uden bordbestillingens flag (og omvendt).
 - **Den fælles Viva-webhook** (`/api/table-orders/viva/webhook`): Viva sender
   alle transaktioner på kontoen til ét endpoint, så vi **dirigerer på
   transaktionens første tag** (`billet` / `genbestil` / `bordbestilling`).
@@ -310,6 +313,7 @@ Bordbestillingen er **under opbygning og ikke i drift endnu**. To flag styrer de
 `CRON_SECRET`, `SITE_URL` (eneste kilde til absolutte URL'er / QR — må ikke pege
 på det gamle site), `TABLE_QR_SECRET`, `TABLE_TOKEN_VERSION`, `BAR_SCREEN_PASSWORD`,
 `BAR_SESSION_SECRET`, `TABLE_ORDERING_ENABLED`, `TABLE_ORDERING_LIVE`,
+`TICKETS_LIVE` (billet/genbestillings live-flag, uafhængigt af bord-flaget),
 `POSTGRES_URL(_NON_POOLING)`.
 Betaling (hele sitet): `PAYMENT_PROVIDER` (sæt til `viva`), `VIVA_ENV`
 (`demo` | `live`), `VIVA_CLIENT_ID`, `VIVA_CLIENT_SECRET`, `VIVA_MERCHANT_ID`,
@@ -344,10 +348,10 @@ kode (rollback). Før **live** mangler:
   `/api/table-orders/viva/webhook?k=…`) og oprettelse af tickets-sourcen med
   korrekte success/failure-URL'er.
 - Kørsel af migration `003_ticket_payments.sql` (og `002`) mod Vercel Postgres.
-- Skift til live: `VIVA_ENV=live`. **Bemærk:** live-værnet `assertVivaLiveAllowed`
-  er pt. koblet til `TABLE_ORDERING_LIVE` (arv fra bordbestillings-piloten). Går
-  billetterne live på Viva, før bordbestillingen gør, skal den kobling
-  genovervejes, så billetbetaling ikke blokeres af et bord-flag.
+- Skift til live: `VIVA_ENV=live` **plus** flowets eget live-flag. Live-værnet er
+  afkoblet pr. flow, så billetter kan gå live uafhængigt af bordbestillingen:
+  billet/genbestilling kræver `TICKETS_LIVE=true`, bordbestilling kræver
+  `TABLE_ORDERING_LIVE=true`.
 - **Bordbestilling** kræver desuden stadig et **lovligt kassesystem** til
   salgsregistrering + `TABLE_ORDERING_*`-flag (uændret).
 
