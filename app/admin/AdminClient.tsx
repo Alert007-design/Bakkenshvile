@@ -248,7 +248,15 @@ export default function AdminClient({
     : 0;
 
   return (
-    <div style={{ padding: "32px 40px", fontFamily: "sans-serif", color: "#1a1a16" }}>
+    <div
+      style={{
+        padding: "32px 40px",
+        fontFamily: "sans-serif",
+        color: "#1a1a16",
+        background: "#fff",
+        minHeight: "100vh",
+      }}
+    >
       <style>{`
         @media print {
           .no-print { display: none !important; }
