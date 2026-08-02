@@ -5,6 +5,11 @@ import BookingClient from "../components/BookingClient";
 import BookingShell from "../components/BookingShell";
 
 export const dynamic = "force-dynamic";
+export const metadata = {
+  title: "Køb billetter — Bakkens Hvile",
+  description:
+    "Vælg forestilling, billetter og tilvalg, og betal sikkert med Viva. Bestil drikkevarer online med 10 % rabat inden kl. 12.00 på forestillingsdagen.",
+};
 
 export default async function Page() {
   // Kun kommende datoer vises i billetkøbet — afholdte forestillinger filtreres

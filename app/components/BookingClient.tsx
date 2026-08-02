@@ -459,8 +459,6 @@ export default function BookingClient({
   const [customer, setCustomer] = useState({
     name: "",
     company: "",
-    address: "",
-    zip: "",
     phone: "",
     email: "",
   });
@@ -528,7 +526,7 @@ export default function BookingClient({
   const discountActive = selectedShow?.discountActive ?? false;
 
   // Rabatten er summen af de enhedsfloorede rabatter via den delte
-  // hjælpefunktion — nøjagtig samme tal som Stripe-checkout bruger, og
+  // hjælpefunktion — nøjagtig samme tal som serveren beregner ved betaling, og
   // linjerne summerer præcis til totalen. Nul når rabatvinduet er lukket.
   const discount = useMemo(
     () =>
@@ -581,7 +579,7 @@ export default function BookingClient({
       return;
     }
     if (!customer.name || (!customer.phone && !customer.email)) {
-      setError("Udfyld navn samt telefon eller email.");
+      setError("Udfyld navn samt telefon eller e-mail.");
       return;
     }
     if (!acceptedTerms) {
@@ -635,7 +633,7 @@ export default function BookingClient({
           <div className="eyebrow">
             <a href="/">Bakkens Hvile · Underholdning siden 1877</a>
           </div>
-          <h1 className="jubilee-title">150 års jubilæumsshow</h1>
+          <h1 className="jubilee-title">150-års jubilæumsshow 2027</h1>
           <p className="book-helper">
             Vælg den forestilling, du ønsker at bestille billetter til.
           </p>
@@ -658,6 +656,7 @@ export default function BookingClient({
                         soldOut ? " is-soldout" : ""
                       }`}
                       onClick={() => !soldOut && selectDate(s.id)}
+                      disabled={soldOut}
                       aria-disabled={soldOut || undefined}
                       aria-label={`${formatShortDate(s.date)} kl. ${s.time}${
                         badges.length
@@ -727,7 +726,10 @@ export default function BookingClient({
 
       <div className="section">
         <div className="section-title">Vælg billetter</div>
-        <div className="section-sub">Alle priser er inkl. moms og gebyr</div>
+        <div className="section-sub">
+          Alle priser er inklusive 25 % moms og gebyr. Momsbeløbet svarer til 20 %
+          af den samlede pris inklusive moms.
+        </div>
         <button
           type="button"
           className="seating-chart-toggle"
@@ -834,6 +836,10 @@ export default function BookingClient({
             <label htmlFor="cust-name">Fornavn og efternavn *</label>
             <input
               id="cust-name"
+              type="text"
+              autoComplete="name"
+              required
+              aria-required="true"
               value={customer.name}
               onChange={(e) =>
                 setCustomer({ ...customer, name: e.target.value })
@@ -844,6 +850,8 @@ export default function BookingClient({
             <label htmlFor="cust-company">Firmanavn</label>
             <input
               id="cust-company"
+              type="text"
+              autoComplete="organization"
               value={customer.company}
               onChange={(e) =>
                 setCustomer({ ...customer, company: e.target.value })
@@ -854,6 +862,10 @@ export default function BookingClient({
             <label htmlFor="cust-phone">Telefon *</label>
             <input
               id="cust-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              aria-required="true"
               value={customer.phone}
               onChange={(e) =>
                 setCustomer({ ...customer, phone: e.target.value })
@@ -861,32 +873,16 @@ export default function BookingClient({
             />
           </div>
           <div className="field">
-            <label htmlFor="cust-email">Email *</label>
+            <label htmlFor="cust-email">E-mail *</label>
             <input
               id="cust-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              aria-required="true"
               value={customer.email}
               onChange={(e) =>
                 setCustomer({ ...customer, email: e.target.value })
-              }
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="cust-address">Adresse</label>
-            <input
-              id="cust-address"
-              value={customer.address}
-              onChange={(e) =>
-                setCustomer({ ...customer, address: e.target.value })
-              }
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="cust-zip">Postnr.</label>
-            <input
-              id="cust-zip"
-              value={customer.zip}
-              onChange={(e) =>
-                setCustomer({ ...customer, zip: e.target.value })
               }
             />
           </div>

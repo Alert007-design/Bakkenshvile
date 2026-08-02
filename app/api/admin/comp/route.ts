@@ -15,16 +15,10 @@ import { generateBookingKey } from "@/lib/genbestil";
 import { sendMail } from "@/lib/resend";
 import { ticketEmailHtml, daDateShort, showYear } from "@/lib/ticket-email";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
+import { verifyStaffSession, verifyCsrf, STAFF_COOKIE_NAME } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// Fribilletter oprettes KUN af personalet via en adgangskode-beskyttet side.
-// Adgang tjekkes på samme måde som resten af admin (?key= mod ADMIN_KEY).
-function checkKey(req: NextRequest): boolean {
-  const key = req.nextUrl.searchParams.get("key");
-  return Boolean(key && key === process.env.ADMIN_KEY);
-}
 
 const WEEKDAYS_SHORT = ["søn", "man", "tir", "ons", "tor", "fre", "lør"];
 const MONTHS = [
@@ -49,8 +43,13 @@ function showLabelFor(show: ShowDate): string {
  * kan give sig selv gratis billetter. Tilvalg understøttes ikke (kun billetter).
  */
 export async function POST(req: NextRequest) {
-  if (!checkKey(req)) {
-    return NextResponse.json({ error: "Ugyldig nøgle" }, { status: 401 });
+  // Fribilletter oprettes KUN af personalet via den fælles login-session.
+  const s = verifyStaffSession(req.cookies.get(STAFF_COOKIE_NAME)?.value);
+  if (!s) {
+    return NextResponse.json({ error: "Log ind igen." }, { status: 401 });
+  }
+  if (!verifyCsrf(s, req.headers.get("x-csrf-token"))) {
+    return NextResponse.json({ error: "Ugyldig forespørgsel." }, { status: 403 });
   }
 
   try {

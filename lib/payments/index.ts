@@ -1,10 +1,9 @@
-// Valg af betalingsudbyder. PAYMENT_PROVIDER styrer, om sitet bruger Stripe
-// eller Viva — skift tilbage til Stripe kræver kun ét miljøvariabel-skift.
-// Live-værnet for Viva håndhæves her (i getPaymentProvider), pr. flow, så det
-// ikke kan omgås ved at importere en provider direkte.
+// Betalingsudbyder. Hele sitet betaler via Viva; abstraktionen bevares, så
+// ordre-, checkout- og webhook-logikken er uafhængig af udbyderen. Live-værnet
+// for Viva håndhæves her (i getPaymentProvider), pr. flow, så det ikke kan
+// omgås ved at importere provideren direkte.
 
 import type { PaymentProvider, PaymentProviderName } from "@/lib/payments/types";
-import { stripeProvider } from "@/lib/payments/stripe";
 import { vivaProvider } from "@/lib/payments/viva";
 import { getVivaEnv } from "@/lib/payments/viva-client";
 import { isLiveMode } from "@/lib/table-ordering-config";
@@ -22,9 +21,9 @@ export function ticketsLiveMode(): boolean {
   return process.env.TICKETS_LIVE === "true";
 }
 
-/** Den konfigurerede udbyder ud fra PAYMENT_PROVIDER. Default: stripe. */
+/** Udbyderens navn. Hele sitet betaler via Viva. */
 export function getConfiguredProviderName(): PaymentProviderName {
-  return process.env.PAYMENT_PROVIDER === "viva" ? "viva" : "stripe";
+  return "viva";
 }
 
 /**
@@ -46,12 +45,8 @@ export function assertVivaLiveAllowed(scope: LiveScope): void {
   }
 }
 
-/** Returnerer den valgte, live-godkendte betalingsudbyder for det givne flow. */
+/** Returnerer den live-godkendte betalingsudbyder for det givne flow. */
 export function getPaymentProvider(scope: LiveScope): PaymentProvider {
-  const name = getConfiguredProviderName();
-  if (name === "viva") {
-    assertVivaLiveAllowed(scope);
-    return vivaProvider;
-  }
-  return stripeProvider;
+  assertVivaLiveAllowed(scope);
+  return vivaProvider;
 }

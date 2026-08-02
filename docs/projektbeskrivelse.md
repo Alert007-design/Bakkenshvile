@@ -1,5 +1,12 @@
 # Bakkens Hvile — samlet projektbeskrivelse
 
+> **Bemærk (opdatering):** Stripe er udfaset og fjernet fra projektet. **Viva**
+> (Viva.com Smart Checkout) er nu den eneste betalingsudbyder for hele sitet
+> (billet, genbestilling og bordbestilling). Alle omtaler af Stripe, Stripe-
+> nøgler, Stripe-webhooks og `PAYMENT_PROVIDER` nedenfor er historiske og gælder
+> ikke længere. Adgangen til de interne sider er desuden samlet i ét fælles
+> personale-login (se `README.md` og `ÆNDRINGSRAPPORT.md`).
+
 > Dette dokument er en samlet, selvstændig beskrivelse af Bakkens Hviles nye
 > hjemmeside. Det er skrevet, så det kan lægges direkte ind i et projekt (fx et
 > Claude-projekt) som fælles kontekst. Det beskriver *hvad* sitet er, *hvad* det

@@ -1,38 +1,25 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { listRecords, TABLES, FIELDS, priceGroupName } from "@/lib/airtable";
 import { listShowDates } from "@/lib/events";
+import { verifyStaffSession, STAFF_COOKIE_NAME } from "@/lib/staff-auth";
 import FribilletClient from "./FribilletClient";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const metadata = { robots: { index: false, follow: false } };
 
-// Personalets side til at udstede fribilletter. Bag samme simple ?key=-nøgle som
-// resten af /admin. Gæster kan ikke nå den — og dermed ikke give sig selv
-// gratis billetter.
-export default async function FribilletPage({
-  searchParams,
-}: {
-  searchParams: { key?: string };
-}) {
-  const key = searchParams.key || "";
-  if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
-    return (
-      <div
-        style={{
-          padding: 48,
-          fontFamily: "sans-serif",
-          background: "#fff",
-          color: "#1a1a16",
-          minHeight: "100vh",
-        }}
-      >
-        <h1>Fribilletter — adgang</h1>
-        <p>
-          Tilføj din nøgle i URL&apos;en, fx{" "}
-          <code>/admin/fribillet?key=DIN-NOEGLE</code>. Nøglen er den samme som
-          til bordplanen (miljøvariablen <code>ADMIN_KEY</code>).
-        </p>
-      </div>
-    );
+// Personalets side til at udstede fribilletter. Bag den fælles login-session
+// (middleware håndhæver den også). Gæster kan ikke nå den — og dermed ikke give
+// sig selv gratis billetter.
+export default async function FribilletPage() {
+  let session = null;
+  try {
+    session = verifyStaffSession(cookies().get(STAFF_COOKIE_NAME)?.value);
+  } catch {
+    session = null;
   }
+  if (!session) redirect("/login?next=/admin/fribillet");
 
   // Kommende forestillinger (inkl. udsolgte — en æresgæst kan få plads til et
   // udsolgt show) og alle billettyper.
@@ -55,6 +42,10 @@ export default async function FribilletPage({
   }));
 
   return (
-    <FribilletClient shows={showList} ticketTypes={ticketTypes} adminKey={key} />
+    <FribilletClient
+      shows={showList}
+      ticketTypes={ticketTypes}
+      csrf={session.csrf}
+    />
   );
 }

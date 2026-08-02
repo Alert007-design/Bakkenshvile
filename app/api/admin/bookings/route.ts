@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listRecords, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
+import { verifyStaffSession, verifyCsrf, STAFF_COOKIE_NAME } from "@/lib/staff-auth";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 // Felt-id for "Billetkategorier" i Bookings-tabellen (oprettet direkte i
 // Airtable). Overvej at tilføje "ticketBreakdown: 'fldXuocW3IneLzwnY'" til
@@ -7,13 +11,13 @@ import { listRecords, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
 // FIELDS.booking.ticketBreakdown for konsistens med resten af koden.
 const TICKET_BREAKDOWN_FIELD = "fldXuocW3IneLzwnY";
 
-function checkKey(req: NextRequest) {
-  const key = req.nextUrl.searchParams.get("key");
-  return key && key === process.env.ADMIN_KEY;
+// Adgang via den fælles personalesession (middleware håndhæver den også).
+function session(req: NextRequest) {
+  return verifyStaffSession(req.cookies.get(STAFF_COOKIE_NAME)?.value);
 }
 export async function GET(req: NextRequest) {
-  if (!checkKey(req)) {
-    return NextResponse.json({ error: "Ugyldig nøgle" }, { status: 401 });
+  if (!session(req)) {
+    return NextResponse.json({ error: "Log ind igen." }, { status: 401 });
   }
   const showId = req.nextUrl.searchParams.get("showId");
   if (!showId) {
@@ -52,8 +56,12 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ rows });
 }
 export async function PATCH(req: NextRequest) {
-  if (!checkKey(req)) {
-    return NextResponse.json({ error: "Ugyldig nøgle" }, { status: 401 });
+  const s = session(req);
+  if (!s) {
+    return NextResponse.json({ error: "Log ind igen." }, { status: 401 });
+  }
+  if (!verifyCsrf(s, req.headers.get("x-csrf-token"))) {
+    return NextResponse.json({ error: "Ugyldig forespørgsel." }, { status: 403 });
   }
   const body = await req.json();
   const { bookingId, tableNumber } = body as {

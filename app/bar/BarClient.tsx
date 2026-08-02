@@ -299,6 +299,12 @@ export default function BarClient({ csrf }: { csrf: string }) {
           <button className="toggle" onClick={fetchOrders}>
             Opdater
           </button>
+          <a className="toggle" href="/funktioner">
+            Funktioner
+          </a>
+          <a className="toggle" href="/api/auth/logout">
+            Log ud
+          </a>
         </div>
         <div className={`bar-status ${online ? "" : "offline"}`}>
           {online ? (

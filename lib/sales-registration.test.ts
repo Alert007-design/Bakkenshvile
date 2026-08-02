@@ -7,7 +7,7 @@ import {
   orderToCsvRows,
   type PaidOrder,
 } from "@/lib/sales-registration";
-import { assertLivePaymentAllowed } from "@/lib/table-ordering-config";
+import { assertVivaLiveAllowed } from "@/lib/payments";
 
 function paidOrder(): PaidOrder {
   return {
@@ -35,6 +35,7 @@ function paidOrder(): PaidOrder {
 
 afterEach(() => {
   delete process.env.TABLE_ORDERING_LIVE;
+  delete process.env.VIVA_ENV;
 });
 
 describe("CSV til intern kontrol", () => {
@@ -83,17 +84,20 @@ describe("live-tilstand uden konfigureret system — fejler lukket", () => {
   });
 });
 
-describe("assertLivePaymentAllowed — livebetaling umulig uden live-tilstand", () => {
-  it("kaster ved live Stripe-nøgle når TABLE_ORDERING_LIVE ikke er true", () => {
-    expect(() => assertLivePaymentAllowed("sk_live_abc")).toThrow();
+describe("assertVivaLiveAllowed (bord) — livebetaling umulig uden live-tilstand", () => {
+  it("kaster ved VIVA_ENV=live når TABLE_ORDERING_LIVE ikke er true", () => {
+    process.env.VIVA_ENV = "live";
+    expect(() => assertVivaLiveAllowed("table")).toThrow();
   });
 
-  it("tillader testnøgle uanset tilstand", () => {
-    expect(() => assertLivePaymentAllowed("sk_test_abc")).not.toThrow();
+  it("tillader demo-miljø uanset tilstand", () => {
+    process.env.VIVA_ENV = "demo";
+    expect(() => assertVivaLiveAllowed("table")).not.toThrow();
   });
 
-  it("tillader live nøgle når live-tilstand er slået til", () => {
+  it("tillader live når live-tilstand er slået til", () => {
+    process.env.VIVA_ENV = "live";
     process.env.TABLE_ORDERING_LIVE = "true";
-    expect(() => assertLivePaymentAllowed("sk_live_abc")).not.toThrow();
+    expect(() => assertVivaLiveAllowed("table")).not.toThrow();
   });
 });

@@ -3,6 +3,7 @@ import Image from "next/image";
 import BookingForm from "./BookingForm";
 import HeroMedia from "./components/HeroMedia";
 import { billeder, type Billede } from "@/lib/billeder";
+import { isOrderingEnabled } from "@/lib/table-ordering-config";
 
 const NAV_LINKS = [
   { href: "#om-os", label: "Om os" },
@@ -32,6 +33,10 @@ const GALLERI: { billede: Billede; objectPosition: string }[] = [
 export default function Home() {
   const year = new Date().getFullYear();
   const [feature, ...galleryRest] = GALLERI;
+  // QR-bestilling nævnes kun som en aktiv mulighed, når funktionen reelt er slået
+  // til. Ellers omtales bordbestilling uden QR (undgår at love noget, der ikke
+  // virker endnu).
+  const qrOrdering = isOrderingEnabled();
 
   return (
     <main>
@@ -86,13 +91,12 @@ export default function Home() {
             <p>
               Bakkens Hvile er navnet på bygningen, der danner rammen om
               bakkesangerindernes scene — en scene, som i snart 150 år har
-              leveret skønsang og syngende samfundssatire til alle, om alle.
+              leveret skønsang og syngende samfundssatire for alle og om alle.
             </p>
             <p>
-              Traditionen startede i 1877 på så fine steder som
-              d&apos;Angleterre og Det Kongelige Teater — og har fra
+              Traditionen for bakkesangen går tilbage til 1877 og har fra
               begyndelsen været for alle slags folk. Vores sange spænder fra
-              klassiske danske sange og viser til gårsdagens friskeste
+              klassiske danske sange og viser til dagens friskeste
               overskrifter.
             </p>
             <p>
@@ -176,7 +180,10 @@ export default function Home() {
             Bestil drikkevarer online med{" "}
             <strong style={{ color: "var(--gold)" }}>10 % rabat</strong> senest
             kl. 12.00 på forestillingsdagen. Herefter gælder de almindelige
-            priser. Bestilling via QR-systemet og ved bordene sker til fuld pris.
+            priser.{" "}
+            {qrOrdering
+              ? "Bestilling via QR-systemet og ved bordene sker til fuld pris."
+              : "Bestilling ved bordene sker til fuld pris."}
           </p>
           <p
             style={{
@@ -188,8 +195,9 @@ export default function Home() {
               lineHeight: 1.6,
             }}
           >
-            Drikkevarer bestilles ved bordet — enten via QR-systemet eller hos
-            tjenerne. Der modtages ikke bestillinger i baren.
+            {qrOrdering
+              ? "Drikkevarer bestilles ved bordet — enten via QR-systemet eller hos tjenerne. Der modtages ikke bestillinger i baren."
+              : "Drikkevarer bestilles ved bordet hos tjenerne. Der modtages ikke bestillinger i baren."}
           </p>
           <div
             style={{
@@ -266,7 +274,7 @@ export default function Home() {
         <div className="contactGrid">
           <div>
             <p className="eyebrow">Find os</p>
-            <h2>Kontakt &amp; åbningstider</h2>
+            <h2>Kontakt &amp; adresse</h2>
             <div className="contactList">
               <div>
                 <p className="label">Adresse</p>

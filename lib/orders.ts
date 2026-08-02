@@ -9,7 +9,7 @@
 //    UPDATE + statusmaskine), også når to medarbejdere rører samme ordre.
 //
 // Betalingsfunktionerne er udbyder-uafhængige: de slår op på (payment_provider,
-// payment_ref), hvor payment_ref er Stripes session-id ELLER Vivas orderCode.
+// payment_ref), hvor payment_ref er Vivas orderCode.
 
 import { randomBytes } from "crypto";
 import type { Queryable } from "@/lib/db";
@@ -122,8 +122,8 @@ export async function createDraftOrder(
 }
 
 /**
- * Kobler en udbyders betalingsreference (Stripe session-id eller Vivas
- * orderCode) på ordrekladden. Den unikke constraint på (payment_provider,
+ * Kobler betalingsreferencen (Vivas orderCode) på ordrekladden. Den unikke
+ * constraint på (payment_provider,
  * payment_ref) gør, at samme betaling aldrig kan bindes til to ordrer.
  */
 export async function attachPaymentRef(

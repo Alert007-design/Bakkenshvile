@@ -1,5 +1,8 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { buildQrSheet, renderQrSvg, type QrSheetEntry } from "@/lib/qr-sheet";
 import { siteUrl } from "@/lib/site-url";
+import { verifyStaffSession, STAFF_COOKIE_NAME } from "@/lib/staff-auth";
 import "./qr.css";
 
 export const runtime = "nodejs";
@@ -10,18 +13,6 @@ export const fetchCache = "force-no-store";
 
 const CARDS_PER_SHEET = 6;
 
-function AccessMessage() {
-  return (
-    <div style={{ padding: 48, fontFamily: "sans-serif" }}>
-      <h1>QR-ark — adgang</h1>
-      <p>
-        Tilføj din nøgle i URL&apos;en, fx <code>/admin/qr?key=DIN-NOEGLE</code>. Nøglen
-        er den samme <code>ADMIN_KEY</code> som til bordplanen.
-      </p>
-    </div>
-  );
-}
-
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -31,13 +22,16 @@ function chunk<T>(arr: T[], size: number): T[][] {
 export default async function AdminQrPage({
   searchParams,
 }: {
-  searchParams: { key?: string; raekke?: string; bord?: string };
+  searchParams: { raekke?: string; bord?: string };
 }) {
-  // Genbrug den eksisterende admin-beskyttelse (?key=ADMIN_KEY).
-  const key = searchParams.key || "";
-  if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
-    return <AccessMessage />;
+  // Adgang via den fælles personalesession (middleware håndhæver den også).
+  let staff = null;
+  try {
+    staff = verifyStaffSession(cookies().get(STAFF_COOKIE_NAME)?.value);
+  } catch {
+    staff = null;
   }
+  if (!staff) redirect("/login?next=/admin/qr");
 
   // QR-koderne peger på sitets kanoniske URL (SITE_URL), uanset hvor admin ses.
   const baseUrl = siteUrl();
@@ -93,13 +87,14 @@ export default async function AdminQrPage({
   return (
     <div className="qr-admin">
       <div className="qr-toolbar no-print">
+        <a href="/funktioner">← Funktioner</a>
         <strong>QR-ark</strong>
         <span>{filterLabel} · {entries.length} kort · sæson {version}</span>
         <span className="hint">Tryk ⌘P / Ctrl+P for at printe (A4 stående, margener: ingen).</span>
         <span>
-          Genprint: <a href={`/admin/qr?key=${encodeURIComponent(key)}&raekke=9`}>?raekke=9</a>{" "}
-          · <a href={`/admin/qr?key=${encodeURIComponent(key)}&bord=94`}>?bord=94</a>{" "}
-          · <a href={`/admin/qr?key=${encodeURIComponent(key)}`}>alle</a>
+          Genprint: <a href={`/admin/qr?raekke=9`}>?raekke=9</a>{" "}
+          · <a href={`/admin/qr?bord=94`}>?bord=94</a>{" "}
+          · <a href={`/admin/qr`}>alle</a>
         </span>
       </div>
 

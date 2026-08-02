@@ -108,18 +108,18 @@ describe("attachPaymentRef / getPaymentRef", () => {
 describe("markOrderPaidByRef — idempotens og beløbskontrol", () => {
   it("markerer betalt én gang og er idempotent ved gentagne kald", async () => {
     const o = await createDraftOrder(db, draft());
-    await attachPaymentRef(db, o.id, "stripe", "cs_test_1");
+    await attachPaymentRef(db, o.id, "viva", "viva_ref_1");
 
     const first = await markOrderPaidByRef(db, {
-      provider: "stripe",
-      paymentRef: "cs_test_1",
+      provider: "viva",
+      paymentRef: "viva_ref_1",
       transactionId: "pi_1",
       amountTotalOre: 10000,
       currency: "dkk",
     });
     const second = await markOrderPaidByRef(db, {
-      provider: "stripe",
-      paymentRef: "cs_test_1",
+      provider: "viva",
+      paymentRef: "viva_ref_1",
       amountTotalOre: 10000,
       currency: "dkk",
     });
@@ -160,10 +160,10 @@ describe("markOrderPaidByRef — idempotens og beløbskontrol", () => {
 
   it("afviser forkert beløb (amount_mismatch, forbliver pending)", async () => {
     const o = await createDraftOrder(db, draft());
-    await attachPaymentRef(db, o.id, "stripe", "cs_test_2");
+    await attachPaymentRef(db, o.id, "viva", "viva_ref_2");
     const r = await markOrderPaidByRef(db, {
-      provider: "stripe",
-      paymentRef: "cs_test_2",
+      provider: "viva",
+      paymentRef: "viva_ref_2",
       amountTotalOre: 9999,
       currency: "dkk",
     });
@@ -177,10 +177,10 @@ describe("markOrderPaidByRef — idempotens og beløbskontrol", () => {
 
   it("afviser forkert valuta", async () => {
     const o = await createDraftOrder(db, draft());
-    await attachPaymentRef(db, o.id, "stripe", "cs_test_3");
+    await attachPaymentRef(db, o.id, "viva", "viva_ref_3");
     const r = await markOrderPaidByRef(db, {
-      provider: "stripe",
-      paymentRef: "cs_test_3",
+      provider: "viva",
+      paymentRef: "viva_ref_3",
       amountTotalOre: 10000,
       currency: "eur",
     });
@@ -189,30 +189,14 @@ describe("markOrderPaidByRef — idempotens og beløbskontrol", () => {
 
   it("returnerer not_found for ukendt reference", async () => {
     const r = await markOrderPaidByRef(db, {
-      provider: "stripe",
-      paymentRef: "cs_unknown",
+      provider: "viva",
+      paymentRef: "viva_ref_unknown",
       amountTotalOre: 10000,
       currency: "dkk",
     });
     expect(r.status).toBe("not_found");
   });
 
-  it("adskiller udbydere: samme reference-streng under to udbydere er to ordrer", async () => {
-    const a = await createDraftOrder(db, draft());
-    const b = await createDraftOrder(db, draft());
-    // Samme ref-tekst, men forskellig udbyder → to selvstændige bindinger.
-    await attachPaymentRef(db, a.id, "stripe", "REF-XYZ");
-    await attachPaymentRef(db, b.id, "viva", "REF-XYZ");
-
-    const stripePaid = await markOrderPaidByRef(db, {
-      provider: "stripe",
-      paymentRef: "REF-XYZ",
-      amountTotalOre: 10000,
-      currency: "dkk",
-    });
-    expect(stripePaid.status).toBe("paid");
-    if (stripePaid.status === "paid") expect(stripePaid.orderId).toBe(a.id);
-  });
 });
 
 describe("unik constraint på (payment_provider, payment_ref)", () => {
@@ -229,14 +213,14 @@ describe("unik constraint på (payment_provider, payment_ref)", () => {
 describe("refundering", () => {
   it("markerer en betalt ordre som refunderet", async () => {
     const o = await createDraftOrder(db, draft());
-    await attachPaymentRef(db, o.id, "viva", "cs_refund");
+    await attachPaymentRef(db, o.id, "viva", "viva_ref_refund");
     await markOrderPaidByRef(db, {
       provider: "viva",
-      paymentRef: "cs_refund",
+      paymentRef: "viva_ref_refund",
       amountTotalOre: 10000,
       currency: "dkk",
     });
-    expect(await markOrderRefundedByRef(db, "viva", "cs_refund")).toBe(true);
+    expect(await markOrderRefundedByRef(db, "viva", "viva_ref_refund")).toBe(true);
     const { rows } = await db.query<{ payment_status: string }>(
       `SELECT payment_status FROM orders WHERE id=$1`,
       [o.id]
@@ -267,10 +251,10 @@ describe("getOrderForGuest — isolation", () => {
 describe("setFulfillmentStatus — gyldige overgange", () => {
   async function paidOrder() {
     const o = await createDraftOrder(db, draft());
-    await attachPaymentRef(db, o.id, "stripe", `cs_${o.id}`);
+    await attachPaymentRef(db, o.id, "viva", `viva_ref_${o.id}`);
     await markOrderPaidByRef(db, {
-      provider: "stripe",
-      paymentRef: `cs_${o.id}`,
+      provider: "viva",
+      paymentRef: `viva_ref_${o.id}`,
       amountTotalOre: 10000,
       currency: "dkk",
     });
@@ -307,9 +291,9 @@ describe("setFulfillmentStatus — gyldige overgange", () => {
 
 describe("listActiveOrders", () => {
   async function pay(id: string, ref: string) {
-    await attachPaymentRef(db, id, "stripe", ref);
+    await attachPaymentRef(db, id, "viva", ref);
     await markOrderPaidByRef(db, {
-      provider: "stripe",
+      provider: "viva",
       paymentRef: ref,
       amountTotalOre: 10000,
       currency: "dkk",
@@ -318,21 +302,21 @@ describe("listActiveOrders", () => {
 
   it("viser kun betalte, ikke-afsluttede ordrer for eventet, ældste først", async () => {
     const paid = await createDraftOrder(db, draft({ tableNumber: 11 }));
-    await pay(paid.id, "cs_a");
+    await pay(paid.id, "viva_ref_a");
 
     // Ubetalt → skal ikke med.
     await createDraftOrder(db, draft({ tableNumber: 12 }));
 
     // Leveret → skal ikke med.
     const done = await createDraftOrder(db, draft({ tableNumber: 13 }));
-    await pay(done.id, "cs_b");
+    await pay(done.id, "viva_ref_b");
     await setFulfillmentStatus(db, done.id, "preparing");
     await setFulfillmentStatus(db, done.id, "ready");
     await setFulfillmentStatus(db, done.id, "delivered");
 
     // Andet event → skal ikke med.
     const other = await createDraftOrder(db, draft({ eventId: "evt2", tableNumber: 14 }));
-    await pay(other.id, "cs_c");
+    await pay(other.id, "viva_ref_c");
 
     const active = await listActiveOrders(db, "evt1");
     expect(active.map((o) => o.tableNumber)).toEqual([11]);

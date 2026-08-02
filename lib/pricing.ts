@@ -4,7 +4,7 @@
 // aldrig billetpriser og aldrig gebyret. Den beregnes på summen af alle
 // tilvalg (ikke pr. linje) og rundes ned til nærmeste hele krone.
 //
-// Både frontend (visning) og Stripe-checkout (det trukne beløb) bruger disse
+// Både frontend (visning) og serverberegningen af det trukne beløb bruger disse
 // funktioner, så det gæsten ser og det der trækkes altid er præcis samme tal.
 
 export const ADDON_DISCOUNT_RATE = 0.1;

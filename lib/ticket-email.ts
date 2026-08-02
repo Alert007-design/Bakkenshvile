@@ -186,10 +186,12 @@ export function ticketEmailHtml(params: TicketEmailParams): string {
           ${discountRow}
         </table>
         <p style="text-align:right;margin-top:12px;font-size:18px;color:#0d3b2e;font-weight:bold;">I alt: ${totalKr} kr.</p>
+        <p style="text-align:right;margin:4px 0 0;font-size:12px;color:#8a8878;">Alle priser er inklusive 25 % moms. Momsbeløbet svarer til 20 % af den samlede pris inklusive moms.</p>
 
         <div style="margin:24px 0 0;padding:14px 16px;border:1px solid #e5e0d0;border-radius:4px;background:#faf7ef;font-size:13px;line-height:1.6;color:#3a3830;">
-          Billetten kan ikke byttes eller refunderes. Bliver du forhindret, kan
-          billetten overdrages til tredjemand.
+          Bliver du selv forhindret, kan billetten ikke byttes eller refunderes,
+          men den kan i stedet overdrages til tredjemand. Hvis en forestilling
+          aflyses, tilbagebetales billetprisen og prisen for ikke-leverede tilvalg.
         </div>
 
         <p style="font-size:13px;color:#6b6858;margin:24px 0 0;line-height:1.6;">

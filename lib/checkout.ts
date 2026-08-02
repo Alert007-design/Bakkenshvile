@@ -27,7 +27,7 @@ export interface CheckoutContext {
   menu: Map<string, MenuItem>; // KUN aktive varer
 }
 
-export interface StripeLineInput {
+export interface PaymentLineInput {
   name: string;
   unitAmountOre: number;
   quantity: number;
@@ -35,7 +35,7 @@ export interface StripeLineInput {
 
 export type CheckoutResult =
   | { ok: false; status: number; error: string }
-  | { ok: true; draft: DraftOrderInput; stripeLines: StripeLineInput[] };
+  | { ok: true; draft: DraftOrderInput; paymentLines: PaymentLineInput[] };
 
 const GENERIC_TOKEN_ERROR = "Scan koden på bordet igen.";
 
@@ -104,7 +104,7 @@ export function validateCheckout(body: unknown, ctx: CheckoutContext): CheckoutR
   }
 
   const lines: DraftOrderLine[] = [];
-  const stripeLines: StripeLineInput[] = [];
+  const paymentLines: PaymentLineInput[] = [];
   let totalItems = 0;
 
   for (const [menuItemId, quantity] of qtyById) {
@@ -124,7 +124,7 @@ export function validateCheckout(body: unknown, ctx: CheckoutContext): CheckoutR
     // QR-/bordbestilling sker ALTID til fuld pris. Onlinerabatten på 10% gælder
     // udelukkende forudbestilling af drikkevarer sammen med billetten, og kun
     // indtil kl. 12.00 dansk tid på forestillingsdagen — aldrig ved bordet
-    // eller via QR-koden. Linjesnapshot og Stripe-beløb bruger derfor menuens
+    // eller via QR-koden. Linjesnapshot og betalingsbeløb bruger derfor menuens
     // fulde pris, så ordren summerer præcis til det trukne beløb.
     const unitOre = item.unitPriceOre;
     const lineTotal = lineTotalOre(unitOre, quantity);
@@ -137,7 +137,7 @@ export function validateCheckout(body: unknown, ctx: CheckoutContext): CheckoutR
       vatRate: item.vatRate,
       lineTotalOre: lineTotal,
     });
-    stripeLines.push({
+    paymentLines.push({
       name: item.name,
       unitAmountOre: unitOre,
       quantity,
@@ -172,10 +172,10 @@ export function validateCheckout(body: unknown, ctx: CheckoutContext): CheckoutR
     lines,
   };
 
-  return { ok: true, draft, stripeLines };
+  return { ok: true, draft, paymentLines };
 }
 
-// Genberegner en Stripe-sessions samlede beløb i øre til webhook-kontrol.
-export function stripeLinesTotalOre(lines: StripeLineInput[]): number {
+// Genberegner betalingens samlede beløb i øre til serverside-kontrol.
+export function paymentLinesTotalOre(lines: PaymentLineInput[]): number {
   return lines.reduce((sum, l) => sum + l.unitAmountOre * l.quantity, 0);
 }

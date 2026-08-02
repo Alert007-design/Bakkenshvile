@@ -72,6 +72,7 @@ export function orderEmailHtml(params: {
 
       <p style="text-align:right;margin-top:16px;font-size:18px;color:#c9a227;">${totalLabel}: ${total}</p>
       ${grandTotalRow}
+      <p style="text-align:right;margin:4px 0 0;font-size:12px;color:#9c968a;">Alle priser er inklusive 25 % moms. Momsbeløbet svarer til 20 % af den samlede pris inklusive moms.</p>
 
       <p style="font-size:13px;color:#d8d3c2;margin-top:32px;">
         ${footerNote}

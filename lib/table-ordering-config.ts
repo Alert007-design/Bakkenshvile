@@ -7,7 +7,7 @@ export const MAX_ORDER_TOTAL_ORE = 500_000; // maks samlet ordrebeløb (5.000 kr
 export const MAX_GUEST_NAME_LENGTH = 60;
 export const MAX_MESSAGE_LENGTH = 280;
 
-// Stripe Checkout-sessionens levetid.
+// Betalingens (Viva-checkout) levetid.
 export const CHECKOUT_EXPIRY_MINUTES = 30;
 
 // Rate limiting for checkout pr. IP+bordtoken.
@@ -25,18 +25,4 @@ export function isOrderingEnabled(): boolean {
 
 export function isLiveMode(): boolean {
   return process.env.TABLE_ORDERING_LIVE === "true";
-}
-
-/**
- * Værn mod utilsigtet livebetaling: en live Stripe-nøgle (sk_live_) må aldrig
- * bruges, når TABLE_ORDERING_LIVE ikke er true. Kaster hvis kombinationen er
- * ulovlig, så en livebetaling er umulig uden eksplicit live-tilstand.
- */
-export function assertLivePaymentAllowed(stripeKey: string | undefined): void {
-  const isLiveKey = (stripeKey ?? "").startsWith("sk_live_");
-  if (isLiveKey && !isLiveMode()) {
-    throw new Error(
-      "Livebetaling er slået fra (TABLE_ORDERING_LIVE=false), men Stripe-nøglen er en live-nøgle."
-    );
-  }
 }

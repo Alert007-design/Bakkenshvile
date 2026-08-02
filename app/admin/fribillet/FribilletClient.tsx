@@ -56,11 +56,11 @@ const input: React.CSSProperties = {
 export default function FribilletClient({
   shows,
   ticketTypes,
-  adminKey,
+  csrf,
 }: {
   shows: Show[];
   ticketTypes: TicketType[];
-  adminKey: string;
+  csrf: string;
 }) {
   const [showId, setShowId] = useState("");
   const [qty, setQty] = useState<Record<string, number>>({});
@@ -109,10 +109,10 @@ export default function FribilletClient({
     setSubmitting(true);
     try {
       const res = await fetch(
-        `/api/admin/comp?key=${encodeURIComponent(adminKey)}`,
+        `/api/admin/comp`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
           body: JSON.stringify({
             showId: selectedShow.id,
             tickets,
@@ -140,10 +140,25 @@ export default function FribilletClient({
   return (
     <div style={pageWrap}>
       <div style={box}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 8,
+          fontSize: 14,
+        }}
+      >
+        <a href="/funktioner" style={{ color: "#0d3b2e", fontWeight: 600 }}>
+          ← Funktioner
+        </a>
+        <a href="/api/auth/logout" style={{ color: "#8a1f2b", fontWeight: 600 }}>
+          Log ud
+        </a>
+      </div>
       <h1 style={{ fontSize: 24 }}>Udsted fribillet</h1>
       <p style={{ color: "#555", fontSize: 14 }}>
         Opretter en gratis booking (0 kr), markerer den betalt uden om betaling,
-        og sender billet-mailen til gæsten, hvis der er en email.
+        og sender billet-mailen til gæsten, hvis der er en e-mail.
       </p>
 
       <label style={label} htmlFor="fri-show">Forestilling</label>
@@ -183,11 +198,22 @@ export default function FribilletClient({
               >
                 <span>{t.category}</span>
                 <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <button type="button" onClick={() => setTicket(t.id, -1)} disabled={!qty[t.id]}>
+                  <button
+                    type="button"
+                    onClick={() => setTicket(t.id, -1)}
+                    disabled={!qty[t.id]}
+                    aria-label={`Fjern ${t.category}`}
+                  >
                     −
                   </button>
                   <span style={{ minWidth: 20, textAlign: "center" }}>{qty[t.id] || 0}</span>
-                  <button type="button" onClick={() => setTicket(t.id, 1)}>+</button>
+                  <button
+                    type="button"
+                    onClick={() => setTicket(t.id, 1)}
+                    aria-label={`Tilføj ${t.category}`}
+                  >
+                    +
+                  </button>
                 </span>
               </div>
             ))
@@ -224,7 +250,7 @@ export default function FribilletClient({
           <strong>Fribillet oprettet:</strong> {result.bookingNo} ({result.ticketBreakdown}).{" "}
           {result.emailed
             ? "Billet-mailen er sendt til gæsten."
-            : "Ingen email angivet — send selv bookingnummeret til gæsten."}
+            : "Ingen e-mail angivet — send selv bookingnummeret til gæsten."}
         </div>
       )}
 

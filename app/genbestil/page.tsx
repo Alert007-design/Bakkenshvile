@@ -3,6 +3,11 @@ import GenbestilClient from "../components/GenbestilClient";
 import BookingShell from "../components/BookingShell";
 
 export const dynamic = "force-dynamic";
+export const metadata = {
+  title: "Genbestilling af tilvalg — Bakkens Hvile",
+  description: "Log ind med dit bestillingsnummer og bestil ekstra drikkevarer til din booking.",
+  robots: { index: false, follow: false },
+};
 
 export default async function Page({
   searchParams,

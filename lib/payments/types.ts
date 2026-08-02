@@ -1,12 +1,12 @@
-// Fælles betalingsabstraktion for bordbestillingen. Stripe og Viva ligger begge
-// bag dette ene interface, så udbyderen kan skiftes med miljøvariablen
-// PAYMENT_PROVIDER uden at røre ordre-, checkout- eller webhook-logikken.
+// Fælles betalingsabstraktion for hele sitet. Viva ligger bag dette ene
+// interface, så al ordre-, checkout- og webhook-logik er uafhængig af selve
+// udbyderen (og en anden udbyder i teorien kunne tilføjes uden at røre dem).
 //
-// VIGTIGT: Alle beløb i dette lag er i HELE ØRE (heltal). Den enkelte provider
-// står selv for at omregne til/fra sit eget format (fx Vivas kroner-decimaltal).
-// Ingen kode uden for en provider må arbejde med kroner som flydende komma.
+// VIGTIGT: Alle beløb i dette lag er i HELE ØRE (heltal). Provideren står selv
+// for at omregne til/fra sit eget format (fx Vivas kroner-decimaltal). Ingen
+// kode uden for provideren må arbejde med kroner som flydende komma.
 
-export type PaymentProviderName = "stripe" | "viva";
+export type PaymentProviderName = "viva";
 
 /** Alt en provider har brug for at oprette en betaling. */
 export interface CreatePaymentInput {
@@ -14,7 +14,7 @@ export interface CreatePaymentInput {
   orderNumber: string;
   eventId: string;
   totalOre: number; // altid øre, altid serverberegnet
-  // Bord-/Stripe-specifikke felter (bruges kun af bordbestilling + Stripe).
+  // Bordspecifikke felter (bruges kun af bordbestillingen).
   publicToken?: string;
   tableNumber?: number;
   currency: "dkk";
@@ -26,7 +26,7 @@ export interface CreatePaymentInput {
   existingRef?: string | null;
   // Hvilken Viva payment source betalingen skal oprettes på (success/failure-URL
   // sidder på sourcen, ikke på den enkelte betaling). Udelades → providerens
-  // default. Ignoreres af Stripe.
+  // default.
   sourceCode?: string;
   // Entydig reference, der kan læses tilbage fra en verificeret transaktion:
   //  - tags[0] dirigerer webhooken (fx "billet" | "genbestil" | "bordbestilling")
@@ -39,7 +39,7 @@ export interface CreatePaymentInput {
 
 export interface CreatePaymentResult {
   redirectUrl: string;
-  paymentRef: string; // Stripe session-id ELLER Vivas orderCode (streng)
+  paymentRef: string; // Vivas orderCode (16-cifret streng)
 }
 
 /**

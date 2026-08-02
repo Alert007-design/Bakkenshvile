@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateCheckout, stripeLinesTotalOre, type CheckoutContext } from "@/lib/checkout";
+import { validateCheckout, paymentLinesTotalOre, type CheckoutContext } from "@/lib/checkout";
 import type { MenuItem } from "@/lib/menu";
 import { getTable } from "@/lib/tables";
 import { MAX_PER_ITEM, MAX_TOTAL_ITEMS } from "@/lib/table-ordering-config";
@@ -147,7 +147,7 @@ describe("validateCheckout — varer og priser (server autoritativ)", () => {
       expect(r.draft.totalOre).toBe(10000);
       expect(r.draft.vatOre).toBe(2000); // 10000 * 25/125
       expect(r.draft.subtotalOre).toBe(8000);
-      expect(stripeLinesTotalOre(r.stripeLines)).toBe(10000);
+      expect(paymentLinesTotalOre(r.paymentLines)).toBe(10000);
     }
   });
 });
