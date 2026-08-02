@@ -13,14 +13,10 @@ import {
   type EmailLineItem,
 } from "@/lib/ticket-email";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
+import { verifyStaffSession, verifyCsrf, STAFF_COOKIE_NAME } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function checkKey(req: NextRequest): boolean {
-  const key = req.nextUrl.searchParams.get("key");
-  return Boolean(key && key === process.env.ADMIN_KEY);
-}
 
 // Genskaber billetlinjer ud fra bookingens "A+ x2, B x1"-tekst (fribilletter
 // har ingen ledger-post med præcise linjer). Fribilletter er 0 kr, så prisen
@@ -46,8 +42,12 @@ function linesFromBreakdown(breakdown: string): EmailLineItem[] {
  * billetnedbrydning (fribillet, 0 kr).
  */
 export async function POST(req: NextRequest) {
-  if (!checkKey(req)) {
-    return NextResponse.json({ error: "Ugyldig nøgle" }, { status: 401 });
+  const s = verifyStaffSession(req.cookies.get(STAFF_COOKIE_NAME)?.value);
+  if (!s) {
+    return NextResponse.json({ error: "Log ind igen." }, { status: 401 });
+  }
+  if (!verifyCsrf(s, req.headers.get("x-csrf-token"))) {
+    return NextResponse.json({ error: "Ugyldig forespørgsel." }, { status: 403 });
   }
 
   try {

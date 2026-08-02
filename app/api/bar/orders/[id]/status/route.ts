@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyBarSession, verifyCsrf, BAR_COOKIE_NAME } from "@/lib/bar-auth";
+import { verifyStaffSession, verifyCsrf, STAFF_COOKIE_NAME } from "@/lib/staff-auth";
 import { getDb } from "@/lib/db";
 import { setFulfillmentStatus } from "@/lib/orders";
 import type { FulfillmentStatus } from "@/lib/order-status";
@@ -18,7 +18,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = verifyBarSession(req.cookies.get(BAR_COOKIE_NAME)?.value);
+  const session = verifyStaffSession(req.cookies.get(STAFF_COOKIE_NAME)?.value);
   if (!session) {
     return NextResponse.json({ error: "Log ind igen." }, { status: 401 });
   }

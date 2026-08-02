@@ -23,16 +23,11 @@ afterEach(() => {
 });
 
 describe("getConfiguredProviderName", () => {
-  it("vælger viva når PAYMENT_PROVIDER=viva", () => {
+  it("er altid viva (eneste udbyder)", () => {
     process.env.PAYMENT_PROVIDER = "viva";
     expect(getConfiguredProviderName()).toBe("viva");
-  });
-
-  it("defaulter til stripe", () => {
     delete process.env.PAYMENT_PROVIDER;
-    expect(getConfiguredProviderName()).toBe("stripe");
-    process.env.PAYMENT_PROVIDER = "noget-andet";
-    expect(getConfiguredProviderName()).toBe("stripe");
+    expect(getConfiguredProviderName()).toBe("viva");
   });
 });
 
@@ -92,8 +87,9 @@ describe("getPaymentProvider — kan ikke omgå live-værnet", () => {
     expect(getPaymentProvider("table").name).toBe("viva");
   });
 
-  it("returnerer stripe-provideren som default", () => {
+  it("returnerer viva-provideren uanset PAYMENT_PROVIDER", () => {
     delete process.env.PAYMENT_PROVIDER;
-    expect(getPaymentProvider("tickets").name).toBe("stripe");
+    process.env.VIVA_ENV = "demo";
+    expect(getPaymentProvider("tickets").name).toBe("viva");
   });
 });

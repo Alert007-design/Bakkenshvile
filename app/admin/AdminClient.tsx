@@ -115,11 +115,11 @@ function packCategory(rows: Row[]): Row[][] {
 
 export default function AdminClient({
   shows,
-  adminKey,
+  csrf,
   categoryOrder,
 }: {
   shows: Show[];
-  adminKey: string;
+  csrf: string;
   categoryOrder: string[];
 }) {
   const [showId, setShowId] = useState(shows[0]?.id ?? "");
@@ -134,19 +134,19 @@ export default function AdminClient({
     if (!showId) return;
     setLoading(true);
     setSuggestion(null);
-    fetch(`/api/admin/bookings?showId=${showId}&key=${adminKey}`)
+    fetch(`/api/admin/bookings?showId=${encodeURIComponent(showId)}`)
       .then((r) => r.json())
       .then((data) => setRows(data.rows || []))
       .finally(() => setLoading(false));
-  }, [showId, adminKey]);
+  }, [showId]);
 
   async function saveTable(bookingId: string, tableNumber: string) {
     setRows((prev) =>
       prev.map((r) => (r.id === bookingId ? { ...r, tableNumber } : r))
     );
-    await fetch(`/api/admin/bookings?key=${adminKey}`, {
+    await fetch(`/api/admin/bookings`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
       body: JSON.stringify({ bookingId, tableNumber }),
     });
   }
@@ -156,9 +156,9 @@ export default function AdminClient({
   async function resendTicket(bookingId: string) {
     setResend((p) => ({ ...p, [bookingId]: "sending" }));
     try {
-      const res = await fetch(`/api/admin/resend-ticket?key=${adminKey}`, {
+      const res = await fetch(`/api/admin/resend-ticket`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
         body: JSON.stringify({ bookingId }),
       });
       const data = await res.json();
@@ -263,6 +263,24 @@ export default function AdminClient({
           body { background: white; }
         }
       `}</style>
+
+      <div
+        className="no-print"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+          fontSize: 14,
+        }}
+      >
+        <a href="/funktioner" style={{ color: "#0d3b2e", fontWeight: 600 }}>
+          ← Funktioner
+        </a>
+        <a href="/api/auth/logout" style={{ color: "#8a1f2b", fontWeight: 600 }}>
+          Log ud
+        </a>
+      </div>
 
       <div className="no-print" style={{ marginBottom: 24 }}>
         <h1 style={{ marginBottom: 4 }}>Bordplan</h1>

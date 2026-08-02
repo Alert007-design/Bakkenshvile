@@ -78,8 +78,9 @@ Regler den skal håndhæve:
   `lib/pricing.ts`, så linjerne summerer præcis til totalen ligesom i dag.
 
 `app/api/checkout/route.ts` henter derefter event (`getShowDate`), billettyper og
-tilvalg fra Airtable, kalder valideringen, og bygger Stripe-linjerne af
-resultatet. Behold linjenavnet `Billet: <kategori> — <showlabel>`, men byg
+tilvalg fra Airtable, kalder valideringen, og bygger betalingslinjerne af
+resultatet (betaling sker via Viva; Stripe er udfaset). Behold linjenavnet
+`Billet: <kategori> — <showlabel>`, men byg
 `ticketBreakdown` (`"A+ x2, B x1"`) direkte fra de validerede linjer i stedet for
 at regex-parse navnene — fjern `summarizeTicketCategories`. Booking-posten i
 Airtable skal skrives med samme felter som nu.

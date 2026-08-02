@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getMenuGroups } from "@/lib/menu";
 import { formatKroner } from "@/lib/money";
+import { isOrderingEnabled } from "@/lib/table-ordering-config";
 
 export const metadata: Metadata = {
   title: "Drikkekort & priser — Bakkens Hvile",
@@ -21,6 +22,9 @@ export default async function PriserPage() {
   } catch {
     groups = [];
   }
+
+  // QR-bestilling nævnes kun, når funktionen reelt er aktiveret.
+  const qrOrdering = isOrderingEnabled();
 
   return (
     <main>
@@ -53,8 +57,8 @@ export default async function PriserPage() {
             }}
           >
             Priserne herunder er de almindelige priser — ved bestilling hos
-            tjeneren, via QR-koden ved bordet og på selve forestillingsdagen
-            efter kl. 12.00. Bestiller du drikkevarer{" "}
+            tjeneren{qrOrdering ? ", via QR-koden ved bordet" : ""} og på selve
+            forestillingsdagen efter kl. 12.00. Bestiller du drikkevarer{" "}
             <strong style={{ color: "var(--gold)" }}>online</strong> sammen med
             billetten senest{" "}
             <strong style={{ color: "var(--gold)" }}>

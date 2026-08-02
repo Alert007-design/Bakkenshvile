@@ -1,0 +1,146 @@
+.fn-wrap {
+  min-height: 100vh;
+  background: var(--ink-950);
+  color: var(--paper);
+  padding: 32px 20px 64px;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.fn-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.fn-eyebrow {
+  margin: 0 0 4px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.fn-top h1 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 30px;
+  color: var(--paper);
+}
+
+.fn-sub {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.fn-logout {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--paper);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.fn-logout:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.fn-section-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--gold);
+  margin: 28px 0 12px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+
+.fn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.fn-card {
+  display: block;
+  background: var(--ink-900);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 18px 16px;
+  color: var(--paper);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.fn-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  color: var(--paper);
+}
+
+.fn-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.fn-card-title {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.fn-card-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.fn-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.fn-badge--aktiv {
+  background: rgba(64, 160, 96, 0.18);
+  color: #7ddba0;
+}
+
+.fn-badge--under-test {
+  background: rgba(201, 162, 39, 0.18);
+  color: var(--gold);
+}
+
+.fn-badge--ikke-aktiveret {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+.fn-badge--afventer-viva,
+.fn-badge--afventer-kasse {
+  background: rgba(138, 31, 43, 0.22);
+  color: #f4b6bd;
+}
+
+@media (max-width: 520px) {
+  .fn-grid {
+    grid-template-columns: 1fr;
+  }
+  .fn-card-head {
+    flex-direction: column;
+  }
+}

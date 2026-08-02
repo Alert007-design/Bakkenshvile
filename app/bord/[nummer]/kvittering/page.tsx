@@ -11,7 +11,7 @@ export default function KvitteringPage({
   searchParams,
 }: {
   params: { nummer: string };
-  searchParams: { t?: string; session_id?: string };
+  searchParams: { t?: string };
 }) {
   const table = parseTableNumber(params.nummer);
   const token = searchParams.t;

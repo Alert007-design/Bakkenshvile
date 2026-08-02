@@ -3,14 +3,13 @@ import { getDb } from "@/lib/db";
 import { getMenuMap } from "@/lib/menu";
 import { validateCheckout } from "@/lib/checkout";
 import { createDraftOrder, attachPaymentRef, getPaymentRef } from "@/lib/orders";
-import { getPaymentProvider, getConfiguredProviderName, assertVivaLiveAllowed } from "@/lib/payments";
+import { getPaymentProvider } from "@/lib/payments";
 import type { PaymentProvider } from "@/lib/payments/types";
 import { isOrderingOpen } from "@/lib/hall-state";
 import { parseTableNumber } from "@/lib/tables";
 import { verifyTableToken } from "@/lib/table-tokens";
 import { rateLimit } from "@/lib/rate-limit";
 import {
-  assertLivePaymentAllowed,
   CHECKOUT_EXPIRY_MINUTES,
   CHECKOUT_RATE_LIMIT,
   CHECKOUT_RATE_WINDOW_MS,
@@ -24,16 +23,10 @@ export async function POST(req: NextRequest) {
   if (!isOrderingEnabled()) {
     return NextResponse.json({ error: "Bordbestilling er ikke aktiv." }, { status: 403 });
   }
-  // Livebetaling er umulig uden eksplicit live-tilstand (fejler lukket) — for
-  // begge udbydere. Viva-værnet ligger i getPaymentProvider(); Stripe-værnet
-  // tjekker nøglen direkte.
+  // Livebetaling er umulig uden eksplicit live-tilstand (fejler lukket).
+  // Live-værnet ligger i getPaymentProvider() (gates på TABLE_ORDERING_LIVE).
   let provider: PaymentProvider;
   try {
-    if (getConfiguredProviderName() === "viva") {
-      assertVivaLiveAllowed("table");
-    } else {
-      assertLivePaymentAllowed(process.env.STRIPE_SECRET_KEY);
-    }
     provider = getPaymentProvider("table");
   } catch {
     return NextResponse.json({ error: "Bordbestilling er ikke aktiv." }, { status: 403 });

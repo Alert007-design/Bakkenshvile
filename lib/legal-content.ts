@@ -5,10 +5,10 @@
 // markere punkter, der endnu afventer godkendelse; den vises på siden som
 // "Afventer juridisk gennemgang".
 //
-// To punkter kan let justeres her, hvis huset ønsker det: den præcise
-// paragrafhenvisning i afsnittet "Fortrydelsesret" (loven er nævnt ved navn,
-// ikke ved paragraf), og om bankoverførsel fortsat tilbydes under
-// "Betalingsmetoder".
+// Bankoverførsel er fjernet, da den ikke kan vælges i købsflowet — betaling
+// sker udelukkende med betalingskort via Viva. Punkter markeret { type:
+// "review" } (fx præcise korttyper og overførselsgrundlag) afventer bekræftelse
+// ud fra Viva-aftalen og databehandleraftalerne.
 
 export const COMPANY = {
   name: "Bakkens Hvile",
@@ -62,11 +62,11 @@ export const HANDELSBETINGELSER: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "Vi modtager betaling med betalingskort. Kortbetalingen afvikles sikkert via vores betalingsudbyder, Stripe.",
+          text: "Betaling sker med betalingskort. Kortbetalingen afvikles sikkert via vores betalingsudbyder, Viva. Kortoplysninger indtastes direkte hos Viva og opbevares aldrig hos Bakkens Hvile.",
         },
         {
-          type: "p",
-          text: "Bankoverførsel: Danske Bank, reg.nr. 4190, kontonr. 4190 045 404. Ved bankoverførsel skal betaling ske inden 8 dage fra bestillingstidspunktet; ellers annulleres bestillingen.",
+          type: "review",
+          text: "De konkrete korttyper og betalingsmetoder, der accepteres, følger af Bakkens Hviles Viva-aftale og skal angives præcist her (fx Visa/Mastercard/Dankort), inden livebetaling aktiveres.",
         },
       ],
     },
@@ -80,7 +80,7 @@ export const HANDELSBETINGELSER: LegalDoc = {
         },
         {
           type: "p",
-          text: "Moms udgør 20 % af det samlede beløb.",
+          text: "Alle priser er inklusive 25 % moms. Momsbeløbet svarer til 20 % af den samlede pris inklusive moms.",
         },
       ],
     },
@@ -114,15 +114,11 @@ export const HANDELSBETINGELSER: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "Billetten kan ikke byttes eller refunderes. Bliver du forhindret, kan billetten overdrages til tredjemand.",
+          text: "Bliver du selv forhindret, kan billetten ikke byttes eller refunderes, men den kan i stedet overdrages til tredjemand.",
         },
         {
           type: "p",
-          text: "Billet og tilvalg refunderes kun i tilfælde af aflysning. Ekspeditionsgebyr refunderes ikke.",
-        },
-        {
-          type: "p",
-          text: "Bakkens Hvile påtager sig ikke ansvar for ændringer i spilledage, aflysninger eller udsættelser, der annonceres, efter kvittering for billetkøb er sendt.",
+          text: "Hvis en forestilling aflyses, tilbagebetales billetprisen og prisen for ikke-leverede tilvalg. Bakkens Hvile hæfter ikke for kundens øvrige udgifter eller indirekte tab som følge af aflysning eller flytning, medmindre andet følger af ufravigelig lovgivning.",
         },
       ],
     },
@@ -170,7 +166,7 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "Vi bruger kun de oplysninger, du selv angiver, for at kunne gennemføre et køb og sikre, at du har betalt for arrangementet og eventuelle tilvalg. Vi bruger ikke din e-mailadresse eller dit telefonnummer til markedsføring — kun fx hvis der sker ændringer i afholdelsen af arrangementet. Oplysningerne anonymiseres, når arrangementet er afholdt, og et eventuelt økonomisk mellemværende er afsluttet.",
+          text: "Vi bruger kun de oplysninger, du selv angiver, for at kunne gennemføre et køb og sikre, at du har betalt for arrangementet og eventuelle tilvalg. Vi bruger ikke din e-mailadresse eller dit telefonnummer til markedsføring — kun fx hvis der sker ændringer i afholdelsen af arrangementet. Ordredataene anonymiseres inden for 60 dage efter, at arrangementet er afholdt, dog først når et eventuelt økonomisk mellemværende er afsluttet.",
         },
       ],
     },
@@ -190,17 +186,19 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "Oplysninger, du selv afgiver:",
+          text: "Vi behandler de oplysninger, du selv afgiver ved booking, billetkøb, genbestilling og bordbestilling. Nedenfor står hver kategori sammen med formålet med behandlingen:",
         },
         {
           type: "ul",
           items: [
-            "Firmanavn",
-            "Navn",
-            "Adresse",
-            "Telefonnummer",
-            "E-mailadresse",
-            "Kommentarer til ordrer",
+            "Navn, telefonnummer og e-mailadresse — for at kunne gennemføre købet, sende billet og bekræftelse og kontakte dig ved ændringer.",
+            "Eventuelt firmanavn — hvis du bestiller på vegne af et selskab.",
+            "Betalings- og bookingoplysninger (bookingnummer, ordrelinjer, beløb, betalingsstatus) — for at kunne behandle og dokumentere købet.",
+            "Betalingsoplysninger, der udveksles med vores betalingsudbyder Viva — selve kortoplysningerne indtastes hos Viva og opbevares aldrig hos os; vi modtager alene en betalingsreference og betalingsstatus.",
+            "Frivillige oplysninger til bordplacering (aldersgruppe, geografisk tilhørsforhold, foretrukken drik og interesser) — bruges kun, hvis du beder om at blive placeret sammen med gæster, I passer godt sammen med.",
+            "Særlige ønsker og kommentarer til ordren — for at kunne imødekomme dine ønsker.",
+            "Oplysninger til bordplacering (tildelt bordnummer) — for at kunne planlægge salen.",
+            "Bordbestillinger og ordrehistorik (varer, antal, tidspunkt og eventuelle bemærkninger ved QR-bestilling) — for at kunne levere din bestilling til det rigtige bord.",
           ],
         },
       ],
@@ -211,7 +209,7 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
       blocks: [
         {
           type: "p",
-          text: "Dine oplysninger bruges for at kunne levere den ydelse, du selv bestiller, samt til teknisk drift og fejlfinding.",
+          text: "Dine oplysninger bruges for at kunne levere den ydelse, du selv bestiller — billetter, tilvalg og bordbestilling — samt til betaling, dokumentation af købet, teknisk drift og fejlfinding. Formålet med hver enkelt kategori er beskrevet ovenfor.",
         },
       ],
     },
@@ -247,11 +245,25 @@ export const PRIVATLIVSPOLITIK: LegalDoc = {
           type: "ul",
           items: [
             "Airtable — database for kunde- og bookingoplysninger.",
-            "Stripe — sikker afvikling af kortbetalinger.",
+            "Viva — sikker afvikling af kortbetalinger.",
             "Resend — udsendelse af bekræftelses- og varslingsmails.",
             "Vercel — hosting og drift af hjemmesiden.",
-            "Vercel Postgres — database for QR-bordbestilling (endnu ikke i drift).",
+            "Vercel Postgres — database for QR-bordbestilling.",
           ],
+        },
+      ],
+    },
+    {
+      id: "overfoersel-uden-for-eu",
+      heading: "Overførsel til lande uden for EU/EØS",
+      blocks: [
+        {
+          type: "p",
+          text: "Nogle af vores databehandlere er etableret uden for EU/EØS eller kan behandle oplysninger dér. I så fald sker overførslen på et gyldigt overførselsgrundlag, fx EU-Kommissionens standardkontraktbestemmelser (SCC).",
+        },
+        {
+          type: "review",
+          text: "Det præcise overførselsgrundlag for hver databehandler (herunder Viva, Airtable, Resend og Vercel) skal bekræftes ud fra databehandleraftalerne og angives her.",
         },
       ],
     },

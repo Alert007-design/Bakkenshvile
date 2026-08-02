@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyBarSession, verifyCsrf, BAR_COOKIE_NAME } from "@/lib/bar-auth";
+import { verifyStaffSession, verifyCsrf, STAFF_COOKIE_NAME } from "@/lib/staff-auth";
 import { getDb } from "@/lib/db";
 import {
   getActiveEvent,
@@ -26,7 +26,7 @@ async function upcomingEvents() {
 }
 
 export async function GET(req: NextRequest) {
-  const session = verifyBarSession(req.cookies.get(BAR_COOKIE_NAME)?.value);
+  const session = verifyStaffSession(req.cookies.get(STAFF_COOKIE_NAME)?.value);
   if (!session) return NextResponse.json({ error: "Log ind igen." }, { status: 401 });
 
   const active = await getActiveEvent(getDb());
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = verifyBarSession(req.cookies.get(BAR_COOKIE_NAME)?.value);
+  const session = verifyStaffSession(req.cookies.get(STAFF_COOKIE_NAME)?.value);
   if (!session) return NextResponse.json({ error: "Log ind igen." }, { status: 401 });
   if (!verifyCsrf(session, req.headers.get("x-csrf-token"))) {
     return NextResponse.json({ error: "Ugyldig forespørgsel." }, { status: 403 });

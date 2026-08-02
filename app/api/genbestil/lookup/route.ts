@@ -1,12 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateBooking, buildBookingView } from "@/lib/genbestil";
+import { rateLimit } from "@/lib/rate-limit";
 
-// Generisk fejl — afslører aldrig om det var nummer, nøgle eller email der fejlede.
+export const runtime = "nodejs";
+
+// Generisk fejl — afslører aldrig om det var nummer, nøgle eller e-mail der fejlede,
+// så et bookingnummer eller en e-mail ikke kan gættes ved at prøve sig frem.
 const GENERIC_ERROR =
   "Vi kunne ikke finde en booking, der matcher. Tjek oplysningerne og prøv igen.";
 
 export async function POST(req: NextRequest) {
   try {
+    // Ratebegrænsning pr. IP (brute-force-værn mod gætteforsøg).
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "ukendt";
+    const rl = rateLimit(`genbestil-lookup:${ip}`, 10, 60_000);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "For mange forsøg. Vent et øjeblik og prøv igen." },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const { ref, key, bookingNo, email } = body ?? {};
     const booking = await authenticateBooking({ ref, key, bookingNo, email });

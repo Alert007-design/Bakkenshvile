@@ -61,8 +61,6 @@ export async function POST(req: NextRequest) {
       customer: {
         name: string;
         company?: string;
-        address?: string;
-        zip?: string;
         phone?: string;
         email?: string;
       };
@@ -143,8 +141,6 @@ export async function POST(req: NextRequest) {
     const customerRecord = await createRecord(TABLES.customers, {
       [FIELDS.customer.name]: customer.name,
       [FIELDS.customer.company]: customer.company || "",
-      [FIELDS.customer.address]: customer.address || "",
-      [FIELDS.customer.zip]: customer.zip || "",
       [FIELDS.customer.phone]: customer.phone || "",
       [FIELDS.customer.email]: customer.email || "",
     });

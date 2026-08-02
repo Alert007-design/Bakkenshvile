@@ -1,4 +1,4 @@
-// Vivas FÆLLES webhook for hele sitet. Aktiv når PAYMENT_PROVIDER=viva.
+// Vivas FÆLLES webhook for hele sitet (Viva er eneste betalingsudbyder).
 //
 // Viva sender alle transaktioner på kontoen til det samme endpoint, så vi
 // dirigerer ud fra transaktionens første tag: "billet" / "genbestil" /
@@ -29,7 +29,6 @@ import {
   revertTicketPaidByRef,
   type TicketPaymentRow,
 } from "@/lib/ticket-payments";
-import { getConfiguredProviderName } from "@/lib/payments";
 import { verifiedFromTransaction } from "@/lib/payments/viva";
 import {
   getVivaWebhookKey,
@@ -86,10 +85,6 @@ export async function GET(req: NextRequest) {
 /** POST — et Viva-event. */
 export async function POST(req: NextRequest) {
   if (!keyValid(req)) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-  // Denne webhook er kun aktiv, når Viva er den valgte udbyder.
-  if (getConfiguredProviderName() !== "viva") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

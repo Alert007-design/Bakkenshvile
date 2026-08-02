@@ -145,7 +145,7 @@ export default function GenbestilClient({
   async function submitLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!form.bookingNo.trim() || !form.email.trim()) {
-      setError("Udfyld både bestillingsnummer og email.");
+      setError("Udfyld både bestillingsnummer og e-mail.");
       return;
     }
     await lookup({ bookingNo: form.bookingNo.trim(), email: form.email.trim() });
@@ -182,7 +182,7 @@ export default function GenbestilClient({
           <div className="eyebrow">Bakkens Hvile · Genbestilling</div>
           <h1 className="jubilee-title">Bestil flere drikkevarer</h1>
           <p className="book-helper">
-            Log ind med dit bestillingsnummer og den email, du bestilte med, så
+            Log ind med dit bestillingsnummer og den e-mail, du bestilte med, så
             kan du tilføje drikkevarer til din booking.
           </p>
         </div>
@@ -190,9 +190,13 @@ export default function GenbestilClient({
         <div className="section">
           <form className="form-grid" onSubmit={submitLogin}>
             <div className="field">
-              <label htmlFor="gb-no">Bestillingsnummer</label>
+              <label htmlFor="gb-no">Bestillingsnummer *</label>
               <input
                 id="gb-no"
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                required
                 placeholder="fx BH-12345678"
                 value={form.bookingNo}
                 onChange={(e) =>
@@ -201,10 +205,12 @@ export default function GenbestilClient({
               />
             </div>
             <div className="field">
-              <label htmlFor="gb-email">Email</label>
+              <label htmlFor="gb-email">E-mail *</label>
               <input
                 id="gb-email"
                 type="email"
+                autoComplete="email"
+                required
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
@@ -289,7 +295,8 @@ export default function GenbestilClient({
           <div className="section">
             <div className="section-title">Tilføj drikkevarer</div>
             <div className="section-sub">
-              Alle priser er inkl. moms — 10% onlinerabat er trukket fra
+              Alle priser er inklusive 25 % moms — 10 % onlinerabat er trukket
+              fra. Momsbeløbet svarer til 20 % af den samlede pris inklusive moms.
             </div>
             <div className="addon-groups">
               {groupedAddons.map(([category, items]) => (
