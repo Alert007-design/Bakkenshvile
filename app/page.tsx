@@ -155,7 +155,7 @@ export default function Home() {
               />
             </div>
             <figcaption className="kapelmesterCaption">
-              Kapelmester Kenneth Sichlau med syngepigerne
+              Kapelmester Kenneth Sichlau.
             </figcaption>
           </figure>
         </div>
