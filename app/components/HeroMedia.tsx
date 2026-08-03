@@ -2,24 +2,25 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { billeder } from "@/lib/billeder";
 
 // Videoens poster ligger som asset (ikke i billeder.ts, da det hører til videoen).
 // salen.mp4 er STÅENDE (1280x2276, 9:16) — kildefilen bar et -90° rotationsflag.
 const POSTER = { src: "/video/salen-poster.jpg", bredde: 1280, hoejde: 2276 };
 
-type Mode = "video" | "posterStill" | "desktopStill";
+// Udsnit af det stående motiv, der vises på hver skærmstørrelse.
+// Videoen skaleres efter bredden, så på en bred skærm ses kun en vandret
+// stribe af motivet. Juster tallet for at flytte striben op (lavere) eller
+// ned (højere).
+const CROP_MOBIL = "center center";
+const CROP_DESKTOP = "center 35%";
+
+type Mode = "video" | "posterStill";
 
 /**
  * Baggrundsmedie til heroen.
  *
- * Videoen er stående (9:16), så den bruges der, hvor det format passer:
- *
- * - Under 768 px (mobil)            → dæmpet fuldskærms baggrundsvideo (salen.mp4).
- * - Bred skærm (desktop)            → BH (17) som stillbillede. Videoen strækkes
- *   IKKE til fuld bredde — et stående motiv beskåret til en vandret stribe
- *   viser næsten ingenting.
- * - prefers-reduced-motion: reduce  → KUN salen-poster.jpg som stillbillede.
+ * - Normal visning (mobil og desktop) → dæmpet baggrundsvideo (salen.mp4).
+ * - prefers-reduced-motion: reduce     → KUN salen-poster.jpg som stillbillede.
  *   Videoen mountes aldrig, så den hentes heller ikke.
  *
  * Videoelementet findes kun i DOM'en, når betingelserne er opfyldt — derfor
@@ -28,17 +29,17 @@ type Mode = "video" | "posterStill" | "desktopStill";
  */
 export default function HeroMedia() {
   // SSR/første render: poster-stillbillede. Samme på server og klient →
-  // ingen hydration-mismatch. På mobil genbruges posteren som videoens poster.
+  // ingen hydration-mismatch. Posteren genbruges som videoens poster.
   const [mode, setMode] = useState<Mode>("posterStill");
+  const [wide, setWide] = useState(false);
 
   useEffect(() => {
     const reduceMq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const wideMq = window.matchMedia("(min-width: 768px)");
 
     const update = () => {
-      if (reduceMq.matches) setMode("posterStill");
-      else if (wideMq.matches) setMode("desktopStill");
-      else setMode("video");
+      setWide(wideMq.matches);
+      setMode(reduceMq.matches ? "posterStill" : "video");
     };
 
     update();
@@ -49,6 +50,8 @@ export default function HeroMedia() {
       wideMq.removeEventListener("change", update);
     };
   }, []);
+
+  const crop = wide ? CROP_DESKTOP : CROP_MOBIL;
 
   if (mode === "video") {
     return (
@@ -61,38 +64,24 @@ export default function HeroMedia() {
         preload="metadata"
         poster={POSTER.src}
         aria-hidden="true"
+        style={{ objectPosition: crop }}
       >
         <source src="/video/salen.mp4" type="video/mp4" />
       </video>
     );
   }
 
-  if (mode === "posterStill") {
-    return (
-      <Image
-        src={POSTER.src}
-        alt=""
-        width={POSTER.bredde}
-        height={POSTER.hoejde}
-        priority
-        sizes="100vw"
-        aria-hidden="true"
-        style={{ objectPosition: "center" }}
-      />
-    );
-  }
-
-  // desktopStill — BH (17)
-  const hero = billeder.syngepigerFloejlstaepper;
+  // posterStill — vises ved prefers-reduced-motion og ved første render.
   return (
     <Image
-      src={hero.src}
-      alt={hero.alt}
-      width={hero.bredde}
-      height={hero.hoejde}
+      src={POSTER.src}
+      alt=""
+      width={POSTER.bredde}
+      height={POSTER.hoejde}
       priority
       sizes="100vw"
-      style={{ objectPosition: "center 25%" }}
+      aria-hidden="true"
+      style={{ objectPosition: crop }}
     />
   );
 }
