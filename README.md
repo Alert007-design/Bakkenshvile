@@ -1,5 +1,10 @@
 # Bakkens Hvile — samlet website
 
+> **Før go-live på bakkenshvile.dk:** Følg punkterne i
+> [`docs/go-live-tjekliste.md`](docs/go-live-tjekliste.md) i den angivne
+> rækkefølge — især SITE_URL/Search Console og 301-redirects fra det gamle
+> site, som skal være på plads *inden* domæneskiftet.
+
 Ét Next.js-site med flere dele:
 
 - **Forsiden (`/`)** — marketing-designet (sort/guld, sangerinderne, priser,
