@@ -1,15 +1,14 @@
+import type { Metadata } from "next";
 import { listRecords, TABLES, FIELDS, priceGroupName } from "@/lib/airtable";
 import { listShowDates } from "@/lib/events";
 import { onlineDiscountActive } from "@/lib/genbestil";
 import BookingClient from "../components/BookingClient";
 import BookingShell from "../components/BookingShell";
+import JsonLd from "../components/JsonLd";
+import { pageMetadata, eventsJsonLd, breadcrumbs } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
-export const metadata = {
-  title: "Køb billetter — Bakkens Hvile",
-  description:
-    "Vælg forestilling, billetter og tilvalg, og betal sikkert med Viva. Bestil drikkevarer online med 10 % rabat inden kl. 12.00 på forestillingsdagen.",
-};
+export const metadata: Metadata = pageMetadata("billetter");
 
 export default async function Page() {
   // Kun kommende datoer vises i billetkøbet — afholdte forestillinger filtreres
@@ -46,6 +45,18 @@ export default async function Page() {
 
   return (
     <BookingShell>
+      {/* Event-structured data bygges af PRÆCIS samme forestillingsliste som
+          datovælgeren herunder (lib/events.ts) — synligt indhold og schema kan
+          derfor aldrig være uenige om datoer eller udsolgt-status. */}
+      <JsonLd
+        data={[
+          ...eventsJsonLd(shows),
+          breadcrumbs([
+            ["Forside", "/"],
+            ["Billetter", "/book"],
+          ]),
+        ]}
+      />
       <BookingClient showDates={showDates} tickets={tickets} addons={addons} />
     </BookingShell>
   );

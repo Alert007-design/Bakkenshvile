@@ -1,9 +1,21 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { Metadata } from "next";
 import BookingForm from "./BookingForm";
 import HeroMedia from "./components/HeroMedia";
+import JsonLd from "./components/JsonLd";
+import SiteFooter from "./components/SiteFooter";
 import { billeder, type Billede } from "@/lib/billeder";
 import { isOrderingEnabled } from "@/lib/table-ordering-config";
+import {
+  CURRENT_SEASON_LABEL,
+  FOUNDING_YEAR,
+  PERFORMERS,
+  KAPELMESTER,
+} from "@/lib/site-config";
+import { pageMetadata, organizationGraph } from "@/lib/seo";
+
+export const metadata: Metadata = pageMetadata("forside");
 
 const NAV_LINKS = [
   { href: "#om-os", label: "Om os" },
@@ -11,15 +23,6 @@ const NAV_LINKS = [
   { href: "#priser", label: "Priser" },
   { href: "#galleri", label: "Galleri" },
   { href: "#kontakt", label: "Kontakt" },
-];
-
-// Navngivne portrætter — dedikerede lokale kopier i public/ (via lib/billeder.ts),
-// så intet hentes fra bakkenshvile.dk, der lukkes ned.
-const SINGERS: { name: string; billede: Billede }[] = [
-  { name: "Tina Grunwald", billede: billeder.tinaGrunwald },
-  { name: "Sus Mathiasen", billede: billeder.susMathiasen },
-  { name: "Dot Wessman", billede: billeder.dotWessman },
-  { name: "Ann Farholt", billede: billeder.annFarholt },
 ];
 
 // Portrætmosaik til galleriet. Første element er featuren (2×2).
@@ -31,7 +34,6 @@ const GALLERI: { billede: Billede; objectPosition: string }[] = [
 ];
 
 export default function Home() {
-  const year = new Date().getFullYear();
   const [feature, ...galleryRest] = GALLERI;
   // QR-bestilling nævnes kun som en aktiv mulighed, når funktionen reelt er slået
   // til. Ellers omtales bordbestilling uden QR (undgår at love noget, der ikke
@@ -40,6 +42,7 @@ export default function Home() {
 
   return (
     <main>
+      <JsonLd data={organizationGraph()} />
       <nav className="nav">
         <div className="logo">
           BAKKENS <span className="logoAccent">HVILE</span>
@@ -62,15 +65,17 @@ export default function Home() {
           <div className="heroScrim" />
         </div>
         <div className="heroInner">
-          <p className="eyebrow">Bakkens Hvile – 150 år på Dyrehavsbakken</p>
+          <p className="eyebrow">
+            Bakkens Hvile · Live show på Dyrehavsbakken siden {FOUNDING_YEAR}
+          </p>
           <h1>
             Skønsang &amp; samfundssatire, live.
           </h1>
           <p className="heroLead">
-            Bakkesangerinderne har underholdt på Dyrehavsbakken siden 1877 —
-            fra klassiske danske sange og viser til dagens friskeste
-            satire. Oplev showet, bestil vin, øl og drinks, og bliv en del af
-            traditionen.
+            Bakkesangerinderne har underholdt på Dyrehavsbakken i Klampenborg
+            siden {FOUNDING_YEAR} — fra klassiske danske sange og viser til
+            dagens friskeste satire. Oplev showet, bestil vin, øl og drinks ved
+            bordet, og bliv en del af traditionen.
           </p>
           <div className="heroCtas">
             <Link href="/book" className="ctaGoldLg">
@@ -94,14 +99,18 @@ export default function Home() {
               leveret skønsang og syngende samfundssatire for alle og om alle.
             </p>
             <p>
-              Traditionen for bakkesangen går tilbage til 1877 og har fra
-              begyndelsen været for alle slags folk. Vores sange spænder fra
-              klassiske danske sange og viser til dagens friskeste
+              Traditionen for bakkesangen går tilbage til {FOUNDING_YEAR} og
+              har fra begyndelsen været for alle slags folk. Vores sange
+              spænder fra klassiske danske sange og viser til dagens friskeste
               overskrifter.
             </p>
             <p>
               Oplev os over sommermånederne i vores smukke bøgeskov, og
               bestil vin, øl og drinks ved bordet under hele showet.
+            </p>
+            <p>
+              Læs mere om <Link href="/historie">Bakkens Hviles historie</Link>{" "}
+              — og om <Link href="/150-aar">150-års jubilæet i 2027</Link>.
             </p>
           </div>
           <div className="aboutPhoto">
@@ -123,24 +132,27 @@ export default function Home() {
           <p className="eyebrow" style={{ textAlign: "center" }}>
             Sæsonens ensemble
           </p>
-          <h2 className="sectionTitle">Sangerinderne 2027</h2>
+          <h2 className="sectionTitle">Sangerinderne {CURRENT_SEASON_LABEL}</h2>
           <div className="singerGrid">
-            {SINGERS.map((singer) => (
-              <div className="singerCard" key={singer.name}>
-                <div className="singerPhoto">
-                  <Image
-                    src={singer.billede.src}
-                    alt={singer.billede.alt}
-                    width={singer.billede.bredde}
-                    height={singer.billede.hoejde}
-                    loading="lazy"
-                    sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 276px"
-                    style={{ objectPosition: "center 25%" }}
-                  />
+            {PERFORMERS.map((singer) => {
+              const billede = billeder[singer.billedeKey];
+              return (
+                <div className="singerCard" key={singer.name}>
+                  <div className="singerPhoto">
+                    <Image
+                      src={billede.src}
+                      alt={billede.alt}
+                      width={billede.bredde}
+                      height={billede.hoejde}
+                      loading="lazy"
+                      sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 276px"
+                      style={{ objectPosition: "center 25%" }}
+                    />
+                  </div>
+                  <p className="singerName">{singer.name}</p>
                 </div>
-                <p className="singerName">{singer.name}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <figure className="kapelmesterFeature">
             <div className="kapelmesterPhoto">
@@ -155,9 +167,14 @@ export default function Home() {
               />
             </div>
             <figcaption className="kapelmesterCaption">
-              Kapelmester Kenneth Sichlau.
+              Kapelmester {KAPELMESTER.name}.
             </figcaption>
           </figure>
+          <div style={{ textAlign: "center", marginTop: 40 }}>
+            <Link href="/sangerinderne" className="ctaOutline">
+              Mød bakkesangerinderne
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -264,7 +281,8 @@ export default function Home() {
           <p className="bookLead">
             Skal du holde fest? En optræden med bakkesangerinderne er den
             perfekte måde at overraske og glæde dine gæster på. Skriv til os
-            herunder for at booke eller høre om pris.
+            herunder for at booke eller høre om pris — og læs mere på siden om{" "}
+            <Link href="/underholdning-til-fest">underholdning til fest</Link>.
           </p>
           <BookingForm />
         </div>
@@ -286,7 +304,9 @@ export default function Home() {
                   Har du et spørgsmål, så send en mail:{" "}
                   <a href="mailto:kontor@bakkenshvile.dk">
                     kontor@bakkenshvile.dk
-                  </a>
+                  </a>{" "}
+                  — eller se{" "}
+                  <Link href="/praktisk">praktisk information &amp; FAQ</Link>.
                 </p>
               </div>
               <div>
@@ -329,16 +349,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="footer">
-        <div className="brand">BAKKENS HVILE</div>
-        <div className="footerLinks">
-          <Link href="/handelsbetingelser">Handelsbetingelser</Link>
-          <Link href="/privatlivspolitik">Privatlivspolitik</Link>
-        </div>
-        <div className="meta">
-          Dyrehavsbakken 38 · 2930 Klampenborg · © {year}
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
