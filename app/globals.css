@@ -779,6 +779,12 @@ button {
     display: none;
   }
 
+  /* Billet-CTA'en skal altid kunne findes — også på mobil, hvor de øvrige
+     nav-links skjules. */
+  .navlinks .navCta {
+    display: inline-block;
+  }
+
   .section {
     padding: 72px 24px;
   }
@@ -855,4 +861,139 @@ button {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   font-size: 16px;
+}
+
+/* ---------- undersider (landingssider: historie, fest, praktisk m.fl.) ---------- */
+
+/* Tekstspalte i samme udtryk som de juridiske sider, men til redaktionelt
+   indhold: overskriftshierarki med CSS — aldrig forkerte HTML-elementer. */
+.prose {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.prose h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 4vw, 2.9rem);
+  line-height: 1.15;
+  margin: 8px 0 18px;
+}
+
+.prose h2 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--gold);
+  margin: 44px 0 12px;
+}
+
+.prose h3 {
+  font-family: var(--font-display);
+  font-size: 19px;
+  margin: 28px 0 8px;
+}
+
+.prose p {
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--paper-dim);
+  margin: 0 0 14px;
+}
+
+.prose ul {
+  margin: 0 0 14px;
+  padding-left: 22px;
+  color: var(--paper-dim);
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+.prose li {
+  margin-bottom: 6px;
+}
+
+.prose .lead {
+  font-size: 19px;
+  color: var(--paper);
+}
+
+.prose figure {
+  margin: 28px 0;
+}
+
+.prose figure img {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  display: block;
+}
+
+.prose figcaption {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+/* Kronologi (historiesiden) */
+.timeline {
+  margin: 20px 0 8px;
+  padding: 0;
+  list-style: none;
+  border-left: 1px solid var(--line-strong);
+}
+
+.timeline li {
+  position: relative;
+  padding: 0 0 22px 24px;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--paper-dim);
+}
+
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 8px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.timeline .aar {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--gold);
+  margin-right: 10px;
+}
+
+/* FAQ (praktisk-siden) — synligt indhold; samme data bruges i FAQ-schema. */
+.faqItem {
+  border-bottom: 1px solid var(--line);
+  padding: 20px 0;
+}
+
+.faqItem h3 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin: 0 0 8px;
+  color: var(--paper);
+}
+
+.faqItem p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--paper-dim);
+}
+
+/* CTA-bånd nederst på landingssider */
+.ctaBand {
+  text-align: center;
+  margin-top: 56px;
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
 }

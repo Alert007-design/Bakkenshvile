@@ -3,12 +3,11 @@ import type { Metadata } from "next";
 import { getMenuGroups } from "@/lib/menu";
 import { formatKroner } from "@/lib/money";
 import { isOrderingEnabled } from "@/lib/table-ordering-config";
+import JsonLd from "../components/JsonLd";
+import SiteFooter from "../components/SiteFooter";
+import { pageMetadata, breadcrumbs } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Drikkekort & priser — Bakkens Hvile",
-  description:
-    "Se hele drikkekortet i Bakkens Hvile: øl, vin, drinks, spiritus og snacks. Bestil online sammen med billetten senest kl. 12.00 på forestillingsdagen og få 10 % rabat.",
-};
+export const metadata: Metadata = pageMetadata("priser");
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +27,12 @@ export default async function PriserPage() {
 
   return (
     <main>
+      <JsonLd
+        data={breadcrumbs([
+          ["Forside", "/"],
+          ["Drikkekort", "/priser"],
+        ])}
+      />
       <nav className="nav">
         <Link href="/" className="logo">
           BAKKENS <span className="logoAccent">HVILE</span>
@@ -96,14 +101,7 @@ export default async function PriserPage() {
         </div>
       </section>
 
-      <footer className="footer">
-        <div className="brand">BAKKENS HVILE</div>
-        <div className="footerLinks">
-          <Link href="/handelsbetingelser">Handelsbetingelser</Link>
-          <Link href="/privatlivspolitik">Privatlivspolitik</Link>
-        </div>
-        <div className="meta">Dyrehavsbakken 38 · 2930 Klampenborg</div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }

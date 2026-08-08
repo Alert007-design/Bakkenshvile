@@ -270,3 +270,68 @@ Viva-integration i koden. Kontotype er Viva.com **Smart Checkout**
   webhook-genforsøg (idempotente) samler op. En betalt betaling kan altid
   genkendes på `orderCode`, og en manuel afstemning kan ske ved at slå
   `orderCode` op begge steder.
+
+---
+
+## 11. SEO-, GEO/AEO- og synlighedsoptimering (august 2026)
+
+Hele sitet er gennemgået og optimeret for søgemaskiner (Google/Bing), lokal
+SEO, AI-synlighed (ChatGPT, Gemini, Perplexity, Claude m.fl.) og konvertering —
+uden at røre design, betalings- eller bookingfunktioner. Alle ændringer er lavet
+på branch `claude/bakkens-hvile-seo-ojwk29`.
+
+**Central konfiguration (robusthed ved sæsonskifte)**
+- `lib/site-config.ts`: ÉN kilde til navn, adresse, CVR, kontakt, sociale
+  profiler, grundlæggelsesår (1877), jubilæumsår (2027), sæsonetiket
+  ("Sangerinderne 2027") og sæsonens besætning. Forside og undersider læser
+  herfra — et sæsonskifte er én rettelse.
+- TODO-felter (tydeligt markeret, aldrig gættet): telefonnummer, Google
+  Maps-/Business Profile-link, showets varighed, biografier pr. sangerinde.
+
+**Teknisk SEO**
+- `app/robots.ts` → `/robots.txt`: alle crawlere (inkl. AI-crawlere GPTBot,
+  OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended, CCBot) tilladt på
+  offentlige sider; interne/transaktionssider (`/admin`, `/bar`, `/funktioner`,
+  `/login`, `/api/`, `/bord/`, `/genbestil`, `/success`, `/afbrudt`) blokeret.
+- `app/sitemap.ts` → `/sitemap.xml`: genereres automatisk af sideregistret i
+  `lib/seo.ts` — kun kanoniske, indekserbare sider.
+- Unik title, meta description, canonical, Open Graph og Twitter-kort på ALLE
+  offentlige sider via `pageMetadata()` (`lib/seo.ts`). hreflang da-DK ↔ en på
+  forside og `/en`. OG-billedet er nu et scenefoto med korrekt alt-tekst og mål.
+- `next/image` leverer nu også AVIF (next.config.js). Favicon tilføjet
+  (`app/icon.svg`, BH-monogram i sort/guld).
+
+**Structured data (JSON-LD — afspejler altid synligt indhold)**
+- Forside: Organization + PerformingArtsTheater + WebSite (@graph) med adresse,
+  CVR, foundingDate 1877 og sociale profiler.
+- `/book`: Event-data pr. kommende forestilling, bygget af SAMME datakilde som
+  datovælgeren (`lib/events.ts`) — inkl. udsolgt-status som availability. Ingen
+  opfundne priser.
+- `/sangerinderne`: PerformingGroup + Person pr. sangerinde/kapelmester.
+- `/praktisk`: FAQPage af præcis de synlige spørgsmål/svar. BreadcrumbList på
+  alle undersider. Ingen Review-/AggregateRating-data (ingen verificerbar kilde).
+
+**Nye sider** (alle statisk renderet, i eksisterende sort/guld-design)
+- `/sangerinderne` — bakkesangerinderne som entiteter (nuværende besætning).
+- `/historie` — husets historie med kronologi (kun verificerede årstal).
+- `/150-aar` — evergreen jubilæumsside 1877–2027.
+- `/underholdning-til-fest` — central bookingside (fest, fødselsdag, jubilæum,
+  julefrokost, firmafest) med formular; én stærk side frem for tynde dubletter.
+- `/show-koebenhavn` — landingsside for show/live underholdning i København
+  (ærlig geografi: Klampenborg, nord for København).
+- `/praktisk` — praktisk info + synlig FAQ.
+- `/en` — engelsk oversigtsside ("Bakkesangerinder" forklares, ikke oversat
+  væk); arkitekturen er forberedt til en fuld /en/-sektion.
+- Fælles `SiteNav`/`SiteFooter` med fuld intern linkgraf og konsistent NAP
+  (navn, adresse, CVR) på alle sider. Billet-CTA i nav er nu også synlig på
+  mobil.
+
+**Kvalitetstest**
+- `lib/seo.test.ts` (13 tests): unikke titler/beskrivelser/canonicals,
+  sitemap-dækning, robots-regler, valid JSON-LD uden opfundne priser. Kørt
+  grønt sammen med de eksisterende 182 tests; `next build` og `tsc` er grønne.
+
+**Ikke ændret** (kræver data/adgang udefra): Google Business Profile, Search
+Console, redirects fra det gamle sites URL-struktur (ukendt i projektet),
+gavekort (findes ikke som produkt), analytics/event-måling (ingen
+analytics-opsætning i projektet), priser/varighed for ekstern booking.
