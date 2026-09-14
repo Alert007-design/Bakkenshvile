@@ -3,6 +3,28 @@
 Gemte opfølgningspunkter fra SEO-gennemgangen (august 2026). Tages op, når
 sitet går live på `bakkenshvile.dk`. Rækkefølgen er prioriteret.
 
+## Go-live-dagen — teknisk cutover (DNS + betaling)
+
+Gøres samlet den dag, domænet skiftes. Rækkefølgen betyder noget: sæt
+miljøvariablerne FØR domænet peger hertil, så betaling og webhooks er klar,
+når trafikken kommer.
+
+1. **Vercel-miljøvariabler** (Production): `SITE_URL=https://bakkenshvile.dk`,
+   `VIVA_ENV=live`, `TICKETS_LIVE=true`, samt `VIVA_CLIENT_ID`,
+   `VIVA_CLIENT_SECRET`, `VIVA_MERCHANT_ID`, `VIVA_API_KEY`,
+   `VIVA_WEBHOOK_TOKEN` (selvvalgt), `VIVA_SOURCE_CODE_TICKETS`. Redeploy.
+2. **Viva — success/fejl-URL** på billet-betalingskilden (Salg → Online
+   Betalinger → Hjemmesider/apps): success `https://bakkenshvile.dk/success`,
+   fejl `https://bakkenshvile.dk/afbrudt`.
+3. **Viva — webhook** (ét endpoint for hele kontoen, håndterer både billet og
+   bord): `https://bakkenshvile.dk/api/table-orders/viva/webhook?k=<VIVA_WEBHOOK_TOKEN>`.
+4. **DNS:** peg `bakkenshvile.dk` mod Vercel. Udfas TicketCloud-subdomænerne
+   `billetter.bakkenshvile.dk` og `billetadmin.bakkenshvile.dk` — de er en anden
+   vært og kan ikke redirectes fra koden. Peg/redirect dem mod `/book` i DNS,
+   eller luk dem, når billetsalget er flyttet.
+5. **Verificér:** køb en testbillet i live-miljøet, bekræft webhook-kvittering
+   og billetmail, og at 301-redirects fra de gamle URL'er virker.
+
 ## Prioriterede næste skridt
 
 1. **SITE_URL**: Sæt `SITE_URL=https://bakkenshvile.dk` i Vercel, når domænet
