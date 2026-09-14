@@ -7,7 +7,7 @@ import { useState } from "react";
 // Smart Checkout. Validering her spejler serverens — serveren er autoritativ.
 
 const MIN_KR = 100;
-const MAX_KR = 10000;
+const MAX_KR = 5000;
 
 const inputStyle: React.CSSProperties = {
   width: "100%",

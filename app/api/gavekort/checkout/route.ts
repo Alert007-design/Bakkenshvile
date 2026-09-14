@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 // Grænser for gavekortbeløbet (hele kroner). Bevidst enkle i fase 1.
 const MIN_KR = 100;
-const MAX_KR = 10000;
+const MAX_KR = 5000;
 const CHECKOUT_EXPIRY_MINUTES = 30;
 
 function looksLikeEmail(v: unknown): v is string {
