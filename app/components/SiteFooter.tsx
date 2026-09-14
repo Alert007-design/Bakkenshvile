@@ -12,6 +12,7 @@ export default function SiteFooter() {
       <nav className="footerLinks" aria-label="Oversigt over sider">
         <Link href="/book">Billetter</Link>
         <Link href="/priser">Drikkekort</Link>
+        <Link href="/gavekort">Gavekort</Link>
         <Link href="/sangerinderne">Sangerinderne</Link>
         <Link href="/historie">Historien</Link>
         <Link href="/150-aar">150 år</Link>

@@ -29,6 +29,18 @@ import {
   revertTicketPaidByRef,
   type TicketPaymentRow,
 } from "@/lib/ticket-payments";
+import {
+  getGiftCardByRef,
+  markGiftCardFailedByRef,
+  markGiftCardPaidByRef,
+  markGiftCardRefundedByRef,
+  revertGiftCardPaidByRef,
+  type GiftCardRow,
+} from "@/lib/gift-cards";
+import {
+  giftCardPurchaserEmailHtml,
+  giftCardRecipientEmailHtml,
+} from "@/lib/gift-card-email";
 import { verifiedFromTransaction } from "@/lib/payments/viva";
 import {
   getVivaWebhookKey,
@@ -114,6 +126,49 @@ export async function POST(req: NextRequest) {
 
     const db = getDb();
     const verified = verifiedFromTransaction(txn);
+
+    // Gavekort har sin egen ledger. Findes referencen dér, håndteres den her og
+    // routes ALDRIG videre til billet/bord. Placeret før billet-opslaget, så en
+    // gavekort-reference ikke fejlagtigt lander i bordbestillings-grenen.
+    const giftCard = await getGiftCardByRef(db, verified.paymentRef);
+    if (giftCard) {
+      if (eventTypeId === EVENT_TRANSACTION_REVERSAL) {
+        await markGiftCardRefundedByRef(db, verified.paymentRef);
+        return NextResponse.json({ received: true });
+      }
+      if (verified.status === "paid") {
+        const result = await markGiftCardPaidByRef(db, {
+          paymentRef: verified.paymentRef,
+          amountOre: verified.amountOre,
+          currency: verified.currency,
+        });
+        if (result.status === "amount_mismatch") {
+          console.error("Viva-webhook: gavekort-beløb matcher ikke ordren", {
+            giftCardNo: result.card.giftCardNo,
+          });
+          return NextResponse.json({ received: true });
+        }
+        if (result.status !== "paid") {
+          // already_paid (idempotent) eller not_found → ingen mail.
+          return NextResponse.json({ received: true });
+        }
+        // Kun vinderen af pending → paid når hertil (præcis én gang). Fejler en
+        // sideeffekt, frigives overgangen, så Vivas genforsøg kan prøve igen.
+        try {
+          await fulfillGiftCard(result.card);
+        } catch (err) {
+          await revertGiftCardPaidByRef(db, verified.paymentRef);
+          console.error("Viva-webhook: kunne ikke fuldføre gavekort");
+          return NextResponse.json({ error: "Intern fejl" }, { status: 500 });
+        }
+        return NextResponse.json({ received: true });
+      }
+      if (eventTypeId === EVENT_PAYMENT_FAILED) {
+        await markGiftCardFailedByRef(db, verified.paymentRef);
+        return NextResponse.json({ received: true });
+      }
+      return NextResponse.json({ received: true });
+    }
 
     // Dirigering på VORES EGEN reference — ikke på tags. Viva returnerer ikke
     // pålideligt de tags, vi satte på ordren, tilbage på den hentede transaktion
@@ -293,5 +348,44 @@ async function fulfillTicketPayment(payment: TicketPaymentRow): Promise<void> {
         discountLabel: ADDON_DISCOUNT_LABEL,
       }),
     });
+  }
+}
+
+/**
+ * Sender gavekortet til modtageren (med koden) og en kvittering til køberen.
+ * Modtager-mailen er kritisk (kaster ved fejl → webhooken ruller tilbage og
+ * Viva prøver igen); køber-kvitteringen er best-effort og vælter ikke flowet.
+ */
+async function fulfillGiftCard(card: GiftCardRow): Promise<void> {
+  const amountKr = Math.round(card.amountOre / 100);
+  const expiresIso = card.expiresAt ?? new Date().toISOString();
+
+  await sendMail({
+    to: card.recipientEmail,
+    subject: "Du har fået et gavekort til Bakkens Hvile",
+    html: giftCardRecipientEmailHtml({
+      code: card.code ?? "",
+      amountKr,
+      expiresIso,
+      purchaserName: card.purchaserName,
+      message: card.message,
+    }),
+  });
+
+  if (card.purchaserEmail) {
+    try {
+      await sendMail({
+        to: card.purchaserEmail,
+        subject: `Kvittering for dit gavekort — ${card.giftCardNo}`,
+        html: giftCardPurchaserEmailHtml({
+          giftCardNo: card.giftCardNo,
+          amountKr,
+          recipientEmail: card.recipientEmail,
+          expiresIso,
+        }),
+      });
+    } catch (err) {
+      console.error("Gavekort: kunne ikke sende kvittering til køber (fortsætter)");
+    }
   }
 }

@@ -12,10 +12,14 @@ når trafikken kommer.
 1. **Vercel-miljøvariabler** (Production): `SITE_URL=https://bakkenshvile.dk`,
    `VIVA_ENV=live`, `TICKETS_LIVE=true`, samt `VIVA_CLIENT_ID`,
    `VIVA_CLIENT_SECRET`, `VIVA_MERCHANT_ID`, `VIVA_API_KEY`,
-   `VIVA_WEBHOOK_TOKEN` (selvvalgt), `VIVA_SOURCE_CODE_TICKETS`. Redeploy.
-2. **Viva — success/fejl-URL** på billet-betalingskilden (Salg → Online
-   Betalinger → Hjemmesider/apps): success `https://bakkenshvile.dk/success`,
-   fejl `https://bakkenshvile.dk/afbrudt`.
+   `VIVA_WEBHOOK_TOKEN` (selvvalgt), `VIVA_SOURCE_CODE_TICKETS` og — til
+   gavekort — `VIVA_SOURCE_CODE_GAVEKORT`. Redeploy.
+2. **Viva — success/fejl-URL** pr. betalingskilde (Salg → Online Betalinger →
+   Hjemmesider/apps):
+   - Billet-kilden: success `https://bakkenshvile.dk/success`, fejl
+     `https://bakkenshvile.dk/afbrudt`.
+   - Gavekort-kilden: success `https://bakkenshvile.dk/gavekort/kvittering`,
+     fejl `https://bakkenshvile.dk/gavekort/afbrudt`.
 3. **Viva — webhook** (ét endpoint for hele kontoen, håndterer både billet og
    bord): `https://bakkenshvile.dk/api/table-orders/viva/webhook?k=<VIVA_WEBHOOK_TOKEN>`.
 4. **DNS:** peg `bakkenshvile.dk` mod Vercel. Udfas TicketCloud-subdomænerne

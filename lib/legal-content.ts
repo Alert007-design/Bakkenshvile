@@ -123,6 +123,20 @@ export const HANDELSBETINGELSER: LegalDoc = {
       ],
     },
     {
+      id: "gavekort",
+      heading: "Gavekort",
+      blocks: [
+        {
+          type: "p",
+          text: "Gavekort kan købes på hjemmesiden til et selvvalgt beløb og betales med betalingskort. Gavekortet sendes på e-mail til den angivne modtager med en unik kode. Alle beløb er inklusive moms.",
+        },
+        {
+          type: "p",
+          text: "Et gavekort er gyldigt i 3 år fra købsdatoen. Det indløses ved at kontakte Bakkens Hvile på kontor@bakkenshvile.dk med koden eller ved at vise koden ved ankomst. Gavekortet kan ikke ombyttes til kontanter.",
+        },
+      ],
+    },
+    {
       id: "billetter-kopiering-videresalg",
       heading: "Billetter, kopiering og videresalg",
       blocks: [
