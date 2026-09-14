@@ -16,10 +16,10 @@ import { pageMetadata, performersJsonLd, breadcrumbs } from "@/lib/seo";
 export const metadata: Metadata = pageMetadata("sangerinderne");
 
 // Sæsonens besætning kommer fra lib/site-config.ts (én kilde — samme navne som
-// på forsiden). TODO(redaktion): Når faktatjekkede biografier pr. sangerinde
-// foreligger (karriere, år i Bakkens Hvile, evt. særlig rolle — fx Dot
-// Wessmans), tilføjes de i site-config og vises automatisk her. Indtil da
-// vises kun navn, rolle og portræt — intet opfindes.
+// på forsiden). Biografier vises herfra: Dot Wessman og Kenneth Sichlau er
+// bekræftede fakta; de øvrige er UDKAST (bioDraft) afledt af interview-uddrag
+// og vises med et synligt "Udkast"-mærke, indtil Bakkens Hvile har godkendt
+// teksten.
 export default function SangerinderePage() {
   return (
     <main>
@@ -71,6 +71,23 @@ export default function SangerinderePage() {
                   <p style={{ color: "var(--muted)", fontSize: 14, margin: "4px 0 0" }}>
                     {singer.rolle}
                   </p>
+                  {singer.bio && (
+                    <p style={{ fontSize: 14, margin: "8px 0 0", lineHeight: 1.5 }}>
+                      {singer.bio}
+                    </p>
+                  )}
+                  {singer.bioDraft && (
+                    <p
+                      style={{
+                        fontSize: 12,
+                        margin: "6px 0 0",
+                        color: "var(--muted)",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      Udkast — afventer godkendelse
+                    </p>
+                  )}
                 </div>
               );
             })}
@@ -90,6 +107,7 @@ export default function SangerinderePage() {
             </div>
             <figcaption className="kapelmesterCaption">
               Kapelmester {KAPELMESTER.name} akkompagnerer sangerinderne.
+              {KAPELMESTER.bio ? ` ${KAPELMESTER.bio}` : ""}
             </figcaption>
           </figure>
         </div>

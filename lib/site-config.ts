@@ -66,26 +66,55 @@ export const SHOW_DURATION_TEXT: string | null = "ca. 2½ time inkl. pause";
 /** Sæsonens besætning — navne og portrætter er verificeret i projektet
  *  (forsiden + lib/billeder.ts). Rollebetegnelsen "bakkesangerinde" bruges
  *  gennemgående i husets eget materiale.
- *  TODO(redaktion): Korte biografier pr. sangerinde mangler — tilføj `bio`,
- *  når faktatjekket tekst foreligger (bruges på /sangerinderne). */
+ *
+ *  `bio`: kort biografi, vises på /sangerinderne.
+ *  `bioDraft: true`: teksten er et UDKAST, afledt af interview-uddrag fra det
+ *    gamle site — endnu ikke faktatjekket. Vises med et synligt "Udkast"-mærke,
+ *    og skal godkendes/omskrives af Bakkens Hvile, før mærket fjernes.
+ *  Dot Wessman og Kenneth Sichlau er bekræftede fakta (ikke udkast). */
 export type Performer = {
   name: string;
   rolle: string;
   billedeKey: BilledeNoegle;
   bio?: string;
+  bioDraft?: boolean;
 };
 
 export const PERFORMERS: Performer[] = [
-  { name: "Tina Grunwald", rolle: "Bakkesangerinde", billedeKey: "tinaGrunwald" },
-  { name: "Sus Mathiasen", rolle: "Bakkesangerinde", billedeKey: "susMathiasen" },
-  { name: "Dot Wessman", rolle: "Bakkesangerinde", billedeKey: "dotWessman" },
-  { name: "Ann Farholt", rolle: "Bakkesangerinde", billedeKey: "annFarholt" },
+  {
+    name: "Tina Grunwald",
+    rolle: "Bakkesangerinde",
+    billedeKey: "tinaGrunwald",
+    bio: "Tina Grunwald er en af husets mest rutinerede og beskriver sig selv som den ældste nulevende bakkesangerinde.",
+    bioDraft: true,
+  },
+  {
+    name: "Sus Mathiasen",
+    rolle: "Bakkesangerinde",
+    billedeKey: "susMathiasen",
+    bio: "Sus Mathiasen var lige ved at takke nej til rollen, men sagde ja — og er nu i sin tredje sæson. Hun beskriver sin stil som lidt skæv, med et blink i øjet.",
+    bioDraft: true,
+  },
+  {
+    name: "Dot Wessman",
+    rolle: "Bakkesangerinde",
+    billedeKey: "dotWessman",
+    bio: "Dot Wessman overtog Bakkens Hvile fra sin mor, Lilian Matzen, der selv havde overtaget stedet fra sin far. I 2026 har Dot 50 års jubilæum og har lagt en ære og et liv i at sikre stedets overlevelse. Ud over Hvilen er hun teltholder på Bakken og driver som fjerde generation af Stefansens Forlystelser en række forskellige forretninger.",
+  },
+  {
+    name: "Ann Farholt",
+    rolle: "Bakkesangerinde",
+    billedeKey: "annFarholt",
+    bio: "Ann Farholt tager altid sig selv og sit levede liv med på scenen. Hun fremhæver balancen i satiren — hurtig på aftrækkeren, men med sans for, hvornår det bliver for meget — og kalder bakkesangen tidløs.",
+    bioDraft: true,
+  },
 ];
 
 export const KAPELMESTER: Performer = {
   name: "Kenneth Sichlau",
   rolle: "Kapelmester",
   billedeKey: "kennethMedSyngepigerne",
+  bio: "Kenneth Sichlau er komponist, tekstforfatter og pianist og til daglig skolelærer. Han har været i Bakkens Hvile i over 25 år og er en integreret del af forestillingen — han skaber showene op til sæsonen og sidder ved klaveret under dem.",
 };
 
 /** Delebillede til Open Graph m.m. — et scenefoto med korrekt alt-tekst og
