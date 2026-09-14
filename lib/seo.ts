@@ -65,7 +65,7 @@ export const PAGES = {
     path: "/underholdning-til-fest",
     title: `Underholdning til fest — book bakkesangerinderne`,
     description:
-      "Book bakkesangerinderne fra Bakkens Hvile til jeres arrangement: levende sang og feststemning med et musikalsk indslag, der overrasker og glæder gæsterne. Send en uforpligtende forespørgsel og hør om pris.",
+      "Book bakkesangerinderne fra Bakkens Hvile til jeres arrangement: levende sang og feststemning med et musikalsk indslag, der overrasker og glæder gæsterne. Booking sker direkte hos Tina Grunwald.",
   },
   showKoebenhavn: {
     path: "/show-koebenhavn",

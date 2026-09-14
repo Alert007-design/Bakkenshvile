@@ -10,11 +10,25 @@
 // `permanent: true` sender 301 (varig). Eksterne mål kræver fuld URL.
 // Tom liste nu = ingen redirects (no-op). Wildcards: "/gammel/:slug" → "/nyt/:slug".
 //
-// Eksempel (fjern kommentaren og tilret, når de rigtige URL'er foreligger):
-//   { source: "/billetter", destination: "/book", permanent: true },
-//   { source: "/om-os", destination: "/historie", permanent: true },
+// Kortlagt fra det gamle WordPress-site 14. sep. 2026. Next normaliserer selv
+// efterstillet skråstreg (/x/ → /x), så source skrives UDEN skråstreg.
+//
+// Bemærk to ting, der IKKE kan løses her:
+//  - Subdomænerne billetter.bakkenshvile.dk og billetadmin.bakkenshvile.dk er
+//    det gamle TicketCloud-system på en anden vært. De erstattes af /book og
+//    kan ikke redirectes fra Next — det skal ske i DNS/hosting ved udfasning.
+//  - /foredrag var allerede fjernet (404) på det gamle site og udelades derfor,
+//    indtil det er afklaret, om den skal genskabes eller pege et bestemt sted.
 const REDIRECTS = [
-  // TODO(redaktion): indsæt 301-mapping fra det gamle site her før domæneskiftet.
+  // Sangerinde-undersider → den samlede oversigt.
+  { source: "/sangerinder/tinagrunwald", destination: "/sangerinderne", permanent: true },
+  { source: "/sangerinder/sus-mathiasen", destination: "/sangerinderne", permanent: true },
+  { source: "/sangerinder/dot-wessman", destination: "/sangerinderne", permanent: true },
+  { source: "/sangerinder/annfarholt", destination: "/sangerinderne", permanent: true },
+  // Booking af sangerinderne til fest/arrangement.
+  { source: "/vil-du-booke-syngepigerne", destination: "/underholdning-til-fest", permanent: true },
+  // Kontaktsiden → praktisk information (adresse + kontakt).
+  { source: "/kontakt", destination: "/praktisk", permanent: true },
 ];
 
 const nextConfig = {

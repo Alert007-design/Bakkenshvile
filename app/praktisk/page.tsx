@@ -11,6 +11,7 @@ import {
   PERFORMERS,
   KAPELMESTER,
   GOOGLE_MAPS_URL,
+  SHOW_DURATION_TEXT,
 } from "@/lib/site-config";
 import { pageMetadata, breadcrumbs, faqJsonLd } from "@/lib/seo";
 
@@ -19,11 +20,10 @@ export const metadata: Metadata = pageMetadata("praktisk");
 // FAQ-indholdet står synligt på siden, og PRÆCIS samme spørgsmål/svar bruges i
 // FAQPage-schemaet (én kilde — ingen skjult crawler-tekst).
 //
-// TODO(redaktion): Følgende spørgsmål kan IKKE besvares ud fra projektets
-// verificerede data og er derfor udeladt — tilføj dem her, når svaret er
-// bekræftet: showets varighed, parkering, spisemuligheder på Bakken før
-// showet, gavekort (findes pt. ikke som produkt på sitet), aldersgrænser og
-// tilgængelighed/kørestolsadgang.
+// TODO(redaktion): Endnu ubekræftet og derfor udeladt: aldersgrænser samt
+// gavekort (under opbygning som selvstændigt salgsflow — tilføj et spørgsmål
+// her, når siden findes). Varighed, parkering, mad og tilgængelighed er
+// bekræftet 14. sep. 2026 og medtaget nedenfor.
 const FAQ: Array<{ question: string; answer: string }> = [
   {
     question: "Hvad er Bakkens Hvile?",
@@ -32,6 +32,11 @@ const FAQ: Array<{ question: string; answer: string }> = [
   {
     question: "Hvor ligger Bakkens Hvile?",
     answer: `Adressen er ${ADDRESS.streetAddress}, ${ADDRESS.postalCode} ${ADDRESS.addressLocality}. Huset ligger midt på Dyrehavsbakken ved Dyrehavens bøgeskov i Klampenborg, nord for København.`,
+  },
+  {
+    question: "Hvor kan man parkere?",
+    answer:
+      "Der parkeres via Bakkens parkering ved Dyrehavsbakken, hvorfra du går ind på Bakken til huset.",
   },
   {
     question: "Hvordan køber man billetter?",
@@ -43,6 +48,14 @@ const FAQ: Array<{ question: string; answer: string }> = [
     answer:
       "Der spilles over sommermånederne. De aktuelle spilledatoer og tider vises altid i billetkøbet, hvor du også kan se, om en dato er udsolgt.",
   },
+  ...(SHOW_DURATION_TEXT
+    ? [
+        {
+          question: "Hvor længe varer et show?",
+          answer: `Et show varer ${SHOW_DURATION_TEXT}.`,
+        },
+      ]
+    : []),
   {
     question: "Hvem er bakkesangerinderne?",
     answer: `Bakkesangerinderne — også kaldet syngepigerne — er sangerinderne på scenen i Bakkens Hvile. Sæsonens besætning er ${PERFORMERS.map((p) => p.name).join(", ")}, akkompagneret af kapelmester ${KAPELMESTER.name}.`,
@@ -53,8 +66,18 @@ const FAQ: Array<{ question: string; answer: string }> = [
       "Ja. Drikkevarer bestilles ved bordet under hele showet. Bestiller du drikkevarer online sammen med billetten senest kl. 12.00 på forestillingsdagen, får du 10 % rabat — herefter gælder de almindelige priser fra drikkekortet.",
   },
   {
+    question: "Serveres der mad?",
+    answer:
+      "Nej, der serveres ikke mad i Bakkens Hvile — kun drikkevarer, som bestilles ved bordet under showet.",
+  },
+  {
+    question: "Er der adgang for kørestolsbrugere?",
+    answer: `Ja. Enkelte borde i salen er indrettet til kørestolsbrugere. Skriv til ${CONTACT.email} i forvejen, så vi kan reservere et af dem til jer.`,
+  },
+  {
     question: "Kan bakkesangerinderne bookes til fester og arrangementer?",
-    answer: `Ja, sangerinderne kan bookes til at optræde ved fester og arrangementer. Send en forespørgsel med dato, sted og antal gæster til ${CONTACT.email}, så vender vi tilbage med muligheder og pris.`,
+    answer:
+      "Ja. Booking af sangerinderne til andre arrangementer sker direkte hos Tina Grunwald på tlf. 21 28 25 17.",
   },
   {
     question: "Hvornår fylder Bakkens Hvile 150 år?",

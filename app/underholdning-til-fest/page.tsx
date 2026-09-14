@@ -4,9 +4,8 @@ import type { Metadata } from "next";
 import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import JsonLd from "../components/JsonLd";
-import BookingForm from "../BookingForm";
 import { billeder } from "@/lib/billeder";
-import { CONTACT, FOUNDING_YEAR } from "@/lib/site-config";
+import { FOUNDING_YEAR } from "@/lib/site-config";
 import { pageMetadata, breadcrumbs } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata("fest");
@@ -18,12 +17,9 @@ export const metadata: Metadata = pageMetadata("fest");
 // særskilte sider (fx en firmafest-side), når der findes reelt forskelligt,
 // verificeret indhold til dem.
 //
-// TODO(redaktion): Følgende er IKKE dokumenteret i projektet og omtales derfor
-// ikke på siden — tilføj gerne, når det er bekræftet: pris/prisniveau,
-// geografisk dækningsområde, varighed af optræden, antal medvirkende,
-// tekniske krav (lyd/scene), transport, samt om showet kan tilpasses.
-// Ligeledes: om officielle firmapakker sælges via Bakken.dk — beskriv i så
-// fald relationen og link til den officielle side i stedet for egne pakker.
+// Ekstern booking er bevidst KUN en henvisning (bekræftet 14. sep. 2026):
+// booking sker direkte hos Tina Grunwald pr. telefon. Ingen priser, ingen
+// formular og ingen pakker på siden — tilføjes først, hvis det senere ønskes.
 export default function FestPage() {
   return (
     <main>
@@ -70,18 +66,16 @@ export default function FestPage() {
           <h2>Fødselsdag, jubilæum, julefrokost eller firmafest?</h2>
           <p>
             Uanset om anledningen er en rund fødselsdag, et jubilæum, en
-            julefrokost, en sommerfest eller en firmafest, er I velkomne til at
-            sende en forespørgsel. Fortæl os om jeres arrangement — dato, sted
-            og antal gæster — så vender vi tilbage med, hvad der kan lade sig
-            gøre, og hvad det koster.
+            julefrokost, en sommerfest eller en firmafest, kan sangerinderne
+            bookes til at optræde. Kontakt Tina Grunwald direkte for at høre om
+            muligheder og aftale det praktiske.
           </p>
 
-          <h2>Pris og praktik</h2>
+          <h2>Sådan booker du</h2>
           <p>
-            Pris og praktiske detaljer aftales individuelt ud fra jeres
-            arrangement. Skriv til{" "}
-            <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a> eller brug
-            formularen herunder for et uforpligtende svar.
+            Booking af sangerinderne til andre arrangementer sker direkte hos{" "}
+            <strong>Tina Grunwald</strong> på tlf.{" "}
+            <a href="tel:+4521282517">21 28 25 17</a>.
           </p>
 
           <h2>Eller hold festaftenen i Bakkens Hvile</h2>
@@ -93,11 +87,6 @@ export default function FestPage() {
             <Link href="/praktisk">praktisk information</Link>.
           </p>
 
-          <h2>Send en forespørgsel</h2>
-        </div>
-
-        <div className="bookWrap" style={{ marginTop: 24 }}>
-          <BookingForm />
         </div>
       </section>
 
