@@ -79,6 +79,12 @@ export const PAGES = {
     description:
       "Svar på de mest stillede spørgsmål om Bakkens Hvile: adresse og find vej, billetkøb, spilledatoer, drikkevarer ved bordet og booking af bakkesangerinderne.",
   },
+  gavekort: {
+    path: "/gavekort",
+    title: `Gavekort til ${SITE_NAME}`,
+    description:
+      "Køb et gavekort til Bakkens Hvile på Dyrehavsbakken — vælg selv beløbet. Gavekortet sendes til modtageren på e-mail med en unik kode og er gyldigt i 3 år.",
+  },
   english: {
     path: "/en",
     title: `Live show at Bakken near Copenhagen — ${SITE_NAME}`,

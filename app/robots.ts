@@ -30,6 +30,8 @@ export default function robots(): MetadataRoute.Robots {
           "/genbestil",
           "/success",
           "/afbrudt",
+          "/gavekort/kvittering",
+          "/gavekort/afbrudt",
         ],
       },
     ],

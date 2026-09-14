@@ -50,19 +50,17 @@ export function vivaCheckoutUrl(orderCode: string, env: VivaEnv = getVivaEnv()):
  * beholdes som fallback, så bordbestillingen ikke knækker, hvis de nye variabler
  * ikke er sat endnu.
  */
-export function vivaSourceCode(kind: "table" | "tickets"): string {
+export function vivaSourceCode(kind: "table" | "tickets" | "gavekort"): string {
   const fallback = process.env.VIVA_SOURCE_CODE || "";
-  const specific =
+  const envName =
     kind === "table"
-      ? process.env.VIVA_SOURCE_CODE_TABLE
-      : process.env.VIVA_SOURCE_CODE_TICKETS;
-  const code = specific || fallback;
+      ? "VIVA_SOURCE_CODE_TABLE"
+      : kind === "gavekort"
+        ? "VIVA_SOURCE_CODE_GAVEKORT"
+        : "VIVA_SOURCE_CODE_TICKETS";
+  const code = process.env[envName] || fallback;
   if (!code) {
-    throw new Error(
-      `Viva source code mangler (${kind}): sæt VIVA_SOURCE_CODE_${
-        kind === "table" ? "TABLE" : "TICKETS"
-      } eller VIVA_SOURCE_CODE`
-    );
+    throw new Error(`Viva source code mangler (${kind}): sæt ${envName} eller VIVA_SOURCE_CODE`);
   }
   return code;
 }
