@@ -5,26 +5,16 @@ import { useState } from "react";
 // Klientformular til køb af gavekort. Sender kun beløb + kontaktoplysninger til
 // serveren (aldrig en færdig pris). Ved svar { url } sendes gæsten til Vivas
 // Smart Checkout. Validering her spejler serverens — serveren er autoritativ.
+//
+// Felterne bruger .bookField fra globals.css — samme klasse som booking-
+// formularen. Tidligere satte filen sine egne inline-styles med tokens, der
+// ikke findes (--bh-cream/--border), så baggrunden faldt tilbage til hvid,
+// mens teksten arvede sidens næsten hvide --paper: hvid tekst på hvid bund.
+// Genbrug af klassen giver baggrund, tekstfarve, placeholder og fokus-ring
+// ét sted og holder formularen i sync med resten af sitet.
 
 const MIN_KR = 100;
 const MAX_KR = 5000;
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  fontSize: 16,
-  border: "1px solid var(--border, #cfc8b6)",
-  borderRadius: 4,
-  background: "var(--bh-cream, #fff)",
-  color: "inherit",
-  boxSizing: "border-box",
-};
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 14,
-  fontWeight: 600,
-  margin: "16px 0 6px",
-};
 
 function isEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -91,82 +81,77 @@ export default function GavekortForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate style={{ maxWidth: 520 }}>
-      <label style={labelStyle} htmlFor="gk-amount">
-        Beløb (hele kroner)
-      </label>
-      <input
-        id="gk-amount"
-        style={inputStyle}
-        type="number"
-        inputMode="numeric"
-        min={MIN_KR}
-        max={MAX_KR}
-        step={1}
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        placeholder={`Fx 500 (mellem ${MIN_KR} og ${MAX_KR})`}
-        required
-      />
+      <div className="bookField">
+        <label htmlFor="gk-amount">Beløb (hele kroner)</label>
+        <input
+          id="gk-amount"
+          type="number"
+          inputMode="numeric"
+          min={MIN_KR}
+          max={MAX_KR}
+          step={1}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder={`Fx 500 (mellem ${MIN_KR} og ${MAX_KR})`}
+          required
+        />
+      </div>
 
-      <label style={labelStyle} htmlFor="gk-recipient">
-        Modtagerens e-mail
-      </label>
-      <input
-        id="gk-recipient"
-        style={inputStyle}
-        type="email"
-        value={recipientEmail}
-        onChange={(e) => setRecipientEmail(e.target.value)}
-        placeholder="Gavekortet sendes hertil"
-        required
-      />
+      <div className="bookField" style={{ marginTop: 20 }}>
+        <label htmlFor="gk-recipient">Modtagerens e-mail</label>
+        <input
+          id="gk-recipient"
+          type="email"
+          value={recipientEmail}
+          onChange={(e) => setRecipientEmail(e.target.value)}
+          placeholder="Gavekortet sendes hertil"
+          required
+        />
+      </div>
 
-      <label style={labelStyle} htmlFor="gk-name">
-        Dit navn
-      </label>
-      <input
-        id="gk-name"
-        style={inputStyle}
-        type="text"
-        value={purchaserName}
-        onChange={(e) => setPurchaserName(e.target.value)}
-        required
-      />
+      <div className="bookField" style={{ marginTop: 20 }}>
+        <label htmlFor="gk-name">Dit navn</label>
+        <input
+          id="gk-name"
+          type="text"
+          value={purchaserName}
+          onChange={(e) => setPurchaserName(e.target.value)}
+          required
+        />
+      </div>
 
-      <label style={labelStyle} htmlFor="gk-email">
-        Din e-mail (kvittering)
-      </label>
-      <input
-        id="gk-email"
-        style={inputStyle}
-        type="email"
-        value={purchaserEmail}
-        onChange={(e) => setPurchaserEmail(e.target.value)}
-        required
-      />
+      <div className="bookField" style={{ marginTop: 20 }}>
+        <label htmlFor="gk-email">Din e-mail (kvittering)</label>
+        <input
+          id="gk-email"
+          type="email"
+          value={purchaserEmail}
+          onChange={(e) => setPurchaserEmail(e.target.value)}
+          required
+        />
+      </div>
 
-      <label style={labelStyle} htmlFor="gk-phone">
-        Dit telefonnummer (valgfrit)
-      </label>
-      <input
-        id="gk-phone"
-        style={inputStyle}
-        type="tel"
-        value={purchaserPhone}
-        onChange={(e) => setPurchaserPhone(e.target.value)}
-      />
+      <div className="bookField" style={{ marginTop: 20 }}>
+        <label htmlFor="gk-phone">Dit telefonnummer (valgfrit)</label>
+        <input
+          id="gk-phone"
+          type="tel"
+          value={purchaserPhone}
+          onChange={(e) => setPurchaserPhone(e.target.value)}
+        />
+      </div>
 
-      <label style={labelStyle} htmlFor="gk-message">
-        Hilsen til modtageren (valgfrit)
-      </label>
-      <textarea
-        id="gk-message"
-        style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
-        maxLength={300}
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="Vises i gavekort-mailen"
-      />
+      <div className="bookField" style={{ marginTop: 20 }}>
+        <label htmlFor="gk-message">Hilsen til modtageren (valgfrit)</label>
+        <textarea
+          id="gk-message"
+          style={{ minHeight: 80 }}
+          maxLength={300}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Vises i gavekort-mailen"
+        />
+      </div>
 
       <label style={{ display: "flex", gap: 10, alignItems: "flex-start", margin: "18px 0 0", fontSize: 14 }}>
         <input

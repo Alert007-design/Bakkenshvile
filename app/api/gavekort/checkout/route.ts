@@ -64,8 +64,9 @@ export async function POST(req: NextRequest) {
   const giftCardNo = generateGiftCardNo();
 
   try {
-    // Live-spærringen (fail-closed) ligger i "tickets"-scopet, som gavekort deler.
-    const provider = getPaymentProvider("tickets");
+    // Live-spærringen (fail-closed) ligger i gavekortets EGET scope, så salget
+    // kan gå live, mens billetsalget stadig er under test (GAVEKORT_LIVE).
+    const provider = getPaymentProvider("gavekort");
     const payment = await provider.createPayment({
       orderId: giftCardNo,
       orderNumber: giftCardNo,
@@ -95,7 +96,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: payment.redirectUrl });
   } catch (err) {
-    console.error("Gavekort-checkout fejlede");
+    // Årsagen SKAL med i loggen — uden den er en 500 her udiagnosticerbar i
+    // produktion (gæsten ser kun "Kunne ikke starte betalingen"). Kun message
+    // tages med: fejlbeskederne i kaldkæden er bevidst fri for hemmeligheder
+    // (Viva-svarbodies logges aldrig, kun HTTP-status).
+    console.error("Gavekort-checkout fejlede", {
+      reason: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json(
       { error: "Kunne ikke starte betalingen. Prøv igen om lidt." },
       { status: 500 }

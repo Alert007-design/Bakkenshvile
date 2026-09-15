@@ -10,10 +10,14 @@ miljøvariablerne FØR domænet peger hertil, så betaling og webhooks er klar,
 når trafikken kommer.
 
 1. **Vercel-miljøvariabler** (Production): `SITE_URL=https://bakkenshvile.dk`,
-   `VIVA_ENV=live`, `TICKETS_LIVE=true`, samt `VIVA_CLIENT_ID`,
-   `VIVA_CLIENT_SECRET`, `VIVA_MERCHANT_ID`, `VIVA_API_KEY`,
-   `VIVA_WEBHOOK_TOKEN` (selvvalgt), `VIVA_SOURCE_CODE_TICKETS` og — til
-   gavekort — `VIVA_SOURCE_CODE_GAVEKORT`. Redeploy.
+   `VIVA_ENV=live`, samt `VIVA_CLIENT_ID`, `VIVA_CLIENT_SECRET`,
+   `VIVA_MERCHANT_ID`, `VIVA_API_KEY`, `VIVA_WEBHOOK_TOKEN` (selvvalgt),
+   `VIVA_SOURCE_CODE_TICKETS` og — til gavekort — `VIVA_SOURCE_CODE_GAVEKORT`.
+
+   Live-flagene sættes pr. flow og er afkoblede: `TICKETS_LIVE=true` åbner
+   billetsalget, `GAVEKORT_LIVE=true` gavekortet, `TABLE_ORDERING_LIVE=true`
+   bordbestillingen. Sæt kun dem, der faktisk skal live — de øvrige fejler
+   fortsat lukket. Redeploy.
 2. **Viva — success/fejl-URL** pr. betalingskilde (Salg → Online Betalinger →
    Hjemmesider/apps):
    - Billet-kilden: success `https://bakkenshvile.dk/success`, fejl

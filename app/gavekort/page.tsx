@@ -26,14 +26,13 @@ export default function GavekortPage() {
           <p className="eyebrow">Gavekort</p>
           <h1>Gavekort til Bakkens Hvile</h1>
           <p className="lead">
-            Forær en aften med skønsang og syngende samfundssatire på
-            Dyrehavsbakken. Du vælger selv beløbet.
+            Giv en aften med sang, satire og godt selskab i Danmarks ældste
+            cabaret. Du vælger beløbet – vi sørger for resten.
           </p>
           <p>
-            Gavekortet sendes på e-mail til modtageren med en unik kode og er
-            gyldigt i 3 år fra købsdatoen. Det indløses ved at skrive til
-            kontor@bakkenshvile.dk med koden eller vise koden i døren. Alle beløb
-            er inkl. moms.
+            Gavekortet sendes som e-mail til modtageren med en personlig kode og
+            gælder i 3 år. Det indløses ved bestilling via kontor@bakkenshvile.dk
+            eller ved fremvisning i døren. Alle beløb er inkl. moms.
           </p>
         </div>
 

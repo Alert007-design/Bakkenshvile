@@ -11,6 +11,7 @@ const ENV_KEYS = [
   "VIVA_ENV",
   "TABLE_ORDERING_LIVE",
   "TICKETS_LIVE",
+  "GAVEKORT_LIVE",
 ] as const;
 const saved: Record<string, string | undefined> = {};
 for (const k of ENV_KEYS) saved[k] = process.env[k];
@@ -32,12 +33,14 @@ describe("getConfiguredProviderName", () => {
 });
 
 describe("assertVivaLiveAllowed — fail-closed live-værn pr. flow", () => {
-  it("tillader demo uanset flag (begge scopes)", () => {
+  it("tillader demo uanset flag (alle scopes)", () => {
     process.env.VIVA_ENV = "demo";
     delete process.env.TABLE_ORDERING_LIVE;
     delete process.env.TICKETS_LIVE;
+    delete process.env.GAVEKORT_LIVE;
     expect(() => assertVivaLiveAllowed("tickets")).not.toThrow();
     expect(() => assertVivaLiveAllowed("table")).not.toThrow();
+    expect(() => assertVivaLiveAllowed("gavekort")).not.toThrow();
   });
 
   it("tickets: kaster i live uden TICKETS_LIVE, tillader med", () => {
@@ -56,6 +59,14 @@ describe("assertVivaLiveAllowed — fail-closed live-værn pr. flow", () => {
     expect(() => assertVivaLiveAllowed("table")).not.toThrow();
   });
 
+  it("gavekort: kaster i live uden GAVEKORT_LIVE, tillader med", () => {
+    process.env.VIVA_ENV = "live";
+    delete process.env.GAVEKORT_LIVE;
+    expect(() => assertVivaLiveAllowed("gavekort")).toThrow();
+    process.env.GAVEKORT_LIVE = "true";
+    expect(() => assertVivaLiveAllowed("gavekort")).not.toThrow();
+  });
+
   it("flowene er AFKOBLEDE: bord-flaget åbner ikke for billetter, og omvendt", () => {
     process.env.VIVA_ENV = "live";
     // Kun bordbestillingen er live → billetter må stadig ikke gå live.
@@ -69,6 +80,27 @@ describe("assertVivaLiveAllowed — fail-closed live-værn pr. flow", () => {
     delete process.env.TABLE_ORDERING_LIVE;
     expect(() => assertVivaLiveAllowed("tickets")).not.toThrow();
     expect(() => assertVivaLiveAllowed("table")).toThrow();
+  });
+
+  // Husets aktuelle situation: gavekortet skal kunne sælges live, mens
+  // billetsalget endnu ikke er gået live. Uden det egne flag ville gavekortet
+  // arve TICKETS_LIVE og enten være spærret eller tvinge billetter live.
+  it("gavekort kan gå live ALENE — billet og bord forbliver spærret", () => {
+    process.env.VIVA_ENV = "live";
+    process.env.GAVEKORT_LIVE = "true";
+    delete process.env.TICKETS_LIVE;
+    delete process.env.TABLE_ORDERING_LIVE;
+    expect(() => assertVivaLiveAllowed("gavekort")).not.toThrow();
+    expect(() => assertVivaLiveAllowed("tickets")).toThrow();
+    expect(() => assertVivaLiveAllowed("table")).toThrow();
+  });
+
+  it("TICKETS_LIVE åbner IKKE længere for gavekort", () => {
+    process.env.VIVA_ENV = "live";
+    process.env.TICKETS_LIVE = "true";
+    delete process.env.GAVEKORT_LIVE;
+    expect(() => assertVivaLiveAllowed("tickets")).not.toThrow();
+    expect(() => assertVivaLiveAllowed("gavekort")).toThrow();
   });
 });
 

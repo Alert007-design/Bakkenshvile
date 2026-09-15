@@ -46,12 +46,21 @@ verifikation (GET) svarer koden selv med nøglen — det kræver kun, at
 
 ## 5. Slå live til (fail-closed indtil da)
 
+Hvert flow har sit eget live-flag, og de er bevidst afkoblede: gavekortet kan gå
+live, mens billetsalget stadig er under test. Sæt kun dem, du faktisk vil åbne —
+alle defaulter til `false` og spærrer fail-closed.
+
 | Vercel-variabel | Værdi |
 |---|---|
 | `VIVA_ENV` | `live` |
-| `TICKETS_LIVE` | `true` (dækker billetter OG gavekort) |
+| `GAVEKORT_LIVE` | `true` (kun når gavekort skal live) |
+| `TICKETS_LIVE` | `true` (kun når billetsalget skal live) |
 | `TABLE_ORDERING_LIVE` | `true` (kun når bordbestilling skal live) |
 | `SITE_URL` | `https://bakkenshvile.dk` |
+
+Skal **kun gavekortet** live nu, er det `VIVA_ENV=live` + `GAVEKORT_LIVE=true`.
+Lad `TICKETS_LIVE` og `TABLE_ORDERING_LIVE` være usat — billet- og bordflowet
+fejler så fortsat lukket, præcis som i dag.
 
 Redeploy til sidst. Verificér med et testkøb i live-miljøet: bekræft
 webhook-kvittering, billet-/gavekort-mail og at success-siden viser "gennemført".
