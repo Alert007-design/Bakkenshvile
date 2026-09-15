@@ -164,7 +164,8 @@ export async function markGiftCardPaidByRef(
           RETURNING *`,
         [params.paymentRef, code, expiresIso]
       );
-      if (res.rowCount && res.rows[0]) {
+      // RETURNING gør resultatet driver-uafhængigt (pglite har ikke rowCount).
+      if (res.rows[0]) {
         return { status: "paid", card: mapRow(res.rows[0]) };
       }
       // Ingen række opdateret: en anden vandt overgangen, eller status skiftede.
@@ -197,7 +198,7 @@ export async function markGiftCardFailedByRef(db: Queryable, paymentRef: string)
     "UPDATE gift_cards SET status = 'failed' WHERE payment_ref = $1 AND status = 'pending' RETURNING payment_ref",
     [paymentRef]
   );
-  return !!res.rowCount;
+  return res.rows.length > 0;
 }
 
 export async function markGiftCardRefundedByRef(db: Queryable, paymentRef: string): Promise<boolean> {
@@ -205,7 +206,7 @@ export async function markGiftCardRefundedByRef(db: Queryable, paymentRef: strin
     "UPDATE gift_cards SET status = 'refunded' WHERE payment_ref = $1 AND status = 'paid' RETURNING payment_ref",
     [paymentRef]
   );
-  return !!res.rowCount;
+  return res.rows.length > 0;
 }
 
 export type MarkGiftCardUsedResult =
@@ -227,7 +228,7 @@ export async function markGiftCardUsed(
       RETURNING *`,
     [normalized, usedBy]
   );
-  if (res.rowCount && res.rows[0]) {
+  if (res.rows[0]) {
     return { status: "used", card: mapRow(res.rows[0]) };
   }
   const current = await getGiftCardByCode(db, normalized);
