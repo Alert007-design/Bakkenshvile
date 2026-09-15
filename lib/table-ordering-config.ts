@@ -16,8 +16,8 @@ export const CHECKOUT_RATE_WINDOW_MS = 60_000; // pr. minut
 
 // --- Sikkerhedskontakter (default false) --------------------------------------
 // Ingen del af systemet må tage imod bestillinger før ENABLED er true, og ingen
-// livebetaling må ske før LIVE er true OG lovpligtig salgsregistrering er
-// konfigureret.
+// livebetaling må ske før LIVE er true. Salgsregistrering er ikke længere en
+// forudsætning — se SALES_REGISTRATION i lib/sales-registration.ts.
 
 export function isOrderingEnabled(): boolean {
   return process.env.TABLE_ORDERING_ENABLED === "true";

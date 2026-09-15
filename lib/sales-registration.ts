@@ -1,16 +1,18 @@
-// Grænseflade til husets lovpligtige digitale salgsregistrering.
+// Grænseflade til registrering af salg fra QR-bordbestillingen.
 //
-// Kassesystemet er endnu ikke afklaret. Derfor:
-//  - I TESTTILSTAND (TABLE_ORDERING_LIVE=false) registreres salg som testdata
-//    (CSV/spejling til intern kontrol) — dette er IKKE en godkendt
-//    produktionsløsning.
-//  - I LIVE-TILSTAND fejler modulet LUKKET, indtil et lovligt
-//    salgsregistreringssystem er koblet på. Ingen livebetaling må registreres
-//    "løst" og efterregistreres manuelt.
+// Huset er registreret som teater og er efter husets egen afklaring ikke
+// omfattet af kravet om digitalt salgsregistreringssystem. Live-tilstand fejler
+// derfor ikke længere lukket: standarden i live er "none", som registrerer
+// ordren i loggen uden at kalde et kassesystem.
 //
-// Når kassesystemet er valgt, tilføjes en LiveSalesRegistration-implementering,
-// der registrerer betalingen korrekt, gemmer transaktions-ID og håndterer moms
-// og refundering.
+// Tilstanden vælges med SALES_REGISTRATION (none | test | live):
+//   none  Ingen ekstern registrering. Ordren logges. Standard i live-tilstand.
+//   test  Testdata (CSV/spejling til intern kontrol). Standard uden live.
+//   live  Eksternt kassesystem. Kroggen er bevaret: skal huset senere alligevel
+//         koble et system på, erstattes UnconfiguredLiveSalesRegistration af en
+//         rigtig implementering, og SALES_REGISTRATION sættes til "live".
+//         Indtil da fejler "live" bevidst lukket, så tilstanden ikke kan vælges
+//         i den tro, at der registreres noget.
 
 import { isLiveMode } from "@/lib/table-ordering-config";
 
@@ -43,9 +45,12 @@ export interface RefundedOrder {
   refundedAt: string;
 }
 
+/** Hvordan salget registreres. Se filens hoved for valget mellem dem. */
+export type SalesRegistrationMode = "none" | "test" | "live";
+
 export interface RegistrationResult {
   ok: boolean;
-  mode: "test" | "live";
+  mode: SalesRegistrationMode;
   reference?: string;
 }
 
@@ -117,8 +122,47 @@ export class TestSalesRegistration implements SalesRegistration {
 }
 
 /**
- * Live-tilstand uden konfigureret system: fejler LUKKET. Så snart et lovligt
- * kassesystem er valgt, erstattes denne af en rigtig implementering.
+ * Ingen ekstern salgsregistrering. Ordren skrives til loggen, så der findes et
+ * driftsspor, og flowet fortsætter. Standard i live-tilstand, fordi huset som
+ * teater ikke er omfattet af kravet om digitalt salgsregistreringssystem.
+ *
+ * Beløb logges i øre præcis som de står på ordren — aldrig omregnet her.
+ */
+export class NoSalesRegistration implements SalesRegistration {
+  constructor(private log: (msg: string) => void = console.info) {}
+
+  async registerPaidOrder(order: PaidOrder): Promise<RegistrationResult> {
+    this.log(
+      `Salg registreret (ingen ekstern registrering): ${order.orderNumber} · ` +
+        `event ${order.eventId} · bord ${order.tableNumber} · ` +
+        `${order.totalOre} øre (moms ${order.vatOre} øre) · ${order.paidAt}`
+    );
+    return { ok: true, mode: "none", reference: order.orderNumber };
+  }
+
+  async registerRefund(order: RefundedOrder): Promise<RegistrationResult> {
+    this.log(
+      `Refundering registreret (ingen ekstern registrering): ` +
+        `${order.orderNumber} · ${order.totalOre} øre · ${order.refundedAt}`
+    );
+    return { ok: true, mode: "none", reference: order.orderNumber };
+  }
+
+  /**
+   * Ingen ekstern dagsafslutning at kalde. Returnerer et tomt resultat frem for
+   * at kaste, så en dagsafslutning i baren ikke vælter på noget, huset ikke
+   * bruger. Tallene hentes fra ordretabellen, ikke herfra.
+   */
+  async closeBusinessDay(eventId: string): Promise<DailyCloseResult> {
+    return { eventId, paidCount: 0, grossOre: 0, refundedOre: 0, netOre: 0 };
+  }
+}
+
+/**
+ * Bevaret krog til et eksternt kassesystem. Vælges kun med
+ * SALES_REGISTRATION=live og fejler LUKKET, indtil en rigtig implementering
+ * træder i stedet — så tilstanden aldrig kan vælges i den tro, at der
+ * registreres noget.
  */
 const NOT_CONFIGURED =
   "Lovpligtig salgsregistrering er ikke konfigureret. Livebetaling kan ikke gennemføres.";
@@ -137,14 +181,29 @@ export class UnconfiguredLiveSalesRegistration implements SalesRegistration {
 }
 
 /**
- * Vælger implementering ud fra tilstand. I live-tilstand returneres den
- * fail-closed-implementering, indtil et rigtigt system er koblet på.
+ * Den valgte tilstand. SALES_REGISTRATION vinder, når den er sat til en kendt
+ * værdi; ellers afgøres den af driftstilstanden: "none" i live, "test" udenfor.
+ * En ukendt værdi ignoreres bevidst frem for at kaste, så en slåfejl i Vercel
+ * ikke lukker bordbestillingen ned.
  */
+export function getSalesRegistrationMode(): SalesRegistrationMode {
+  const configured = process.env.SALES_REGISTRATION;
+  if (configured === "none" || configured === "test" || configured === "live") {
+    return configured;
+  }
+  return isLiveMode() ? "none" : "test";
+}
+
+/** Vælger implementering ud fra tilstanden. */
 export function getSalesRegistration(
   testSink?: (rows: string[]) => Promise<void> | void
 ): SalesRegistration {
-  if (isLiveMode()) {
-    return new UnconfiguredLiveSalesRegistration();
+  switch (getSalesRegistrationMode()) {
+    case "live":
+      return new UnconfiguredLiveSalesRegistration();
+    case "test":
+      return new TestSalesRegistration(testSink);
+    case "none":
+      return new NoSalesRegistration();
   }
-  return new TestSalesRegistration(testSink);
 }

@@ -280,8 +280,7 @@ eneste værn mod dobbeltordrer. Skema i `migrations/001_table_orders.sql`:
 ### Sikkerhedskontakter for livebetaling (bordbestilling)
 Bordbestillingen er **under opbygning og ikke i drift endnu**. To flag styrer den:
 - `TABLE_ORDERING_ENABLED` (default `false`) — intet tager imod bestillinger, før dette er `true`.
-- `TABLE_ORDERING_LIVE` (default `false`) — ingen livebetaling, før dette er `true`
-  **og** lovpligtig salgsregistrering er konfigureret.
+- `TABLE_ORDERING_LIVE` (default `false`) — ingen livebetaling, før dette er `true`.
 - En **live** Stripe-nøgle (`sk_live_`) afvises hårdt, hvis `TABLE_ORDERING_LIVE`
   ikke er `true` (`assertLivePaymentAllowed`).
 - For Viva håndhæves live-værnet **pr. flow** (`assertVivaLiveAllowed(scope)`,
@@ -302,11 +301,13 @@ Bordbestillingen er **under opbygning og ikke i drift endnu**. To flag styrer de
   (reversal) samt transaktionsstatus `"F"` (paid) udløser en tilstandsændring —
   der gættes ikke på andre koder. Vivas 16-cifrede `orderCode` læses altid som
   **streng** (aldrig som JavaScript-tal, der ville miste præcision).
-- **Lovpligtig digital salgsregistrering** (`lib/sales-registration.ts`):
-  kassesystemet er endnu ikke afklaret. I testtilstand registreres salg som
-  testdata (CSV, ikke godkendt produktion); i livetilstand **fejler modulet
-  lukket**, indtil et lovligt system er koblet på. Ingen livebetaling må
-  registreres "løst" og efterregistreres manuelt.
+- **Salgsregistrering** (`lib/sales-registration.ts`): huset er registreret som
+  teater og efter husets egen afklaring ikke omfattet af kravet om digitalt
+  salgsregistreringssystem. Tilstanden vælges med `SALES_REGISTRATION`
+  (`none` | `test` | `live`): `none` logger ordren uden ekstern registrering og
+  er standard i livetilstand, `test` skriver testdata (CSV) og er standard
+  udenfor. Krogen til et eksternt kassesystem er bevaret som `live`, der fejler
+  lukket, indtil en rigtig implementering er koblet på.
 
 ---
 
@@ -370,8 +371,8 @@ kode (rollback). Før **live** mangler:
   afkoblet pr. flow, så billetter kan gå live uafhængigt af bordbestillingen:
   billet/genbestilling kræver `TICKETS_LIVE=true`, bordbestilling kræver
   `TABLE_ORDERING_LIVE=true`.
-- **Bordbestilling** kræver desuden stadig et **lovligt kassesystem** til
-  salgsregistrering + `TABLE_ORDERING_*`-flag (uændret).
+- **Bordbestilling** kræver `TABLE_ORDERING_*`-flagene. Salgsregistrering er
+  ikke længere en forudsætning — se `SALES_REGISTRATION` ovenfor.
 
 **Billetpriser (server-autoritative):**
 - Flere samtidige events håndteres: `/book` viser alle kommende datoer, og
