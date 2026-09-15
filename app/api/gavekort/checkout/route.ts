@@ -64,8 +64,9 @@ export async function POST(req: NextRequest) {
   const giftCardNo = generateGiftCardNo();
 
   try {
-    // Live-spærringen (fail-closed) ligger i "tickets"-scopet, som gavekort deler.
-    const provider = getPaymentProvider("tickets");
+    // Live-spærringen (fail-closed) ligger i gavekortets EGET scope, så salget
+    // kan gå live, mens billetsalget stadig er under test (GAVEKORT_LIVE).
+    const provider = getPaymentProvider("gavekort");
     const payment = await provider.createPayment({
       orderId: giftCardNo,
       orderNumber: giftCardNo,
