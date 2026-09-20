@@ -154,6 +154,10 @@ export default function MailForhaandsvisning() {
   const mails = eksempler();
 
   return (
+    // Admin-siderne vises oven på sitets mørke tema. Uden en eksplicit hvid
+    // fuldside-baggrund står den mørke tekst på mørkeblå og kan ikke læses.
+    // Samme opbygning som /admin/fribillet.
+    <div style={{ background: "#fff", color: "#1a1a16", minHeight: "100vh" }}>
     <main
       style={{
         maxWidth: 860,
@@ -163,6 +167,21 @@ export default function MailForhaandsvisning() {
         color: "#1a1a16",
       }}
     >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 8,
+          fontSize: 14,
+        }}
+      >
+        <a href="/funktioner" style={{ color: "#0d3b2e", fontWeight: 600 }}>
+          ← Funktioner
+        </a>
+        <a href="/api/auth/logout" style={{ color: "#8a1f2b", fontWeight: 600 }}>
+          Log ud
+        </a>
+      </div>
       <h1 style={{ fontSize: 24, margin: "0 0 8px" }}>Forhåndsvisning af mails</h1>
       <p style={{ fontSize: 15, lineHeight: 1.6, margin: "0 0 4px" }}>
         Sådan ser husets mails ud med eksempeldata. Der bliver ikke sendt noget
@@ -202,5 +221,6 @@ export default function MailForhaandsvisning() {
         </section>
       ))}
     </main>
+    </div>
   );
 }

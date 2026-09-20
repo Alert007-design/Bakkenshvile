@@ -19,9 +19,9 @@ import {
 import { listShowDates } from "@/lib/events";
 import { getDb } from "@/lib/db";
 import {
-  frigivUdloebne,
-  genberegnTagne,
-  hentTagne,
+  frigivUdloebneForShows,
+  genberegnTagneForShows,
+  hentTagneForShows,
   registrerSalg,
 } from "@/lib/seat-holds";
 import {
@@ -70,6 +70,14 @@ async function hentBillettyper(): Promise<
 /**
  * Betalte bookinger på kommende forestillinger, som endnu ikke står i
  * pladsbogen. Både almindelige køb og fribilletter har status "Betalt".
+ *
+ * Det er sitets dyreste opslag: Airtable kan ikke slå mange bookinger op på én
+ * gang, så der skal ét kald til pr. booking, der ikke allerede er talt med.
+ * Airtable tillader kun 5 kald i sekundet, så det tager tid. Derfor:
+ *  - kald KUN denne, når listen faktisk skal bruges (ikke ved hvert sidevisning)
+ *  - bookinger, der allerede står i pladsbogen, springes over uden opslag
+ *  - gæstens navn hentes IKKE her; det slås først op for de få bookinger, der
+ *    ikke kan placeres automatisk, og som ejeren derfor skal se
  */
 async function hentBookingerDerMangler(
   showIds: string[]
@@ -82,9 +90,11 @@ async function hentBookingerDerMangler(
   const kendte = new Set(rows.map((r) => r.booking_id));
 
   const events = await cachedListRecords(TABLES.events, 60_000);
+  const relevante = new Set(showIds);
   const ud: BookingTilImport[] = [];
   for (const event of events) {
-    if (!showIds.includes(event.id)) continue;
+    if (!relevante.has(event.id)) continue;
+    const dato = String(event.fields[FIELDS.event.date] ?? "");
     const bookingIds =
       (event.fields[FIELDS.event.bookings] as string[] | undefined) ?? [];
     for (const bookingId of bookingIds) {
@@ -92,25 +102,13 @@ async function hentBookingerDerMangler(
       try {
         const b = await getRecord(TABLES.bookings, bookingId);
         if (statusNavn(b.fields[FIELDS.booking.status]) !== "Betalt") continue;
-        let kundenavn = "";
-        const kundeId = (b.fields[FIELDS.booking.customer] as
-          | string[]
-          | undefined)?.[0];
-        if (kundeId) {
-          try {
-            const k = await getRecord(TABLES.customers, kundeId);
-            kundenavn = String(k.fields[FIELDS.customer.name] ?? "");
-          } catch {
-            kundenavn = "";
-          }
-        }
         ud.push({
           bookingId,
           bookingNo: String(b.fields[FIELDS.booking.bookingNo] ?? ""),
           showId: event.id,
           ticketBreakdown: String(b.fields[FIELDS.booking.ticketBreakdown] ?? ""),
-          kundenavn,
-          dato: String(event.fields[FIELDS.event.date] ?? ""),
+          kundenavn: "",
+          dato,
         });
       } catch {
         // En booking, der ikke kan læses, springes ikke stille over: den
@@ -121,7 +119,7 @@ async function hentBookingerDerMangler(
           showId: event.id,
           ticketBreakdown: "",
           kundenavn: "",
-          dato: String(event.fields[FIELDS.event.date] ?? ""),
+          dato,
         });
       }
     }
@@ -129,9 +127,44 @@ async function hentBookingerDerMangler(
   return ud;
 }
 
+/**
+ * Slår gæstenavne op for de få bookinger, ejeren skal tage stilling til.
+ * Holdes adskilt fra opslaget ovenfor, så vi ikke henter et navn for hver
+ * eneste booking — kun for dem, der rent faktisk vises.
+ */
+async function tilfoejKundenavne(
+  uplacerede: { booking: BookingTilImport }[]
+): Promise<Map<string, string>> {
+  const navne = new Map<string, string>();
+  for (const u of uplacerede) {
+    try {
+      const b = await getRecord(TABLES.bookings, u.booking.bookingId);
+      const kundeId = (b.fields[FIELDS.booking.customer] as
+        | string[]
+        | undefined)?.[0];
+      if (!kundeId) continue;
+      const k = await getRecord(TABLES.customers, kundeId);
+      navne.set(u.booking.bookingId, String(k.fields[FIELDS.customer.name] ?? ""));
+    } catch {
+      // Uden navn vises bookingnummeret alene — bedre end at fejle.
+    }
+  }
+  return navne;
+}
+
 export async function GET(req: NextRequest) {
   const s = verifyStaffSession(req.cookies.get(STAFF_COOKIE_NAME)?.value);
   if (!s) return NextResponse.json({ error: "Log ind igen." }, { status: 401 });
+
+  // To slags svar, så siden kan vises hurtigt:
+  //   uden ?gamle=1 → selve overblikket. Tallene kommer fra vores egen
+  //     database i tre samlede kald, og Airtable læses kun gennem den cache,
+  //     siden alligevel bruger. Det er hurtigt, uanset hvor mange bookinger
+  //     der findes.
+  //   med ?gamle=1 → gennemgangen af gamle bookinger, som kræver ét
+  //     Airtable-opslag pr. booking og derfor tager tid. Hentes separat, efter
+  //     at overblikket er vist.
+  const kunGamle = req.nextUrl.searchParams.get("gamle") === "1";
 
   try {
     const db = getDb();
@@ -139,19 +172,51 @@ export async function GET(req: NextRequest) {
       listShowDates(),
       hentBillettyper(),
     ]);
+    const showIds = shows.map((s2) => s2.id);
 
-    const forestillinger = [];
-    for (const show of shows) {
-      await frigivUdloebne(db, show.id);
-      const oversigt = byggOversigt({
-        kapaciteter: kapaciteterFor(show.kapacitetsjustering),
-        tagne: await hentTagne(db, show.id),
-        manueltUdsolgt: show.soldOut,
-      });
+    if (kunGamle) {
+      const { placerede, uplacerede } = placerBookinger(
+        await hentBookingerDerMangler(showIds),
+        billettyper
+      );
+      const navne = await tilfoejKundenavne(uplacerede);
+      return NextResponse.json(
+        {
+          // Hvor mange gamle bookinger der venter på at blive talt med.
+          klarTilImport: placerede.length,
+          uplacerede: uplacerede.map((u) => ({
+            bookingId: u.booking.bookingId,
+            bookingNo: u.booking.bookingNo,
+            showId: u.booking.showId,
+            dato: u.booking.dato,
+            kundenavn: navne.get(u.booking.bookingId) ?? "",
+            tekst: u.booking.ticketBreakdown,
+            detalje: u.detalje,
+            aarsag: FEJLTEKST[u.fejl],
+          })),
+        },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Tre samlede databasekald i stedet for tre pr. forestilling.
+    await frigivUdloebneForShows(db, showIds);
+    const [tagne, genberegnede] = await Promise.all([
+      hentTagneForShows(db, showIds),
       // Tæl pladsbogens linjer sammen forfra, så en eventuel uenighed mellem
       // de fire tal og linjerne er synlig i stedet for skjult.
-      const genberegnet = await genberegnTagne(db, show.id);
-      forestillinger.push({
+      genberegnTagneForShows(db, showIds),
+    ]);
+
+    const nul = { aplusForrest: 0, aplusBagerst: 0, a: 0, b: 0 };
+    const forestillinger = shows.map((show) => {
+      const oversigt = byggOversigt({
+        kapaciteter: kapaciteterFor(show.kapacitetsjustering),
+        tagne: tagne.get(show.id) ?? nul,
+        manueltUdsolgt: show.soldOut,
+      });
+      const genberegnet = genberegnede.get(show.id) ?? nul;
+      return {
         id: show.id,
         titel: show.title,
         dato: show.date,
@@ -165,35 +230,15 @@ export async function GET(req: NextRequest) {
           tilbage: oversigt[k].tilbage,
           genberegnet: genberegnet[k],
         })),
-      });
-    }
+      };
+    });
 
     const manglerKategori = billettyper
       .filter((t) => t.kapacitetskategori === null)
       .map((t) => ({ id: t.id, navn: t.category, prisgruppe: t.prisgruppe }));
 
-    const { placerede, uplacerede } = placerBookinger(
-      await hentBookingerDerMangler(shows.map((s2) => s2.id)),
-      billettyper
-    );
-
     return NextResponse.json(
-      {
-        forestillinger,
-        manglerKategori,
-        // Hvor mange gamle bookinger der venter på at blive talt med.
-        klarTilImport: placerede.length,
-        uplacerede: uplacerede.map((u) => ({
-          bookingId: u.booking.bookingId,
-          bookingNo: u.booking.bookingNo,
-          showId: u.booking.showId,
-          dato: u.booking.dato,
-          kundenavn: u.booking.kundenavn,
-          tekst: u.booking.ticketBreakdown,
-          detalje: u.detalje,
-          aarsag: FEJLTEKST[u.fejl],
-        })),
-      },
+      { forestillinger, manglerKategori },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {

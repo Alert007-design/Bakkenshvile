@@ -17,7 +17,10 @@ import {
   frigivForBooking,
   frigivReservation,
   frigivUdloebne,
+  frigivUdloebneForShows,
   genberegnTagne,
+  genberegnTagneForShows,
+  hentTagneForShows,
   hentHoldsForBetaling,
   hentTagne,
   markerSolgt,
@@ -454,5 +457,130 @@ describe("frigivForBooking", () => {
     });
     await frigivForBooking(db, "recFri1");
     expect((await hentTagne(db, SHOW)).a).toBe(1);
+  });
+});
+
+// Adminoversigten viser mange forestillinger paa en gang. Uden samlede opslag
+// ville den lave tre databasekald PR. FORESTILLING, hvilket goer siden langsom.
+// De her funktioner henter alle forestillinger i eet kald hver.
+describe("samlede opslag for flere forestillinger", () => {
+  const SHOW2 = "recShow0000000002";
+
+  it("hentTagneForShows giver tallene for hver forestilling", async () => {
+    await reserverPladser(db, {
+      showId: SHOW,
+      bookingId: "recB1",
+      oensker: [{ kategori: "b", antal: 1 }],
+      kapaciteter: SMAA_LOFTER,
+      holdMinutter: 20,
+      kilde: "checkout",
+    });
+    await reserverPladser(db, {
+      showId: SHOW2,
+      bookingId: "recB2",
+      oensker: [{ kategori: "a", antal: 2 }],
+      kapaciteter: SMAA_LOFTER,
+      holdMinutter: 20,
+      kilde: "checkout",
+    });
+
+    const kort = await hentTagneForShows(db, [SHOW, SHOW2]);
+    expect(kort.get(SHOW)?.b).toBe(1);
+    expect(kort.get(SHOW2)?.a).toBe(2);
+  });
+
+  it("giver nuller for en forestilling, der aldrig har solgt noget", async () => {
+    const kort = await hentTagneForShows(db, ["recUkendt"]);
+    expect(kort.get("recUkendt")).toEqual({
+      aplusForrest: 0,
+      aplusBagerst: 0,
+      a: 0,
+      b: 0,
+    });
+  });
+
+  it("taaler en tom liste", async () => {
+    expect((await hentTagneForShows(db, [])).size).toBe(0);
+    await frigivUdloebneForShows(db, []);
+  });
+
+  it("frigivUdloebneForShows rydder op i alle forestillinger paa en gang", async () => {
+    for (const [show, booking] of [
+      [SHOW, "recB1"],
+      [SHOW2, "recB2"],
+    ] as const) {
+      await reserverPladser(db, {
+        showId: show,
+        bookingId: booking,
+        oensker: [{ kategori: "b", antal: 1 }],
+        kapaciteter: SMAA_LOFTER,
+        holdMinutter: 20,
+        kilde: "checkout",
+      });
+    }
+    await db.query(
+      "UPDATE seat_holds SET expires_at = now() - interval '1 minute'"
+    );
+
+    await frigivUdloebneForShows(db, [SHOW, SHOW2]);
+    const kort = await hentTagneForShows(db, [SHOW, SHOW2]);
+    expect(kort.get(SHOW)?.b).toBe(0);
+    expect(kort.get(SHOW2)?.b).toBe(0);
+  });
+
+  it("rydder ikke op i forestillinger, der ikke staar paa listen", async () => {
+    await reserverPladser(db, {
+      showId: SHOW2,
+      bookingId: "recB2",
+      oensker: [{ kategori: "b", antal: 1 }],
+      kapaciteter: SMAA_LOFTER,
+      holdMinutter: 20,
+      kilde: "checkout",
+    });
+    await db.query(
+      "UPDATE seat_holds SET expires_at = now() - interval '1 minute'"
+    );
+
+    await frigivUdloebneForShows(db, [SHOW]);
+    expect((await hentTagne(db, SHOW2)).b).toBe(1);
+  });
+
+  it("genberegnTagneForShows taeller linjerne sammen pr. forestilling", async () => {
+    await registrerSalg(db, {
+      showId: SHOW,
+      bookingId: "recFri1",
+      oensker: [{ kategori: "a", antal: 2 }],
+      kilde: "fribillet",
+    });
+    await registrerSalg(db, {
+      showId: SHOW2,
+      bookingId: "recFri2",
+      oensker: [{ kategori: "b", antal: 1 }],
+      kilde: "fribillet",
+    });
+
+    const kort = await genberegnTagneForShows(db, [SHOW, SHOW2]);
+    expect(kort.get(SHOW)?.a).toBe(2);
+    expect(kort.get(SHOW2)?.b).toBe(1);
+    expect(kort.get(SHOW)?.b).toBe(0);
+  });
+
+  it("de samlede opslag giver samme svar som de enkelte", async () => {
+    await reserverPladser(db, {
+      showId: SHOW,
+      bookingId: "recB1",
+      oensker: [
+        { kategori: "aplusForrest", antal: 2 },
+        { kategori: "b", antal: 1 },
+      ],
+      kapaciteter: SMAA_LOFTER,
+      holdMinutter: 20,
+      kilde: "checkout",
+    });
+    const samlet = await hentTagneForShows(db, [SHOW]);
+    expect(samlet.get(SHOW)).toEqual(await hentTagne(db, SHOW));
+
+    const samletGen = await genberegnTagneForShows(db, [SHOW]);
+    expect(samletGen.get(SHOW)).toEqual(await genberegnTagne(db, SHOW));
   });
 });

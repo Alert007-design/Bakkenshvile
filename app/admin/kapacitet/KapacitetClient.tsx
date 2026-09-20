@@ -38,6 +38,10 @@ type Uplaceret = {
 type Oversigt = {
   forestillinger: Forestilling[];
   manglerKategori: { id: string; navn: string; prisgruppe: string }[];
+};
+
+/** Gennemgangen af gamle bookinger — hentes for sig, fordi den tager tid. */
+type GamleBookinger = {
   klarTilImport: number;
   uplacerede: Uplaceret[];
 };
@@ -48,6 +52,15 @@ const KATEGORI_VALG = [
   { vaerdi: "a", tekst: "A (7.-9. række)" },
   { vaerdi: "b", tekst: "B (10. række)" },
 ];
+
+// Admin-siderne vises oven på sitets mørke tema. Uden en eksplicit hvid
+// fuldside-baggrund står den mørke tekst på mørkeblå og kan ikke læses.
+// Samme opbygning som /admin/fribillet.
+const sideWrap: React.CSSProperties = {
+  background: "#fff",
+  color: "#1a1a16",
+  minHeight: "100vh",
+};
 
 const side: React.CSSProperties = {
   maxWidth: 1000,
@@ -73,11 +86,14 @@ const celle: React.CSSProperties = {
 
 export default function KapacitetClient({ csrf }: { csrf: string }) {
   const [data, setData] = useState<Oversigt | null>(null);
+  const [gamle, setGamle] = useState<GamleBookinger | null>(null);
+  const [gamleFejl, setGamleFejl] = useState<string | null>(null);
   const [fejl, setFejl] = useState<string | null>(null);
   const [arbejder, setArbejder] = useState(false);
   const [besked, setBesked] = useState<string | null>(null);
   const [valg, setValg] = useState<Record<string, string>>({});
 
+  // Overblikket. Kommer hurtigt: alle tal hentes fra vores egen database.
   const hent = useCallback(async () => {
     setFejl(null);
     try {
@@ -90,9 +106,31 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
     }
   }, []);
 
+  // Gennemgangen af gamle bookinger. Kræver ét Airtable-opslag pr. booking og
+  // tager derfor tid — derfor hentes den for sig, EFTER at overblikket er vist.
+  const hentGamle = useCallback(async () => {
+    setGamleFejl(null);
+    setGamle(null);
+    try {
+      const res = await fetch("/api/admin/kapacitet?gamle=1", {
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Kunne ikke gennemgå bookinger.");
+      setGamle(json);
+    } catch (e) {
+      setGamleFejl(e instanceof Error ? e.message : "Noget gik galt");
+    }
+  }, []);
+
   useEffect(() => {
     hent();
   }, [hent]);
+
+  // Først når overblikket står på skærmen, går den langsomme gennemgang i gang.
+  useEffect(() => {
+    if (data && gamle === null && gamleFejl === null) hentGamle();
+  }, [data, gamle, gamleFejl, hentGamle]);
 
   async function send(krop: Record<string, unknown>, svartekst: (d: any) => string) {
     setArbejder(true);
@@ -108,6 +146,7 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
       if (!res.ok) throw new Error(json.error || "Noget gik galt");
       setBesked(svartekst(json));
       await hent();
+      await hentGamle();
     } catch (e) {
       setFejl(e instanceof Error ? e.message : "Noget gik galt");
     } finally {
@@ -117,23 +156,45 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
 
   if (fejl && !data) {
     return (
-      <main style={side}>
-        <h1>Pladser og kapacitet</h1>
-        <p style={{ color: "#a00" }} role="alert">{fejl}</p>
-      </main>
+      <div style={sideWrap}>
+        <main style={side}>
+          <h1 style={{ fontSize: 24, margin: "0 0 12px" }}>Pladser og kapacitet</h1>
+          <p style={{ color: "#a00", fontSize: 15 }} role="alert">{fejl}</p>
+        </main>
+      </div>
     );
   }
   if (!data) {
     return (
-      <main style={side}>
-        <h1>Pladser og kapacitet</h1>
-        <p>Henter tal …</p>
-      </main>
+      <div style={sideWrap}>
+        <main style={side}>
+          <h1 style={{ fontSize: 24, margin: "0 0 12px" }}>Pladser og kapacitet</h1>
+          <p style={{ fontSize: 16, lineHeight: 1.6 }} role="status">
+            Henter tallene fra pladsbogen …
+          </p>
+        </main>
+      </div>
     );
   }
 
   return (
+    <div style={sideWrap}>
     <main style={side}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 8,
+          fontSize: 14,
+        }}
+      >
+        <a href="/funktioner" style={{ color: "#0d3b2e", fontWeight: 600 }}>
+          ← Funktioner
+        </a>
+        <a href="/api/auth/logout" style={{ color: "#8a1f2b", fontWeight: 600 }}>
+          Log ud
+        </a>
+      </div>
       <h1 style={{ fontSize: 24, margin: "0 0 6px" }}>Pladser og kapacitet</h1>
       <p style={{ fontSize: 15, lineHeight: 1.6, margin: "0 0 24px" }}>
         Standardkapaciteten er 58 + 60 + 42 + 12 = 172 billetter. Vil du ændre
@@ -187,11 +248,20 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
       <div style={kort}>
         <strong>Bookinger fra før dette system</strong>
         <p style={{ margin: "6px 0 10px", fontSize: 14, lineHeight: 1.6 }}>
-          {data.klarTilImport > 0
-            ? `${data.klarTilImport} betalte booking${
-                data.klarTilImport === 1 ? "" : "er"
-              } på kommende forestillinger er endnu ikke talt med. Tryk for at tælle dem med. Knappen kan trykkes flere gange uden at tælle dobbelt.`
-            : "Alle betalte bookinger på kommende forestillinger er talt med."}
+          {gamleFejl ? (
+            <span style={{ color: "#a00" }}>{gamleFejl}</span>
+          ) : !gamle ? (
+            <span role="status">
+              Gennemgår bookingerne i Airtable … Det tager et øjeblik, fordi
+              hver booking skal slås op for sig.
+            </span>
+          ) : gamle.klarTilImport > 0 ? (
+            `${gamle.klarTilImport} betalte booking${
+              gamle.klarTilImport === 1 ? "" : "er"
+            } på kommende forestillinger er endnu ikke talt med. Tryk for at tælle dem med. Knappen kan trykkes flere gange uden at tælle dobbelt.`
+          ) : (
+            "Alle betalte bookinger på kommende forestillinger er talt med."
+          )}
         </p>
         <button
           type="button"
@@ -204,7 +274,7 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
               }`
             )
           }
-          disabled={arbejder}
+          disabled={arbejder || !gamle}
           style={{
             padding: "9px 18px",
             background: "#0d3b2e",
@@ -212,7 +282,8 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
             border: "none",
             borderRadius: 6,
             fontSize: 14,
-            cursor: arbejder ? "not-allowed" : "pointer",
+            cursor: arbejder || !gamle ? "not-allowed" : "pointer",
+            opacity: arbejder || !gamle ? 0.5 : 1,
           }}
         >
           Indlæs allerede solgte billetter
@@ -220,18 +291,18 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
       </div>
 
       {/* Bookinger, der ikke kunne placeres entydigt. */}
-      {data.uplacerede.length > 0 && (
+      {gamle && gamle.uplacerede.length > 0 && (
         <div style={{ ...kort, border: "2px solid #c9a227" }}>
           <strong>
-            {data.uplacerede.length} booking
-            {data.uplacerede.length === 1 ? "" : "er"} kan ikke placeres
+            {gamle.uplacerede.length} booking
+            {gamle.uplacerede.length === 1 ? "" : "er"} kan ikke placeres
             automatisk
           </strong>
           <p style={{ margin: "6px 0 12px", fontSize: 14, lineHeight: 1.6 }}>
             De er ikke talt med. Vælg selv priskategorien for hver enkelt — så
             bliver den talt med med det samme.
           </p>
-          {data.uplacerede.map((u) => (
+          {gamle.uplacerede.map((u) => (
             <div
               key={u.bookingId}
               style={{
@@ -372,5 +443,6 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
         </div>
       ))}
     </main>
+    </div>
   );
 }
