@@ -14,6 +14,7 @@ import {
   priceGroupName,
   type AirtableRecord,
 } from "@/lib/airtable";
+import type { Kapacitetsjustering } from "@/lib/kapacitet";
 
 export type ShowDate = {
   id: string;
@@ -28,7 +29,18 @@ export type ShowDate = {
   priceGroup: string;
   /** Udsolgte datoer vises stadig, men kan ikke bookes. */
   soldOut: boolean;
+  /**
+   * Ejerens justering af kapaciteten for netop denne forestilling. Et tomt
+   * felt i Airtable bliver til null her og betyder "brug standardtallet".
+   */
+  kapacitetsjustering: Kapacitetsjustering;
 };
+
+/** Læser et kapacitetsfelt. Tomt eller ikke-tal bliver til null. */
+function kapacitetsfelt(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return value;
+}
 
 /** Mapper én Airtable-post til en ShowDate. Tåler manglende felter. */
 export function toShowDate(record: AirtableRecord): ShowDate {
@@ -42,6 +54,12 @@ export function toShowDate(record: AirtableRecord): ShowDate {
     notes: String(f[FIELDS.event.notes] ?? ""),
     priceGroup: priceGroupName(f[FIELDS.event.priceGroup]),
     soldOut: Boolean(f[FIELDS.event.soldOut]),
+    kapacitetsjustering: {
+      aplusForrest: kapacitetsfelt(f[FIELDS.event.kapacitetAplusForrest]),
+      aplusBagerst: kapacitetsfelt(f[FIELDS.event.kapacitetAplusBagerst]),
+      a: kapacitetsfelt(f[FIELDS.event.kapacitetA]),
+      b: kapacitetsfelt(f[FIELDS.event.kapacitetB]),
+    },
   };
 }
 

@@ -17,9 +17,36 @@ import { getPaymentProvider } from "@/lib/payments";
 import { vivaSourceCode } from "@/lib/payments/viva-client";
 import { createTicketPayment, type TicketLineItem } from "@/lib/ticket-payments";
 import { generateBookingKey, onlineDiscountActive } from "@/lib/genbestil";
+import {
+  KAPACITETSKATEGORIER,
+  KATEGORI_NAVN,
+  kapaciteterFor,
+  kategoriFraAirtable,
+} from "@/lib/kapacitet";
+import {
+  frigivForBooking,
+  frigivUdloebne,
+  hentTagne,
+  knytBetalingsreference,
+  reserverPladser,
+} from "@/lib/seat-holds";
 
-// Betalingen udløber efter 30 min. (samme vindue som bordbestillingen).
-const CHECKOUT_EXPIRY_MINUTES = 30;
+// Betalingen udløber efter 15 min. Pladserne holdes 20 min., altså 5 minutter
+// længere. Den luft gør, at en betaling i sidste øjeblik ikke rammer
+// "sen betaling"-undtagelsen, blot fordi Vivas webhook kommer lidt bagefter.
+const CHECKOUT_EXPIRY_MINUTES = 15;
+const HOLD_MINUTTER = 20;
+
+/** Pæn dansk besked, når en kategori er ved at være udsolgt. */
+function ikkeNokBesked(kategoriNavn: string, tilbage: number): string {
+  if (tilbage <= 0) {
+    return `${kategoriNavn} er desværre udsolgt til denne forestilling.`;
+  }
+  if (tilbage === 1) {
+    return `Der er desværre kun 1 billet tilbage i ${kategoriNavn}.`;
+  }
+  return `Der er desværre kun ${tilbage} billetter tilbage i ${kategoriNavn}.`;
+}
 
 const WEEKDAYS_SHORT = ["søn", "man", "tir", "ons", "tor", "fre", "lør"];
 const MONTHS = [
@@ -110,6 +137,9 @@ export async function POST(req: NextRequest) {
       fee: Number(r.fields[FIELDS.ticketType.fee] ?? 0),
       maxCount: Number(r.fields[FIELDS.ticketType.maxCount] ?? 0),
       priceGroup: priceGroupName(r.fields[FIELDS.ticketType.priceGroup]),
+      kapacitetskategori: kategoriFraAirtable(
+        r.fields[FIELDS.ticketType.kapacitetskategori]
+      ),
     }));
     const addons: AddonDef[] = addonRecords.map((r) => ({
       id: r.id,
@@ -136,6 +166,45 @@ export async function POST(req: NextRequest) {
     );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+
+    // --- Kapacitet: er der overhovedet pladser nok? --------------------------
+    //
+    // Først et hurtigt tjek, så en kunde, der er for sent på den, får besked
+    // UDEN at vi opretter en booking i Airtable. Det egentlige, bindende
+    // greb om pladserne sker længere nede, når bookingen findes — dét er det,
+    // der gør, at to kunder aldrig kan få den samme sidste plads.
+    // Valideringen ovenfor afviser allerede et ukendt show; dette er kun for
+    // at gøre det utvetydigt herefter.
+    if (!show) {
+      return NextResponse.json(
+        { error: "Forestillingen findes ikke." },
+        { status: 400 }
+      );
+    }
+    const db = getDb();
+    const kapaciteter = kapaciteterFor(show.kapacitetsjustering);
+    await frigivUdloebne(db, show.id);
+    const tagne = await hentTagne(db, show.id);
+    for (const oenske of result.pladsoensker) {
+      const tilbage = Math.max(
+        0,
+        kapaciteter[oenske.kategori] - tagne[oenske.kategori]
+      );
+      if (oenske.antal > tilbage) {
+        return NextResponse.json(
+          {
+            error: ikkeNokBesked(KATEGORI_NAVN[oenske.kategori], tilbage),
+            tilbage: Object.fromEntries(
+              KAPACITETSKATEGORIER.map((k) => [
+                k,
+                Math.max(0, kapaciteter[k] - tagne[k]),
+              ])
+            ),
+          },
+          { status: 409 }
+        );
+      }
     }
 
     const customerRecord = await createRecord(TABLES.customers, {
@@ -175,6 +244,33 @@ export async function POST(req: NextRequest) {
     const bookingRecord = await createRecord(TABLES.bookings, bookingFields);
     const origin = req.nextUrl.origin;
 
+    // --- Det bindende greb om pladserne -------------------------------------
+    //
+    // Ét SQL-greb tager alle kategoriernes pladser på én gang, eller ingen af
+    // dem. Nåede en anden kunde at tage den sidste plads i mellemtiden, bliver
+    // det afvist HER — før kunden sendes til betaling. Bookingen bliver stående
+    // som "Afventer betaling", præcis som en forladt bestilling gør i dag.
+    const reservation = await reserverPladser(db, {
+      showId: show.id,
+      bookingId: bookingRecord.id,
+      oensker: result.pladsoensker,
+      kapaciteter,
+      holdMinutter: HOLD_MINUTTER,
+      kilde: "checkout",
+    });
+    if (!reservation.ok) {
+      return NextResponse.json(
+        {
+          error: ikkeNokBesked(
+            KATEGORI_NAVN[reservation.mangler.kategori],
+            reservation.mangler.tilbage
+          ),
+          tilbage: reservation.tilbage,
+        },
+        { status: 409 }
+      );
+    }
+
     // Ledger-linjer og forventet total kommer direkte fra de validerede linjer
     // (fuld pris pr. linje; rabatten er trukket fra i totalen). Præcis dette
     // beløb oprettes betalingen på, så det trukne stemmer med det viste.
@@ -186,37 +282,50 @@ export async function POST(req: NextRequest) {
     const expectedTotalOre = result.totals.totalOre;
     const discountOre = result.totals.discountOre;
 
-    // Betaling oprettes hos den valgte udbyder (Viva) på tickets-sourcen.
-    // tags[0] dirigerer webhooken; tags[1] bærer bookingId, så referencen kan
-    // læses tilbage fra en verificeret transaktion — aldrig fra payloaden.
-    const provider = getPaymentProvider("tickets");
-    const payment = await provider.createPayment({
-      orderId: bookingRecord.id,
-      orderNumber: bookingNo,
-      eventId: showId ?? "",
-      totalOre: expectedTotalOre,
-      currency: "dkk",
-      description: `Bakkens Hvile · billetter · ${bookingNo}`,
-      origin,
-      expiresInMinutes: CHECKOUT_EXPIRY_MINUTES,
-      sourceCode: vivaSourceCode("tickets"),
-      tags: ["billet", bookingRecord.id],
-      merchantTrns: `${bookingNo} · billetter`,
-    });
+    // Pladserne er nu holdt. Går noget galt herfra og indtil gæsten er sendt
+    // til betaling, skal de gives tilbage med det samme — ellers ville de stå
+    // og blokere i 20 minutter for en bestilling, der aldrig blev til noget.
+    let payment;
+    try {
+      // Betaling oprettes hos den valgte udbyder (Viva) på tickets-sourcen.
+      // tags[0] dirigerer webhooken; tags[1] bærer bookingId, så referencen kan
+      // læses tilbage fra en verificeret transaktion — aldrig fra payloaden.
+      const provider = getPaymentProvider("tickets");
+      payment = await provider.createPayment({
+        orderId: bookingRecord.id,
+        orderNumber: bookingNo,
+        eventId: showId ?? "",
+        totalOre: expectedTotalOre,
+        currency: "dkk",
+        description: `Bakkens Hvile · billetter · ${bookingNo}`,
+        origin,
+        expiresInMinutes: CHECKOUT_EXPIRY_MINUTES,
+        sourceCode: vivaSourceCode("tickets"),
+        tags: ["billet", bookingRecord.id],
+        merchantTrns: `${bookingNo} · billetter`,
+      });
 
-    // Gem det forventede total (til beløbskontrol) + linjer (til mailen) FØR
-    // gæsten sendes til betaling. Fejler dette, sendes gæsten ikke afsted.
-    await createTicketPayment(getDb(), {
-      paymentRef: payment.paymentRef,
-      flow: "billet",
-      bookingId: bookingRecord.id,
-      bookingNo,
-      customerEmail: customer.email || null,
-      customerName: customer.name,
-      expectedTotalOre,
-      discountOre,
-      lineItems: ledgerLines,
-    });
+      // Gem det forventede total (til beløbskontrol) + linjer (til mailen) FØR
+      // gæsten sendes til betaling. Fejler dette, sendes gæsten ikke afsted.
+      await createTicketPayment(db, {
+        paymentRef: payment.paymentRef,
+        flow: "billet",
+        bookingId: bookingRecord.id,
+        bookingNo,
+        customerEmail: customer.email || null,
+        customerName: customer.name,
+        expectedTotalOre,
+        discountOre,
+        lineItems: ledgerLines,
+      });
+
+      // Knyt betalingens reference til reservationen, så webhooken kan finde
+      // pladserne igen — både når betalingen lykkes og når den fejler.
+      await knytBetalingsreference(db, bookingRecord.id, payment.paymentRef);
+    } catch (err) {
+      await frigivForBooking(db, bookingRecord.id);
+      throw err;
+    }
 
     return NextResponse.json({ url: payment.redirectUrl });
   } catch (err) {
