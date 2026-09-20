@@ -7,6 +7,12 @@ import {
   ADDON_DISCOUNT_LABEL,
 } from "@/lib/pricing";
 import { getTable, tableNumberFor } from "@/lib/tables";
+import {
+  FARVEFORKLARING,
+  KATEGORI_FARVER,
+  STOLPE_FARVE,
+  type Pladskategori,
+} from "@/lib/seating-colors";
 import "./booking.css";
 
 type Ticket = {
@@ -141,16 +147,13 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
  *   B                venstre bord i 9. rk. + 2 borde i 10. rk. = 3 borde
  */
 
+// Salens indretning (scene, bar, tekster). Kategorifarverne ligger IKKE her,
+// men i lib/seating-colors.ts, så sæder og farveforklaring deler én kilde.
 const C = {
   panel: "#1B2C45",
   gold: "#C9A63A",
   cream: "#F2E9D8",
   muted: "rgba(242, 233, 216, 0.55)",
-  aplusHigh: "#E9C96B",
-  aplusLow: "#BF9433",
-  a: "#7B93A8",
-  b: "#4E5F73",
-  stolpe: "#8A8578",
 } as const;
 
 const TW = 40;
@@ -160,39 +163,44 @@ const COLS5 = [110, 166, 222, 278, 334];
 const COLS4 = [110, 166, 222, 278];
 const COLS2 = [110, 166];
 
-// Visuel nuance for A+-borde (kun kosmetisk: øverste vs. nederste halvdel af
-// A+-området). Selve kategorien (A+/A/B) udledes fra lib/tables.ts, så salplanen
-// og bordbestillingen deler præcis samme borddefinition.
-type Shade = "aplusHigh" | "aplusLow";
-
+// A+ sælges i to priskategorier: forrest (1.-3. række) og bagerst (4.-6.).
+// Rækken oplyser derfor, hvilken af de to den hører til. For række 7-10 er
+// feltet uden betydning — dér afgøres kategorien (A eller B) alene af den
+// fælles borddefinition i lib/tables.ts, så salplanen og bordbestillingen
+// aldrig kan være uenige om et bord.
 const ROWS: {
   n: number;
   y: number;
   cols: number[];
-  shade: Shade;
+  aplus: Extract<Pladskategori, "aplusForrest" | "aplusBagerst">;
 }[] = [
-  { n: 1, y: 112, cols: COLS5, shade: "aplusHigh" },
-  { n: 2, y: 160, cols: COLS5, shade: "aplusHigh" },
-  { n: 3, y: 208, cols: COLS5, shade: "aplusHigh" },
-  { n: 4, y: 264, cols: COLS5, shade: "aplusLow" },
-  { n: 5, y: 312, cols: COLS5, shade: "aplusLow" },
-  { n: 6, y: 388, cols: COLS5, shade: "aplusLow" },
-  { n: 7, y: 448, cols: COLS4, shade: "aplusLow" },
-  { n: 8, y: 496, cols: COLS4, shade: "aplusLow" },
-  { n: 9, y: 544, cols: COLS4, shade: "aplusLow" },
-  { n: 10, y: 592, cols: COLS2, shade: "aplusLow" },
+  { n: 1, y: 112, cols: COLS5, aplus: "aplusForrest" },
+  { n: 2, y: 160, cols: COLS5, aplus: "aplusForrest" },
+  { n: 3, y: 208, cols: COLS5, aplus: "aplusForrest" },
+  { n: 4, y: 264, cols: COLS5, aplus: "aplusBagerst" },
+  { n: 5, y: 312, cols: COLS5, aplus: "aplusBagerst" },
+  { n: 6, y: 388, cols: COLS5, aplus: "aplusBagerst" },
+  { n: 7, y: 448, cols: COLS4, aplus: "aplusBagerst" },
+  { n: 8, y: 496, cols: COLS4, aplus: "aplusBagerst" },
+  { n: 9, y: 544, cols: COLS4, aplus: "aplusBagerst" },
+  { n: 10, y: 592, cols: COLS2, aplus: "aplusBagerst" },
 ];
 
 // Farve for et bord ud fra dets kategori i den fælles borddefinition. A+ bruger
-// rækkens visuelle nuance; A og B har hver sin faste farve.
-function tableFill(rowN: number, colCount: number, i: number, shade: Shade): string {
+// rækkens A+-kategori; A og B har hver sin faste farve.
+function tableFill(
+  rowN: number,
+  colCount: number,
+  i: number,
+  aplus: Extract<Pladskategori, "aplusForrest" | "aplusBagerst">
+): string {
   // Placeringen tælles fra baren (højre side) og indad; kolonnerne tegnes
   // venstre→højre, så den yderste kolonne (i=0) er den højeste placering.
   const number = tableNumberFor(rowN, colCount - i);
   const category = getTable(number)?.category;
-  if (category === "B") return C.b;
-  if (category === "A") return C.a;
-  return C[shade];
+  if (category === "B") return KATEGORI_FARVER.b;
+  if (category === "A") return KATEGORI_FARVER.a;
+  return KATEGORI_FARVER[aplus];
 }
 
 const STOLPER = [
@@ -201,13 +209,21 @@ const STOLPER = [
   { x: 152, y: 530 },
 ];
 
-const LEGEND = [
-  { x: 40, y: 728, fill: C.aplusHigh, label: "A+ (1.-3. række)" },
-  { x: 190, y: 728, fill: C.aplusLow, label: "A+ (4.-6. række)" },
-  { x: 340, y: 728, fill: C.a, label: "A (7.-9. række)" },
-  { x: 40, y: 754, fill: C.b, label: "B (10. række)" },
-  { x: 190, y: 754, fill: C.stolpe, label: "Stolpe" },
+// Hvor de fem forklaringsfelter placeres. Farve og tekst kommer fra
+// FARVEFORKLARING, så forklaringen og sæderne aldrig kan vise noget forskelligt.
+const LEGEND_POSITIONER = [
+  { x: 40, y: 728 },
+  { x: 190, y: 728 },
+  { x: 340, y: 728 },
+  { x: 40, y: 754 },
+  { x: 190, y: 754 },
 ];
+
+const LEGEND = FARVEFORKLARING.map((post, i) => ({
+  ...LEGEND_POSITIONER[i],
+  fill: post.farve,
+  label: post.tekst,
+}));
 
 function Panel({
   x,
@@ -342,13 +358,19 @@ function SeatingChart() {
         Indgang
       </text>
 
-      <text x={56} y={268} fontSize={20} fill={C.aplusHigh} letterSpacing="0.04em">
+      <text
+        x={56}
+        y={268}
+        fontSize={20}
+        fill={KATEGORI_FARVER.aplusForrest}
+        letterSpacing="0.04em"
+      >
         A+
       </text>
-      <text x={56} y={514} fontSize={20} fill={C.a} letterSpacing="0.04em">
+      <text x={56} y={514} fontSize={20} fill={KATEGORI_FARVER.a} letterSpacing="0.04em">
         A
       </text>
-      <text x={56} y={614} fontSize={20} fill={C.b} letterSpacing="0.04em">
+      <text x={56} y={614} fontSize={20} fill={KATEGORI_FARVER.b} letterSpacing="0.04em">
         B
       </text>
 
@@ -394,7 +416,7 @@ function SeatingChart() {
             width={TW}
             height={TH}
             rx={4}
-            fill={tableFill(row.n, row.cols.length, i, row.shade)}
+            fill={tableFill(row.n, row.cols.length, i, row.aplus)}
           />
         ))
       )}
@@ -420,7 +442,7 @@ function SeatingChart() {
           y={s.y}
           width={11}
           height={11}
-          fill={C.stolpe}
+          fill={STOLPE_FARVE}
         />
       ))}
 

@@ -1,9 +1,22 @@
 // Fælles e-mail-skabelon for bekræftelser (bruges bl.a. til genbestilling).
 // Udbyder-uafhængig: bygger på EmailLineItem (beløb i øre), så mailen kan
 // gendannes fra vores egen ledger uden at kalde betalingsudbyderen.
+//
+// Bruger det fælles mail-layout i lib/mail/layout.ts, så den deler sidehoved og
+// sidefod med billet- og gavekortmailene.
 
 import type { EmailLineItem } from "@/lib/ticket-email";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
+import {
+  FARVER,
+  SKRIFT,
+  escapeHtml,
+  ialtLinje,
+  mailLayout,
+  momsNote,
+  overskrift,
+  varelinje,
+} from "@/lib/mail/layout";
 
 export function orderEmailHtml(params: {
   heading: string;
@@ -25,58 +38,53 @@ export function orderEmailHtml(params: {
     grandTotal,
     footerNote,
   } = params;
-  const discountRow =
+
+  const varelinjer = lineItems.map(varelinje).join("\n");
+
+  // Rabatlinjen vises kun, når der faktisk er givet rabat.
+  const rabatLinje =
     discountKr > 0
-      ? `
-      <tr>
-        <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;">${ADDON_DISCOUNT_LABEL}</td>
-        <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;text-align:center;"></td>
-        <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;text-align:right;color:#c9a227;">−${discountKr} kr.</td>
-      </tr>`
+      ? `        <tr>
+          <td colspan="2" style="padding:12px 0 10px;font-family:${SKRIFT};font-size:14px;color:${FARVER.groen};">${escapeHtml(
+          ADDON_DISCOUNT_LABEL
+        )}</td>
+          <td align="right" style="padding:12px 0 10px;font-family:${SKRIFT};font-size:14px;color:${FARVER.groen};white-space:nowrap;">&minus;${discountKr} kr.</td>
+        </tr>`
       : "";
-  const rows = lineItems
-    .map(
-      (li) => `
-      <tr>
-        <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;">${li.description}</td>
-        <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;text-align:center;">${li.quantity}</td>
-        <td style="padding:10px 0;border-bottom:1px solid #e5e0d0;text-align:right;">${
-          li.amountSubtotalOre != null ? (li.amountSubtotalOre / 100).toFixed(0) : ""
-        } kr.</td>
-      </tr>`
-    )
-    .join("");
-  const grandTotalRow = grandTotal
-    ? `<p style="text-align:right;margin:4px 0 0;font-size:14px;color:#d8d3c2;">Samlet bestilling i alt: ${grandTotal}</p>`
+
+  // Den samlede bestilling (tidligere betalt + nu betalt) vises kun, når
+  // kalderen har oplyst den.
+  const samletLinje = grandTotal
+    ? `        <tr>
+          <td colspan="2" style="padding:10px 0 0;font-family:${SKRIFT};font-size:14px;color:${FARVER.daempet};">Samlet bestilling i alt</td>
+          <td align="right" style="padding:10px 0 0;font-family:${SKRIFT};font-size:14px;color:${FARVER.daempet};white-space:nowrap;">${escapeHtml(
+        grandTotal
+      )}</td>
+        </tr>`
     : "";
 
-  return `
-  <div style="font-family:Georgia,serif;background:#f6f1e4;padding:32px;color:#1a1a16;">
-    <div style="max-width:560px;margin:0 auto;background:#0d3b2e;border-radius:4px;padding:32px;color:#f6f1e4;">
-      <p style="letter-spacing:0.15em;text-transform:uppercase;font-size:12px;color:#c9a227;margin:0 0 8px;">
-        Bakkens Hvile · Underholdning siden 1877
-      </p>
-      <h1 style="margin:0 0 16px;font-size:24px;">${heading}</h1>
-      <p style="font-family:monospace;color:#c9a227;font-size:14px;margin:0 0 24px;">${bookingNo}</p>
+  const indhold = `${overskrift(heading, "0 0 6px")}
+      <p style="margin:0 0 24px;font-family:${SKRIFT};font-size:15px;line-height:22px;color:${FARVER.daempet};">Ordrenummer <strong style="color:${FARVER.groen};letter-spacing:1px;">${escapeHtml(
+    bookingNo
+  )}</strong></p>
 
-      <table style="width:100%;border-collapse:collapse;font-size:14px;">
-        <thead>
-          <tr>
-            <th style="text-align:left;padding-bottom:8px;border-bottom:2px solid #c9a227;font-size:12px;letter-spacing:0.05em;text-transform:uppercase;">Vare</th>
-            <th style="text-align:center;padding-bottom:8px;border-bottom:2px solid #c9a227;font-size:12px;letter-spacing:0.05em;text-transform:uppercase;">Antal</th>
-            <th style="text-align:right;padding-bottom:8px;border-bottom:2px solid #c9a227;font-size:12px;letter-spacing:0.05em;text-transform:uppercase;">Pris</th>
-          </tr>
-        </thead>
-        <tbody>${rows}${discountRow}</tbody>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:2px solid ${FARVER.guld};">
+${varelinjer}
+${rabatLinje}
+${ialtLinje(totalLabel, total)}
+${samletLinje}
       </table>
+${momsNote(
+  "Alle priser er inklusive 25 % moms. Momsbeløbet svarer til 20 % af den samlede pris inklusive moms."
+)}
 
-      <p style="text-align:right;margin-top:16px;font-size:18px;color:#c9a227;">${totalLabel}: ${total}</p>
-      ${grandTotalRow}
-      <p style="text-align:right;margin:4px 0 0;font-size:12px;color:#9c968a;">Alle priser er inklusive 25 % moms. Momsbeløbet svarer til 20 % af den samlede pris inklusive moms.</p>
+      <p style="margin:26px 0 0;font-family:${SKRIFT};font-size:15px;line-height:24px;color:${FARVER.blaek};">${escapeHtml(
+    footerNote
+  )}</p>`;
 
-      <p style="font-size:13px;color:#d8d3c2;margin-top:32px;">
-        ${footerNote}
-      </p>
-    </div>
-  </div>`;
+  return mailLayout({
+    title: "Din bestilling til Bakkens Hvile",
+    preheader: `Ordrenummer ${bookingNo} – ${totalLabel.toLowerCase()} ${total}`,
+    indhold,
+  });
 }
