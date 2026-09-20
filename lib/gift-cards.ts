@@ -129,10 +129,14 @@ export type MarkGiftCardPaidResult =
   | { status: "amount_mismatch"; card: GiftCardRow };
 
 /**
- * Guarded pending → paid. Verificerer beløb og valuta mod den gemte ordre,
- * genererer en unik kode og sætter udløbsdato (nu + 3 år). Kun én samtidig
- * webhook vinder overgangen; øvrige får already_paid. Kodekollision (unik
- * constraint) håndteres ved at prøve en ny kode.
+ * Guarded overgang til betalt. Verificerer beløb og valuta mod den gemte
+ * ordre, genererer en unik kode og sætter udløbsdato (nu + 3 år). Kun én
+ * samtidig webhook vinder overgangen; øvrige får already_paid. Kodekollision
+ * (unik constraint) håndteres ved at prøve en ny kode.
+ *
+ * Overgangen tillades både fra "afventer" og fra "fejlet", fordi en afvist
+ * betaling hos Viva ikke er endelig; køberen kan betale med et andet kort på
+ * samme betalingsside. Se kommentaren ved selve UPDATE'en nedenfor.
  */
 export async function markGiftCardPaidByRef(
   db: Queryable,
@@ -157,10 +161,22 @@ export async function markGiftCardPaidByRef(
   for (let attempt = 0; attempt < 6; attempt++) {
     const code = generateGiftCardCode();
     try {
+      // Overgangen tillades fra 'pending' — og også fra 'failed'.
+      //
+      // Hvorfor også fra 'failed': Viva skriver udtrykkeligt, at en
+      // Transaction Failed-webhook ikke er en endelig status. Bliver køberens
+      // kort afvist, kan køberen betale med et andet kort på den samme
+      // betalingsside, og så følger en betalt-webhook på det SAMME orderCode.
+      // Uden dette ville køberen have betalt uden at få sit gavekort.
+      // Kilde: https://developer.viva.com/webhooks-for-payments/transaction-failed
+      //
+      // Det er stadig ét guardet UPDATE, så kun én af flere samtidige kaldere
+      // vinder overgangen. Beløbs- og valutakontrollen ovenfor er allerede
+      // udført, også når posten stod som fejlet.
       const res = await db.query(
         `UPDATE gift_cards
             SET status = 'paid', paid_at = now(), code = $2, expires_at = $3
-          WHERE payment_ref = $1 AND status = 'pending'
+          WHERE payment_ref = $1 AND status IN ('pending', 'failed')
           RETURNING *`,
         [params.paymentRef, code, expiresIso]
       );
