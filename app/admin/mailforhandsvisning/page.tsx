@@ -1,4 +1,4 @@
-// Forhåndsvisning af husets mails med eksempeldata — uden at sende noget.
+﻿// Forhåndsvisning af husets mails med eksempeldata — uden at sende noget.
 //
 // Siden ligger under /admin og er derfor bag personalelogin (middleware.ts).
 // Den kalder hverken Airtable, Resend eller betalingsudbyderen: hver mail
@@ -165,6 +165,8 @@ export default function MailForhaandsvisning() {
         padding: "32px 24px 80px",
         fontFamily: "system-ui, sans-serif",
         color: "#1a1a16",
+        // Også hvid her, ikke kun på indpakningen udenom.
+        background: "#fff",
       }}
     >
       <div
@@ -182,8 +184,8 @@ export default function MailForhaandsvisning() {
           Log ud
         </a>
       </div>
-      <h1 style={{ fontSize: 24, margin: "0 0 8px" }}>Forhåndsvisning af mails</h1>
-      <p style={{ fontSize: 15, lineHeight: 1.6, margin: "0 0 4px" }}>
+      <h1 style={{ fontSize: 24, margin: "0 0 8px", color: "#1a1a16" }}>Forhåndsvisning af mails</h1>
+      <p style={{ fontSize: 15, lineHeight: 1.6, margin: "0 0 4px", color: "#1a1a16" }}>
         Sådan ser husets mails ud med eksempeldata. Der bliver ikke sendt noget
         fra denne side, og der hentes hverken kunder, bookinger eller beløb.
       </p>
@@ -195,7 +197,7 @@ export default function MailForhaandsvisning() {
 
       {mails.map((m) => (
         <section key={m.navn} style={{ marginBottom: 40 }}>
-          <h2 style={{ fontSize: 17, margin: "0 0 4px" }}>{m.navn}</h2>
+          <h2 style={{ fontSize: 17, margin: "0 0 4px", color: "#1a1a16" }}>{m.navn}</h2>
           <p
             style={{
               fontSize: 13,
