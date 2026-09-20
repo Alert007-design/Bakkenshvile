@@ -157,9 +157,13 @@ export type MarkTicketPaidResult =
 /**
  * Markerer en betaling som betalt ud fra en verificeret Viva-transaktion.
  * Kontrollerer beløb + valuta mod det gemte total og udfører kun overgangen
- * pending → paid én gang. Ved "paid" returneres posten, så kalderen kan
+ * til betalt én gang. Ved "paid" returneres posten, så kalderen kan
  * opdatere Airtable og sende mail — men KUN den kalder, der faktisk vandt
  * overgangen (exactly-once).
+ *
+ * Overgangen tillades også fra "fejlet", fordi en afvist betaling hos Viva
+ * ikke er endelig; kunden kan betale med et andet kort på samme
+ * betalingsside. Se kommentaren ved selve UPDATE'en nedenfor.
  */
 export async function markTicketPaidByRef(
   db: Queryable,
@@ -176,10 +180,26 @@ export async function markTicketPaidByRef(
   ) {
     return { status: "amount_mismatch", payment: existing };
   }
+  // Overgangen tillades fra 'pending' — og også fra 'failed'.
+  //
+  // Hvorfor også fra 'failed': Viva skriver udtrykkeligt, at en Transaction
+  // Failed-webhook ikke er en endelig status. Bliver kundens kort afvist, kan
+  // kunden prøve igen med et andet kort på den samme betalingsside, og så
+  // følger en betalt-webhook på det SAMME orderCode. Uden dette ville kunden
+  // have betalt uden at få sin billet eller sine drikkevarer.
+  // Kilde: https://developer.viva.com/webhooks-for-payments/transaction-failed
+  //
+  // Gælder begge flows i denne ledger (billet og genbestil). Gavekort og
+  // bordbestilling har samme spærre i hver sin ledger, men er bevidst IKKE
+  // ændret her — det tages som en selvstændig opgave.
+  //
+  // Alt andet er uændret: det er stadig ét guardet UPDATE (så kun én af flere
+  // samtidige kaldere vinder overgangen), og beløbs- og valutakontrollen
+  // ovenfor er allerede udført, også når posten stod som fejlet.
   const upd = await db.query<{ payment_ref: string }>(
     `UPDATE ticket_payments
         SET status = 'paid', paid_at = now()
-      WHERE payment_ref = $1 AND status = 'pending'
+      WHERE payment_ref = $1 AND status IN ('pending', 'failed')
       RETURNING payment_ref`,
     [params.paymentRef]
   );
