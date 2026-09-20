@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 // Overblikket over pladser. Henter alt fra /api/admin/kapacitet, som er bag
 // personalelogin. Siden ændrer intet af sig selv — kun de to knapper gør noget:
@@ -67,6 +67,27 @@ const side: React.CSSProperties = {
   margin: "0 auto",
   padding: "32px 24px 80px",
   fontFamily: "system-ui, sans-serif",
+  color: "#1a1a16",
+  // Også hvid her, ikke kun på den yderste indpakning. Så står teksten på hvid,
+  // selv hvis den yderste baggrund af en eller anden grund ikke slår igennem.
+  background: "#fff",
+};
+
+// Overskrift og brødtekst sætter deres farve SELV i stedet for at arve den.
+// En arvet farve taber nemlig til enhver regel, der rammer elementet direkte —
+// uanset hvor lav dens specificitet er. Med farven skrevet på elementet kan
+// hverken en senere global regel, en browserudvidelse eller browserens egen
+// mørke tilstand gøre teksten ulæselig.
+const overskrift: React.CSSProperties = {
+  fontSize: 24,
+  margin: "0 0 6px",
+  color: "#1a1a16",
+};
+
+const broedtekst: React.CSSProperties = {
+  fontSize: 15,
+  lineHeight: 1.6,
+  margin: "0 0 24px",
   color: "#1a1a16",
 };
 
@@ -158,7 +179,7 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
     return (
       <div style={sideWrap}>
         <main style={side}>
-          <h1 style={{ fontSize: 24, margin: "0 0 12px" }}>Pladser og kapacitet</h1>
+          <h1 style={{ ...overskrift, margin: "0 0 12px" }}>Pladser og kapacitet</h1>
           <p style={{ color: "#a00", fontSize: 15 }} role="alert">{fejl}</p>
         </main>
       </div>
@@ -168,8 +189,8 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
     return (
       <div style={sideWrap}>
         <main style={side}>
-          <h1 style={{ fontSize: 24, margin: "0 0 12px" }}>Pladser og kapacitet</h1>
-          <p style={{ fontSize: 16, lineHeight: 1.6 }} role="status">
+          <h1 style={{ ...overskrift, margin: "0 0 12px" }}>Pladser og kapacitet</h1>
+          <p style={{ ...broedtekst, fontSize: 16, margin: 0 }} role="status">
             Henter tallene fra pladsbogen …
           </p>
         </main>
@@ -195,8 +216,8 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
           Log ud
         </a>
       </div>
-      <h1 style={{ fontSize: 24, margin: "0 0 6px" }}>Pladser og kapacitet</h1>
-      <p style={{ fontSize: 15, lineHeight: 1.6, margin: "0 0 24px" }}>
+      <h1 style={overskrift}>Pladser og kapacitet</h1>
+      <p style={broedtekst}>
         Standardkapaciteten er 58 + 60 + 42 + 12 = 172 billetter. Vil du ændre
         tallet for en bestemt forestilling, gør du det i Airtable på selve
         forestillingen — felterne hedder &quot;Kapacitet …&quot;. Et tomt felt
