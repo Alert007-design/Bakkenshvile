@@ -73,6 +73,11 @@ export default function FribilletClient({
   const [result, setResult] = useState<
     { bookingNo: string; ticketBreakdown: string; emailed: boolean } | null
   >(null);
+  // Sat, når serveren har svaret, at der ikke er plads nok. Personalet skal se
+  // advarslen og trykke igen, før fribilletten gives alligevel.
+  const [oversalg, setOversalg] = useState<
+    { advarsel: string; detaljer: string[] } | null
+  >(null);
 
   const selectedShow = shows.find((s) => s.id === showId) ?? null;
 
@@ -95,9 +100,16 @@ export default function FribilletClient({
     setResult(null);
   }
 
-  async function submit() {
+  /**
+   * Opretter fribilletten. Er der ikke plads nok i kategorien, svarer serveren
+   * 409 med en advarsel i stedet for at oprette noget. Så vises advarslen, og
+   * først når personalet trykker igen (bekraeft = true), gives billetten
+   * alligevel — og forestillingen bliver oversolgt med vilje.
+   */
+  async function submit(bekraeft = false) {
     setError(null);
     setResult(null);
+    if (!bekraeft) setOversalg(null);
     if (!selectedShow) return setError("Vælg en forestilling.");
     if (!name.trim()) return setError("Skriv gæstens navn.");
     if (totalTickets === 0) return setError("Vælg mindst én billet.");
@@ -118,12 +130,21 @@ export default function FribilletClient({
             tickets,
             customer: { name: name.trim(), email: email.trim(), phone: phone.trim() },
             note: note.trim() || undefined,
+            bekraeftOversalg: bekraeft || undefined,
           }),
         }
       );
       const data = await res.json();
+      if (res.status === 409 && data?.kraeverBekraeftelse) {
+        setOversalg({
+          advarsel: String(data.advarsel ?? ""),
+          detaljer: Array.isArray(data.detaljer) ? data.detaljer.map(String) : [],
+        });
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "Noget gik galt");
       setResult(data);
+      setOversalg(null);
       // Nulstil felterne til næste fribillet, men behold den valgte forestilling.
       setQty({});
       setName("");
@@ -236,6 +257,44 @@ export default function FribilletClient({
       {error && (
         <p style={{ color: "#a00", marginTop: 16 }} role="alert">{error}</p>
       )}
+      {oversalg && (
+        <div
+          role="alert"
+          style={{
+            marginTop: 16,
+            padding: 14,
+            border: "2px solid #8a1f2b",
+            borderRadius: 6,
+            background: "#fdf3f4",
+            fontSize: 14,
+            lineHeight: 1.6,
+          }}
+        >
+          <strong>Advarsel: ikke plads nok.</strong>
+          <p style={{ margin: "6px 0" }}>{oversalg.advarsel}</p>
+          <ul style={{ margin: "6px 0 10px 18px", padding: 0 }}>
+            {oversalg.detaljer.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => submit(true)}
+            disabled={submitting}
+            style={{
+              padding: "8px 16px",
+              background: "#8a1f2b",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            Giv fribilletten alligevel
+          </button>
+        </div>
+      )}
       {result && (
         <div
           style={{
@@ -256,7 +315,7 @@ export default function FribilletClient({
 
       <button
         type="button"
-        onClick={submit}
+        onClick={() => submit()}
         disabled={submitting}
         style={{
           marginTop: 20,

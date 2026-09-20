@@ -1,4 +1,4 @@
-// SEO-kvalitetstest (automatiseret del af SEO-arbejdet):
+﻿// SEO-kvalitetstest (automatiseret del af SEO-arbejdet):
 // - alle indekserbare sider har unik titel, beskrivelse og canonical
 // - sitemap dækker præcis sideregistret og ingen interne ruter
 // - robots blokerer interne/transaktionssider men aldrig de offentlige
@@ -145,6 +145,7 @@ describe("JSON-LD", () => {
         notes: "",
         priceGroup: "A",
         soldOut: false,
+        kapacitetsjustering: {},
       },
       {
         id: "rec2",
@@ -155,6 +156,7 @@ describe("JSON-LD", () => {
         notes: "",
         priceGroup: "A",
         soldOut: true,
+        kapacitetsjustering: {},
       },
       // Ugyldig dato må aldrig blive til et Event.
       {
@@ -166,6 +168,7 @@ describe("JSON-LD", () => {
         notes: "",
         priceGroup: "A",
         soldOut: false,
+        kapacitetsjustering: {},
       },
     ];
     const events = eventsJsonLd(shows);

@@ -64,7 +64,39 @@ describe("toShowDate — tåler manglende felter", () => {
       notes: "",
       priceGroup: "",
       soldOut: false,
+      // Ingen kapacitetsjustering udfyldt: alle fire er null, og
+      // standardtallene i lib/kapacitet.ts gælder.
+      kapacitetsjustering: {
+        aplusForrest: null,
+        aplusBagerst: null,
+        a: null,
+        b: null,
+      },
     });
+  });
+
+  it("læser ejerens kapacitetsjustering, når felterne er udfyldt", () => {
+    const record: AirtableRecord = {
+      id: "rec12345678901234",
+      fields: {
+        [FIELDS.event.kapacitetAplusForrest]: 40,
+        [FIELDS.event.kapacitetB]: 0,
+      },
+    };
+    const show = toShowDate(record);
+    expect(show.kapacitetsjustering.aplusForrest).toBe(40);
+    // 0 er en rigtig justering ("sælg ingen"), ikke et tomt felt.
+    expect(show.kapacitetsjustering.b).toBe(0);
+    // Ikke udfyldt → null → standardtallet gælder.
+    expect(show.kapacitetsjustering.a).toBeNull();
+  });
+
+  it("ignorerer et kapacitetsfelt, der ikke er et tal", () => {
+    const record: AirtableRecord = {
+      id: "rec12345678901234",
+      fields: { [FIELDS.event.kapacitetA]: "mange" },
+    };
+    expect(toShowDate(record).kapacitetsjustering.a).toBeNull();
   });
 
   it("mapper de felter der er sat", () => {

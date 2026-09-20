@@ -52,7 +52,14 @@ import { addonBreakdown, mergeAddonBreakdowns, buildBookingView } from "@/lib/ge
 import { ticketEmailHtml, daDateShort, showYear } from "@/lib/ticket-email";
 import { orderEmailHtml } from "@/lib/order-email";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
-import { sendMail } from "@/lib/resend";
+import { sendMail, EMAIL_REPLY_TO } from "@/lib/resend";
+import { frigivReservation, hentTagne, markerSolgt } from "@/lib/seat-holds";
+import {
+  KAPACITETSKATEGORIER,
+  KATEGORI_NAVN,
+  kapaciteterFor,
+} from "@/lib/kapacitet";
+import { getShowDate } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -242,6 +249,9 @@ export async function POST(req: NextRequest) {
 
     if (eventTypeId === EVENT_PAYMENT_FAILED) {
       await markTicketFailedByRef(db, verified.paymentRef);
+      // Betalingen blev ikke til noget — giv pladserne tilbage med det samme
+      // i stedet for at lade dem stå og blokere, til reservationen udløber.
+      await frigivReservation(db, verified.paymentRef);
       return NextResponse.json({ received: true });
     }
     // Hverken betalt, refunderet eller fejlet — fx en status vi ikke reagerer
@@ -260,6 +270,88 @@ export async function POST(req: NextRequest) {
 }
 
 /**
+ * Kort advarsel til kontoret, når pladsbogen ikke kunne opdateres for en
+ * betalt billet. Kunden har fået sin billet; det er kun tællingen, der
+ * mangler, og den kan rettes i hånden på /admin/kapacitet.
+ *
+ * Må aldrig kaste — den kaldes fra en catch, hvor billetten skal frem uanset.
+ */
+async function advarOmPladsbogsfejl(bookingNo: string): Promise<void> {
+  try {
+    await sendMail({
+      to: EMAIL_REPLY_TO,
+      subject: `Pladsoptællingen mangler en betalt billet — ${bookingNo}`,
+      html: orderEmailHtml({
+        heading: "Pladsoptællingen kunne ikke opdateres",
+        bookingNo,
+        lineItems: [
+          {
+            description: "Billetten er betalt, og kunden har fået sin billet",
+            quantity: 1,
+            amountSubtotalOre: 0,
+          },
+        ],
+        discountKr: 0,
+        totalLabel: "Handling",
+        total: "Se efter tallene",
+        footerNote:
+          "Pladserne blev ikke talt med i pladsbogen. Bookingen og mailen er i orden. Gå ind på /admin/kapacitet og se, om tallene stemmer for forestillingen — ellers vil der kunne sælges flere billetter, end der er plads til.",
+      }),
+    });
+  } catch (err) {
+    console.error("Kunne ikke sende advarsel om manglende pladsoptælling");
+  }
+}
+
+/**
+ * Sender en advarsel til kontoret, når en betaling er kommet ind EFTER at
+ * reservationen var udløbet. Kunden har betalt og får sin billet, men det kan
+ * have gjort en kategori oversolgt — og det skal huset kunne nå at reagere på.
+ *
+ * Best-effort: en fejl her må aldrig vælte billetten. Mailen sendes kun, hvis
+ * en kategori faktisk er kommet over loftet.
+ */
+async function advarOmSenBetaling(
+  showId: string,
+  bookingNo: string
+): Promise<void> {
+  try {
+    const show = await getShowDate(showId);
+    if (!show) return;
+    const kapaciteter = kapaciteterFor(show.kapacitetsjustering);
+    const tagne = await hentTagne(getDb(), showId);
+    const over = KAPACITETSKATEGORIER.filter(
+      (k) => tagne[k] > kapaciteter[k]
+    ).map(
+      (k) =>
+        `${KATEGORI_NAVN[k]}: ${tagne[k]} solgt mod ${kapaciteter[k]} pladser`
+    );
+    if (over.length === 0) return;
+
+    await sendMail({
+      to: EMAIL_REPLY_TO,
+      subject: `Oversolgt forestilling — ${show.title} ${show.date} (booking ${bookingNo})`,
+      html: orderEmailHtml({
+        heading: "En kategori er blevet oversolgt",
+        bookingNo,
+        lineItems: over.map((tekst) => ({
+          description: tekst,
+          quantity: 1,
+          amountSubtotalOre: 0,
+        })),
+        discountKr: 0,
+        totalLabel: "Forestilling",
+        total: `${show.title} ${show.date} kl. ${show.time}`,
+        footerNote:
+          "Betalingen kom ind, efter at kundens reservation var udløbet. Kunden har betalt og har fået sin billet. Se efter, om der skal findes en plads, eller om der skal refunderes.",
+      }),
+    });
+  } catch (err) {
+    console.error("Kunne ikke sende advarsel om oversalg");
+  }
+}
+
+/**
  * Opdaterer Airtable og sender bekræftelsesmail for en betalt billet- eller
  * genbestilling. Kaldes KUN af den kalder, der vandt pending → paid-overgangen.
  * Kaster ved fejl, så kalderen kan frigive overgangen igen.
@@ -267,6 +359,29 @@ export async function POST(req: NextRequest) {
 async function fulfillTicketPayment(payment: TicketPaymentRow): Promise<void> {
   const paidKr = Math.round(payment.expectedTotalOre / 100);
   const discountKr = Math.round(payment.discountOre / 100);
+
+  // Billetkøb: gør de holdte pladser til et endeligt salg, FØR Airtable og
+  // mailen. Er reservationen nået at udløbe, får kunden alligevel sin billet —
+  // de har betalt — og pladserne tages igen. Kan det ikke lade sig gøre, fordi
+  // kategorien derved bliver oversolgt, sendes en advarsel til kontoret.
+  // Genbestilling af drikkevarer har ingen pladser og røres ikke.
+  //
+  // Fejler pladsbogen, må det ALDRIG stoppe billetten: kunden har betalt, og
+  // bookingen skal opdateres og mailen sendes. Fejlen logges, og kontoret får
+  // en kort advarsel, så tallene kan rettes bagefter.
+  if (payment.flow === "billet") {
+    try {
+      const salg = await markerSolgt(getDb(), payment.paymentRef);
+      if (salg.udloebet && salg.showId) {
+        await advarOmSenBetaling(salg.showId, payment.bookingNo);
+      }
+    } catch (err) {
+      console.error("Pladsbogen kunne ikke opdateres for en betalt billet", {
+        bookingNo: payment.bookingNo,
+      });
+      await advarOmPladsbogsfejl(payment.bookingNo);
+    }
+  }
 
   if (payment.flow === "genbestil") {
     // Læg tilvalgene oven i den eksisterende booking; opret ingen ny.

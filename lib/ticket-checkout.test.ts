@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+﻿import { describe, it, expect } from "vitest";
 import {
   validateTicketCheckout,
   type TicketCheckoutContext,
@@ -19,15 +19,18 @@ function show(overrides: Partial<ShowDate> = {}): ShowDate {
     notes: "",
     priceGroup: "Ordinær",
     soldOut: false,
+    kapacitetsjustering: {},
     ...overrides,
   };
 }
 
 const TICKETS: TicketTypeDef[] = [
-  { id: "tkAplus", category: "A+", price: 495, fee: 25, maxCount: 10, priceGroup: "Ordinær" },
-  { id: "tkB", category: "B", price: 295, fee: 25, maxCount: 10, priceGroup: "Ordinær" },
+  { id: "tkAplus", category: "A+", price: 495, fee: 25, maxCount: 10, priceGroup: "Ordinær", kapacitetskategori: "aplusForrest" },
+  { id: "tkB", category: "B", price: 295, fee: 25, maxCount: 10, priceGroup: "Ordinær", kapacitetskategori: "b" },
   // Billettype fra en anden prisgruppe — må aldrig kunne parres med showet ovenfor.
-  { id: "tkForpremiere", category: "A+", price: 100, fee: 0, maxCount: 10, priceGroup: "Forpremiere" },
+  { id: "tkForpremiere", category: "A+", price: 100, fee: 0, maxCount: 10, priceGroup: "Forpremiere", kapacitetskategori: "aplusForrest" },
+  // Billettype, hvor kapacitetskategorien er glemt i Airtable — må ikke sælges.
+  { id: "tkUdenKategori", category: "C", price: 200, fee: 0, maxCount: 10, priceGroup: "Ordinær", kapacitetskategori: null },
 ];
 
 const ADDONS: AddonDef[] = [{ id: "adBeer", name: "Fadøl", price: 65 }];
@@ -199,5 +202,87 @@ describe("validateTicketCheckout — beløb er serverautoritative", () => {
       // 520 + 130 = 650 kr, ingen rabat.
       expect(r.totals.totalOre).toBe(65000);
     }
+  });
+});
+
+describe("validateTicketCheckout — kapacitetskategori og pladsønsker", () => {
+  it("afviser en billettype, hvor kapacitetskategorien mangler i Airtable", () => {
+    const r = validateTicketCheckout(
+      { tickets: [{ ticketTypeId: "tkUdenKategori", quantity: 1 }], addons: [] },
+      ctx()
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.status).toBe(400);
+      expect(r.error).toContain("kan ikke sælges");
+    }
+  });
+
+  it("afviser hele bestillingen, hvis bare én billettype mangler kategori", () => {
+    const r = validateTicketCheckout(
+      {
+        tickets: [
+          { ticketTypeId: "tkAplus", quantity: 1 },
+          { ticketTypeId: "tkUdenKategori", quantity: 1 },
+        ],
+        addons: [],
+      },
+      ctx()
+    );
+    expect(r.ok).toBe(false);
+  });
+
+  it("oversætter billetvalget til pladsønsker pr. priskategori", () => {
+    const r = validateTicketCheckout(
+      {
+        tickets: [
+          { ticketTypeId: "tkAplus", quantity: 2 },
+          { ticketTypeId: "tkB", quantity: 1 },
+        ],
+        addons: [],
+      },
+      ctx()
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const efterKategori = Object.fromEntries(
+        r.pladsoensker.map((p) => [p.kategori, p.antal])
+      );
+      expect(efterKategori).toEqual({ aplusForrest: 2, b: 1 });
+    }
+  });
+
+  it("gemmer billettypens id på pladsønsket, så teksten ikke skal tolkes senere", () => {
+    const r = validateTicketCheckout(
+      { tickets: [{ ticketTypeId: "tkB", quantity: 1 }], addons: [] },
+      ctx()
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.pladsoensker[0].ticketTypeId).toBe("tkB");
+    }
+  });
+
+  it("lægger flere billettyper i samme priskategori sammen", () => {
+    // Begge A+-typer hører til aplusForrest. Her bruges forpremiere-typen i en
+    // forestilling med den prisgruppe, så begge linjer er gyldige.
+    const r = validateTicketCheckout(
+      { tickets: [{ ticketTypeId: "tkForpremiere", quantity: 3 }], addons: [] },
+      ctx({ show: show({ priceGroup: "Forpremiere" }) })
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.pladsoensker).toEqual([
+        { kategori: "aplusForrest", antal: 3, ticketTypeId: "tkForpremiere" },
+      ]);
+    }
+  });
+
+  it("giver ingen pladsønsker, når tilvalg bestilles uden billetter (afvises i forvejen)", () => {
+    const r = validateTicketCheckout(
+      { tickets: [], addons: [{ addonId: "adBeer", quantity: 1 }] },
+      ctx()
+    );
+    expect(r.ok).toBe(false);
   });
 });

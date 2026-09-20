@@ -11,6 +11,8 @@
 import type { ShowDate } from "@/lib/events";
 import { isUpcoming } from "@/lib/events";
 import { addonsTotalDiscountKr } from "@/lib/pricing";
+import type { Kapacitetskategori } from "@/lib/kapacitet";
+import type { Pladsoenske } from "@/lib/seat-holds";
 
 /** Billettype som den slås op fra Airtable (priser i hele kroner). */
 export interface TicketTypeDef {
@@ -20,6 +22,12 @@ export interface TicketTypeDef {
   fee: number;
   maxCount: number;
   priceGroup: string;
+  /**
+   * Hvilken af de fire priskategorier billettypen trækker pladser fra.
+   * null = feltet er ikke udfyldt i Airtable; så kan billettypen ikke sælges
+   * (fejler lukket), for ellers kunne den sælges uden om kapaciteten.
+   */
+  kapacitetskategori: Kapacitetskategori | null;
 }
 
 /** Tilvalg som det slås op fra Airtable (fuld pris i hele kroner). */
@@ -86,6 +94,11 @@ export type TicketCheckoutResult =
       ticketBreakdown: string;
       /** Tilvalg, én linje pr. vare ("Navn x2"), til bookingens tilvalgsfelt. */
       addonBreakdown: string;
+      /**
+       * Hvor mange pladser bestillingen lægger beslag på i hver priskategori.
+       * Sendes videre til pladsbogen, som reserverer dem alt-eller-intet.
+       */
+      pladsoensker: Pladsoenske[];
     };
 
 // Læser browserens antalsvalg robust: ukendt form → tom liste (behandles som
@@ -165,6 +178,10 @@ export function validateTicketCheckout(
 
   const lines: TicketCheckoutLine[] = [];
   const ticketCategoryTotals = new Map<string, number>();
+  // Pladser pr. priskategori. Flere billettyper kan trække fra samme kategori,
+  // så de lægges sammen her, før pladsbogen får dem.
+  const pladsoenskePrKategori = new Map<Kapacitetskategori, number>();
+  const ticketTypePrKategori = new Map<Kapacitetskategori, string>();
   let ticketCount = 0;
 
   // 3) Billetlinjer.
@@ -193,6 +210,24 @@ export function validateTicketCheckout(
       };
     }
     if (quantity === 0) continue;
+
+    // Billettypen skal vide, hvilken priskategori den trækker pladser fra.
+    // Er feltet ikke udfyldt i Airtable, sælges den ikke — ellers ville den
+    // kunne sælges uden om kapaciteten og skabe oversalg.
+    if (!t.kapacitetskategori) {
+      return {
+        ok: false,
+        status: 400,
+        error: `Billettypen ${t.category} kan ikke sælges lige nu. Kontakt os på kontor@bakkenshvile.dk.`,
+      };
+    }
+    pladsoenskePrKategori.set(
+      t.kapacitetskategori,
+      (pladsoenskePrKategori.get(t.kapacitetskategori) ?? 0) + quantity
+    );
+    if (!ticketTypePrKategori.has(t.kapacitetskategori)) {
+      ticketTypePrKategori.set(t.kapacitetskategori, t.id);
+    }
 
     const unitAmountKr = t.price + t.fee;
     lines.push({
@@ -270,5 +305,13 @@ export function validateTicketCheckout(
     .map(([name, qty]) => `${name} x${qty}`)
     .join("\n");
 
-  return { ok: true, lines, totals, ticketBreakdown, addonBreakdown };
+  const pladsoensker: Pladsoenske[] = Array.from(
+    pladsoenskePrKategori.entries()
+  ).map(([kategori, antal]) => ({
+    kategori,
+    antal,
+    ticketTypeId: ticketTypePrKategori.get(kategori) ?? null,
+  }));
+
+  return { ok: true, lines, totals, ticketBreakdown, addonBreakdown, pladsoensker };
 }

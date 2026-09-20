@@ -23,6 +23,12 @@ export const FIELDS = {
     priceGroup: "fldXSAvVkLrg5HZk0",
     soldOut: "fld3Cwq5W7lP8xaHE",
     bookings: "fldCRUAQ0zuJxyWq9",
+    // Valgfri justering af kapaciteten for netop denne forestilling, ét felt
+    // pr. priskategori. Tomt felt = standardtallet i lib/kapacitet.ts.
+    kapacitetAplusForrest: "fldmXo8JD2yanpKq0",
+    kapacitetAplusBagerst: "fldfsA13r1WoHnrof",
+    kapacitetA: "fldpsFr57PQqa7wWm",
+    kapacitetB: "fldx87d3ODndPdTSu",
   },
   ticketType: {
     category: "fldjmx1vfbTgxlDn0",
@@ -30,6 +36,9 @@ export const FIELDS = {
     fee: "fldK1NBmdZyCTc0kL",
     maxCount: "fldg5GPUE2qt1HCsA",
     priceGroup: "fldz66mBlNz4Q2FcQ",
+    // Hvilken af de fire priskategorier billettypen trækker pladser fra.
+    // Uden værdi kan billettypen ikke sælges (fejler lukket).
+    kapacitetskategori: "fldlELXE7Kww7qfqU",
   },
   addOn: {
     name: "fldfRo2vS99rldTUD",

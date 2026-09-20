@@ -16,6 +16,13 @@ import { sendMail } from "@/lib/resend";
 import { ticketEmailHtml, daDateShort, showYear } from "@/lib/ticket-email";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
 import { verifyStaffSession, verifyCsrf, STAFF_COOKIE_NAME } from "@/lib/staff-auth";
+import { getDb } from "@/lib/db";
+import { frigivUdloebne, hentTagne, registrerSalg } from "@/lib/seat-holds";
+import {
+  KATEGORI_NAVN,
+  kapaciteterFor,
+  kategoriFraAirtable,
+} from "@/lib/kapacitet";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,11 +66,14 @@ export async function POST(req: NextRequest) {
       tickets,
       customer,
       note,
+      bekraeftOversalg,
     }: {
       showId?: string;
       tickets?: { ticketTypeId: string; quantity: number }[];
       customer?: { name?: string; email?: string; phone?: string };
       note?: string;
+      /** Sættes af admin, når advarslen om oversalg er set og accepteret. */
+      bekraeftOversalg?: boolean;
     } = body ?? {};
 
     if (!customer?.name) {
@@ -84,6 +94,9 @@ export async function POST(req: NextRequest) {
       fee: Number(r.fields[FIELDS.ticketType.fee] ?? 0),
       maxCount: Number(r.fields[FIELDS.ticketType.maxCount] ?? 0),
       priceGroup: priceGroupName(r.fields[FIELDS.ticketType.priceGroup]),
+      kapacitetskategori: kategoriFraAirtable(
+        r.fields[FIELDS.ticketType.kapacitetskategori]
+      ),
     }));
 
     // Genbrug den fælles validering (kendt/kommende show, billettyper i rette
@@ -101,6 +114,35 @@ export async function POST(req: NextRequest) {
     );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+
+    // Fribilletter tæller med i de optagne pladser. Personalet MÅ give en
+    // æresgæst plads i en fuld kategori, men skal se advarslen og bekræfte
+    // først — derfor svares der 409 med teksten, indtil bekraeftOversalg er sat.
+    const db = getDb();
+    const kapaciteter = kapaciteterFor(
+      show?.kapacitetsjustering ?? {}
+    );
+    if (show) await frigivUdloebne(db, show.id);
+    const tagne = show
+      ? await hentTagne(db, show.id)
+      : { aplusForrest: 0, aplusBagerst: 0, a: 0, b: 0 };
+    const overskrider = result.pladsoensker
+      .filter((o) => tagne[o.kategori] + o.antal > kapaciteter[o.kategori])
+      .map((o) => {
+        const tilbage = Math.max(0, kapaciteter[o.kategori] - tagne[o.kategori]);
+        return `${KATEGORI_NAVN[o.kategori]}: ${tilbage} tilbage, du giver ${o.antal}`;
+      });
+    if (overskrider.length > 0 && bekraeftOversalg !== true) {
+      return NextResponse.json(
+        {
+          kraeverBekraeftelse: true,
+          advarsel:
+            "Der er ikke plads nok til denne fribillet. Giver du den alligevel, bliver forestillingen oversolgt.",
+          detaljer: overskrider,
+        },
+        { status: 409 }
+      );
     }
 
     const customerRecord = await createRecord(TABLES.customers, {
@@ -123,7 +165,25 @@ export async function POST(req: NextRequest) {
       [FIELDS.booking.key]: generateBookingKey(),
       [FIELDS.booking.show]: [showId],
     };
-    await createRecord(TABLES.bookings, bookingFields);
+    const bookingRecord = await createRecord(TABLES.bookings, bookingFields);
+
+    // Bogfør pladserne som solgte. Fribilletter har ingen betaling og ingen
+    // reservation — de registreres direkte og uden loft, fordi personalet lige
+    // har bekræftet et eventuelt oversalg.
+    if (show) {
+      try {
+        await registrerSalg(db, {
+          showId: show.id,
+          bookingId: bookingRecord.id,
+          oensker: result.pladsoensker,
+          kilde: "fribillet",
+        });
+      } catch (err) {
+        // Fribilletten er oprettet i Airtable og skal ikke rulles tilbage.
+        // Fejlen logges, så den kan ses, og tallene kan rettes bagefter.
+        console.error("Fribillet: kunne ikke bogføre pladserne i pladsbogen");
+      }
+    }
 
     // Send billet-mailen, hvis der er en email (best-effort — bookingen er
     // oprettet uanset, og sendMail kaster ikke ved fejl).

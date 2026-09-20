@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addonsTotalDiscountKr,
   discountedAddonUnitKr,
@@ -13,6 +13,7 @@ import {
   STOLPE_FARVE,
   type Pladskategori,
 } from "@/lib/seating-colors";
+import type { Kapacitetskategori } from "@/lib/kapacitet";
 import "./booking.css";
 
 type Ticket = {
@@ -22,7 +23,15 @@ type Ticket = {
   fee: number;
   maxCount: number;
   priceGroup: string;
+  /**
+   * Hvilken af de fire priskategorier billettypen trækker pladser fra.
+   * null = feltet mangler i Airtable; så kan den ikke sælges.
+   */
+  kapacitetskategori: Kapacitetskategori | null;
 };
+
+/** Antal tilbage pr. priskategori. null = endnu ikke hentet. */
+type TilbageTal = Partial<Record<Kapacitetskategori, number>> | null;
 
 type AddOn = {
   id: string;
@@ -497,8 +506,44 @@ export default function BookingClient({
   const [error, setError] = useState<string | null>(null);
   const [showSeatingChart, setShowSeatingChart] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  // Antal billetter tilbage pr. priskategori. Hentes altid serverside — og
+  // altid forfra, når datoen skiftes. Browseren regner aldrig selv tallene ud.
+  const [tilbage, setTilbage] = useState<TilbageTal>(null);
 
   const selectedShow = showDates.find((s) => s.id === selectedId) ?? null;
+
+  const hentTilbage = useCallback(async (showId: string): Promise<TilbageTal> => {
+    try {
+      const res = await fetch(
+        `/api/billetter-tilbage?showId=${encodeURIComponent(showId)}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.tilbage ?? null;
+    } catch {
+      // Kan tallene ikke hentes, vises de bare ikke. Serveren afviser
+      // stadig et køb, der ikke er plads til.
+      return null;
+    }
+  }, []);
+
+  // Hent tallene, når datoen vælges — og forfra, hver gang den skiftes.
+  useEffect(() => {
+    if (!selectedId) {
+      setTilbage(null);
+      return;
+    }
+    let aktuel = true;
+    setTilbage(null);
+    hentTilbage(selectedId).then((t) => {
+      // Svar på en dato, kunden har forladt igen, kastes væk.
+      if (aktuel) setTilbage(t);
+    });
+    return () => {
+      aktuel = false;
+    };
+  }, [selectedId, hentTilbage]);
 
   const groupedByMonth = useMemo(() => {
     const map = new Map<string, ShowDate[]>();
@@ -563,6 +608,43 @@ export default function BookingClient({
   );
 
   const total = ticketsTotal + addonSubtotal - discount;
+
+  // Hvor mange billetter har kunden allerede valgt i hver priskategori? Flere
+  // billettyper kan trække fra samme kategori, så de lægges sammen her.
+  const valgtPrKategori = useMemo(() => {
+    const map: Partial<Record<Kapacitetskategori, number>> = {};
+    for (const t of visibleTickets) {
+      if (!t.kapacitetskategori) continue;
+      const antal = ticketQty[t.id] || 0;
+      if (!antal) continue;
+      map[t.kapacitetskategori] = (map[t.kapacitetskategori] ?? 0) + antal;
+    }
+    return map;
+  }, [visibleTickets, ticketQty]);
+
+  /** Antal tilbage for en billettype, eller null hvis tallet ikke kendes. */
+  function tilbageFor(t: Ticket): number | null {
+    if (!tilbage || !t.kapacitetskategori) return null;
+    const n = tilbage[t.kapacitetskategori];
+    return typeof n === "number" ? n : null;
+  }
+
+  /**
+   * Må der vælges én mere? Loftet er det mindste af billettypens maksimum pr.
+   * bestilling og det antal, der faktisk er tilbage i kategorien. Kendes
+   * tallet ikke, gælder kun maksimum — serveren afviser stadig et køb, der
+   * ikke er plads til.
+   */
+  function kanVaelgeFlere(t: Ticket): boolean {
+    const valgtAfTypen = ticketQty[t.id] || 0;
+    if (valgtAfTypen >= t.maxCount) return false;
+    const rest = tilbageFor(t);
+    if (rest === null) return true;
+    const valgtIKategorien = t.kapacitetskategori
+      ? valgtPrKategori[t.kapacitetskategori] ?? 0
+      : valgtAfTypen;
+    return valgtIKategorien < rest;
+  }
 
   // Skift dato: nulstil billetantal, så mængder fra en anden prisgruppe
   // aldrig følger med over på den nye dato.
@@ -640,7 +722,12 @@ export default function BookingClient({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Noget gik galt");
+      if (!res.ok) {
+        // Er der solgt billetter, mens kunden udfyldte formularen, sender
+        // serveren opdaterede tal med. Vis dem med det samme.
+        if (data?.tilbage) setTilbage(data.tilbage);
+        throw new Error(data.error || "Noget gik galt");
+      }
       window.location.href = data.url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Noget gik galt");
@@ -773,28 +860,49 @@ export default function BookingClient({
             hvis du har spørgsmål.
           </div>
         ) : (
-          visibleTickets.map((t) => (
-            <div className="ticket-row" key={t.id}>
-              <div className="ticket-name">{t.category}</div>
-              <div className="ticket-price">{kr(t.price + t.fee)}</div>
-              <div className="stepper">
-                <button
-                  onClick={() => setTicket(t.id, -1, t.maxCount)}
-                  disabled={!ticketQty[t.id]}
-                  aria-label={`Fjern ${t.category}`}
-                >
-                  −
-                </button>
-                <span>{ticketQty[t.id] || 0}</span>
-                <button
-                  onClick={() => setTicket(t.id, 1, t.maxCount)}
-                  aria-label={`Tilføj ${t.category}`}
-                >
-                  +
-                </button>
+          visibleTickets.map((t) => {
+            const rest = tilbageFor(t);
+            const udsolgt = rest === 0;
+            return (
+              <div
+                className={`ticket-row${udsolgt ? " is-udsolgt" : ""}`}
+                key={t.id}
+              >
+                <div className="ticket-name">{t.category}</div>
+                <div className="ticket-price">{kr(t.price + t.fee)}</div>
+                <div className="stepper">
+                  <button
+                    onClick={() => setTicket(t.id, -1, t.maxCount)}
+                    disabled={!ticketQty[t.id]}
+                    aria-label={`Fjern ${t.category}`}
+                  >
+                    −
+                  </button>
+                  <span>{ticketQty[t.id] || 0}</span>
+                  <button
+                    onClick={() => setTicket(t.id, 1, t.maxCount)}
+                    disabled={!kanVaelgeFlere(t)}
+                    aria-label={`Tilføj ${t.category}`}
+                  >
+                    +
+                  </button>
+                </div>
+                {/* Antal tilbage. Vises først, når serveren har svaret — der
+                    står aldrig et tal, browseren selv har regnet ud. */}
+                {rest === null ? (
+                  <span className="ticket-remaining" />
+                ) : udsolgt ? (
+                  <span className="ticket-remaining is-udsolgt">Udsolgt</span>
+                ) : (
+                  <span
+                    className={`ticket-remaining${rest === 1 ? " is-sidste" : ""}`}
+                  >
+                    ({rest === 1 ? "1 tilbage" : `${rest} tilbage`})
+                  </span>
+                )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

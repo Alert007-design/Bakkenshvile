@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { listRecords, TABLES, FIELDS, priceGroupName } from "@/lib/airtable";
+import { kategoriFraAirtable } from "@/lib/kapacitet";
 import { listShowDates } from "@/lib/events";
 import { onlineDiscountActive } from "@/lib/genbestil";
 import BookingClient from "../components/BookingClient";
@@ -34,6 +35,11 @@ export default async function Page() {
     fee: Number(r.fields[FIELDS.ticketType.fee] ?? 0),
     maxCount: Number(r.fields[FIELDS.ticketType.maxCount] ?? 0),
     priceGroup: priceGroupName(r.fields[FIELDS.ticketType.priceGroup]),
+    // Afgør hvilken pladskategori billettypen tæller fra, så "(12 tilbage)"
+    // kan vises ud for netop den kategori.
+    kapacitetskategori: kategoriFraAirtable(
+      r.fields[FIELDS.ticketType.kapacitetskategori]
+    ),
   }));
 
   const addons = addOns.map((r) => ({
