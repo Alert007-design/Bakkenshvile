@@ -290,6 +290,43 @@ describe("betaling", () => {
     expect((await hentTagne(db, SHOW)).b).toBe(2); // loftet er 1
   });
 
+  // Scenarie: kundens kort afvises (PAYMENT_FAILED), pladserne frigives, og
+  // kunden betaler derefter med et andet kort på samme betalingsside — altså
+  // en betalt-webhook på SAMME reference. Pladsbogen skal tage pladserne igen,
+  // præcis som når en reservation er udløbet.
+  it("tager pladserne igen, når en frigivet reservation alligevel bliver betalt", async () => {
+    await reserverMedRef("recB1", "REF1");
+    await frigivReservation(db, "REF1");
+    expect((await hentTagne(db, SHOW)).b).toBe(0);
+
+    const r = await markerSolgt(db, "REF1");
+    expect(r.linjer).toBe(1);
+    expect(r.udloebet).toBe(true);
+    expect((await hentTagne(db, SHOW)).b).toBe(1);
+    const hold = await hentHoldsForBetaling(db, "REF1");
+    expect(hold[0].status).toBe("sold");
+  });
+
+  it("frigivelse og betaling opfører sig ens, uanset om den skyldes udløb eller et afvist kort", async () => {
+    // Via udløb.
+    await reserverMedRef("recB1", "REF1");
+    await laadSomUdloebet("recB1");
+    await frigivUdloebne(db, SHOW);
+    const viaUdloeb = await markerSolgt(db, "REF1");
+
+    await db.query("TRUNCATE seat_holds, seat_counters");
+
+    // Via afvist kort.
+    await reserverMedRef("recB2", "REF2");
+    await frigivReservation(db, "REF2");
+    const viaAfvist = await markerSolgt(db, "REF2");
+
+    // Samme resultat begge veje: én linje gjort til salg, og pladserne taget igen.
+    expect(viaAfvist.linjer).toBe(viaUdloeb.linjer);
+    expect(viaAfvist.udloebet).toBe(viaUdloeb.udloebet);
+    expect((await hentTagne(db, SHOW)).b).toBe(1);
+  });
+
   it("en ukendt betalingsreference ændrer ingenting", async () => {
     const r = await markerSolgt(db, "FINDES-IKKE");
     expect(r.linjer).toBe(0);

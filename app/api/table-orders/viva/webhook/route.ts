@@ -270,6 +270,40 @@ export async function POST(req: NextRequest) {
 }
 
 /**
+ * Kort advarsel til kontoret, når pladsbogen ikke kunne opdateres for en
+ * betalt billet. Kunden har fået sin billet; det er kun tællingen, der
+ * mangler, og den kan rettes i hånden på /admin/kapacitet.
+ *
+ * Må aldrig kaste — den kaldes fra en catch, hvor billetten skal frem uanset.
+ */
+async function advarOmPladsbogsfejl(bookingNo: string): Promise<void> {
+  try {
+    await sendMail({
+      to: EMAIL_REPLY_TO,
+      subject: `Pladsoptællingen mangler en betalt billet — ${bookingNo}`,
+      html: orderEmailHtml({
+        heading: "Pladsoptællingen kunne ikke opdateres",
+        bookingNo,
+        lineItems: [
+          {
+            description: "Billetten er betalt, og kunden har fået sin billet",
+            quantity: 1,
+            amountSubtotalOre: 0,
+          },
+        ],
+        discountKr: 0,
+        totalLabel: "Handling",
+        total: "Se efter tallene",
+        footerNote:
+          "Pladserne blev ikke talt med i pladsbogen. Bookingen og mailen er i orden. Gå ind på /admin/kapacitet og se, om tallene stemmer for forestillingen — ellers vil der kunne sælges flere billetter, end der er plads til.",
+      }),
+    });
+  } catch (err) {
+    console.error("Kunne ikke sende advarsel om manglende pladsoptælling");
+  }
+}
+
+/**
  * Sender en advarsel til kontoret, når en betaling er kommet ind EFTER at
  * reservationen var udløbet. Kunden har betalt og får sin billet, men det kan
  * have gjort en kategori oversolgt — og det skal huset kunne nå at reagere på.
@@ -331,10 +365,21 @@ async function fulfillTicketPayment(payment: TicketPaymentRow): Promise<void> {
   // de har betalt — og pladserne tages igen. Kan det ikke lade sig gøre, fordi
   // kategorien derved bliver oversolgt, sendes en advarsel til kontoret.
   // Genbestilling af drikkevarer har ingen pladser og røres ikke.
+  //
+  // Fejler pladsbogen, må det ALDRIG stoppe billetten: kunden har betalt, og
+  // bookingen skal opdateres og mailen sendes. Fejlen logges, og kontoret får
+  // en kort advarsel, så tallene kan rettes bagefter.
   if (payment.flow === "billet") {
-    const salg = await markerSolgt(getDb(), payment.paymentRef);
-    if (salg.udloebet && salg.showId) {
-      await advarOmSenBetaling(salg.showId, payment.bookingNo);
+    try {
+      const salg = await markerSolgt(getDb(), payment.paymentRef);
+      if (salg.udloebet && salg.showId) {
+        await advarOmSenBetaling(salg.showId, payment.bookingNo);
+      }
+    } catch (err) {
+      console.error("Pladsbogen kunne ikke opdateres for en betalt billet", {
+        bookingNo: payment.bookingNo,
+      });
+      await advarOmPladsbogsfejl(payment.bookingNo);
     }
   }
 
