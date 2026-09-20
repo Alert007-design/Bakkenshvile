@@ -158,9 +158,13 @@ export type MarkPaidResult =
 
 /**
  * Markerer ordren som betalt ud fra en verificeret betaling. Idempotent og
- * sikker ved samtidige kald: kun overgangen pending → paid udføres, og kun én
- * gang. Beløb og valuta kontrolleres mod kladden, så en forfalsket eller
- * forkert betaling afvises. Opslag sker på (payment_provider, payment_ref).
+ * sikker ved samtidige kald: overgangen til betalt udføres kun én gang. Beløb
+ * og valuta kontrolleres mod kladden, så en forfalsket eller forkert betaling
+ * afvises. Opslag sker på (payment_provider, payment_ref).
+ *
+ * Overgangen tillades både fra "afventer" og fra "fejlet", fordi en afvist
+ * betaling hos Viva ikke er endelig; gæsten kan betale med et andet kort på
+ * samme betalingsside. Se kommentaren ved selve UPDATE'en nedenfor.
  */
 export async function markOrderPaidByRef(
   db: Queryable,
@@ -194,16 +198,27 @@ export async function markOrderPaidByRef(
   ) {
     return { status: "amount_mismatch", orderId: order.id };
   }
-  // Atomar, guardet overgang: kun hvis den stadig er pending. Vinder kun ét af
-  // to samtidige webhookkald. RETURNING gør resultatet driver-uafhængigt
+  // Atomar, guardet overgang fra 'pending' — og også fra 'failed'. Vinder kun
+  // ét af to samtidige webhookkald. RETURNING gør resultatet driver-uafhængigt
   // (pglite har ikke rowCount).
+  //
+  // Hvorfor også fra 'failed': Viva skriver udtrykkeligt, at en Transaction
+  // Failed-webhook ikke er en endelig status. Bliver gæstens kort afvist, kan
+  // gæsten betale med et andet kort på den samme betalingsside, og så følger
+  // en betalt-webhook på det SAMME orderCode. Uden dette ville gæsten have
+  // betalt, uden at ordren nogensinde nåede baren.
+  // Kilde: https://developer.viva.com/webhooks-for-payments/transaction-failed
+  //
+  // fulfillment_status sættes til 'new', så ordren kommer på barens skærm —
+  // også når den kommer den vej rundt. Beløbs- og valutakontrollen ovenfor er
+  // allerede udført, også når ordren stod som fejlet.
   const upd = await db.query<{ id: string }>(
     `UPDATE orders
         SET payment_status = 'paid',
             fulfillment_status = 'new',
             payment_txn_id = COALESCE($2, payment_txn_id),
             paid_at = now()
-      WHERE id = $1 AND payment_status = 'pending'
+      WHERE id = $1 AND payment_status IN ('pending', 'failed')
       RETURNING id`,
     [order.id, params.transactionId ?? null]
   );

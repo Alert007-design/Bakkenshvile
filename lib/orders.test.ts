@@ -6,6 +6,7 @@ import {
   attachPaymentRef,
   getPaymentRef,
   markOrderPaidByRef,
+  markOrderFailedByRef,
   markOrderRefundedByRef,
   getOrderForGuest,
   setFulfillmentStatus,
@@ -355,5 +356,90 @@ describe("hall_state", () => {
   it("getActiveEvent er null når intet event er åbent", async () => {
     await setHallState(db, "evt1", "closed", false);
     expect(await getActiveEvent(db)).toBeNull();
+  });
+});
+
+// Samme scenarie som for gavekort og billetter: gaestens kort afvises, og
+// gaesten betaler derefter med et andet kort paa samme betalingsside. Viva
+// sender da en betalt-webhook paa det SAMME orderCode, og bordordren skal
+// stadig naa frem til baren.
+// https://developer.viva.com/webhooks-for-payments/transaction-failed
+describe("fejlet -> betalt (afvist kort, betalt med et andet)", () => {
+  const REF = "9876543210987654";
+
+  async function kladdeMedRef() {
+    const order = await createDraftOrder(db, draft());
+    await attachPaymentRef(db, order.id, "viva", REF);
+    return order;
+  }
+
+  async function betal(amountTotalOre = 10000, currency = "dkk") {
+    return markOrderPaidByRef(db, {
+      provider: "viva",
+      paymentRef: REF,
+      transactionId: "txn-1",
+      amountTotalOre,
+      currency,
+    });
+  }
+
+  it("ordren kan stadig betales, efter at et forsoeg er fejlet", async () => {
+    const order = await kladdeMedRef();
+    expect(await markOrderFailedByRef(db, "viva", REF)).toBe(true);
+
+    const r = await betal();
+    expect(r.status).toBe("paid");
+
+    const { rows } = await db.query<{
+      payment_status: string;
+      fulfillment_status: string;
+    }>("SELECT payment_status, fulfillment_status FROM orders WHERE id = $1", [
+      order.id,
+    ]);
+    expect(rows[0].payment_status).toBe("paid");
+    // Ordren skal ud paa barens skaerm igen.
+    expect(rows[0].fulfillment_status).toBe("new");
+  });
+
+  it("beloebskontrollen gaelder stadig, naar ordren stod som fejlet", async () => {
+    const order = await kladdeMedRef();
+    await markOrderFailedByRef(db, "viva", REF);
+
+    const r = await betal(1);
+    expect(r.status).toBe("amount_mismatch");
+    const { rows } = await db.query<{ payment_status: string }>(
+      "SELECT payment_status FROM orders WHERE id = $1",
+      [order.id]
+    );
+    expect(rows[0].payment_status).toBe("failed");
+  });
+
+  it("samme betalt-webhook to gange giver kun een ordre til baren", async () => {
+    await kladdeMedRef();
+    await markOrderFailedByRef(db, "viva", REF);
+
+    const foerste = await betal();
+    const anden = await betal();
+    expect(foerste.status).toBe("paid");
+    expect(anden.status).toBe("already_paid");
+  });
+
+  it("to samtidige betalt-webhooks fra fejlet: praecis een vinder", async () => {
+    await kladdeMedRef();
+    await markOrderFailedByRef(db, "viva", REF);
+
+    const [a, b] = await Promise.all([betal(), betal()]);
+    expect([a.status, b.status].sort()).toEqual(["already_paid", "paid"]);
+  });
+
+  it("en betalt ordre kan ikke saettes tilbage til fejlet af en forsinket webhook", async () => {
+    const order = await kladdeMedRef();
+    await betal();
+    expect(await markOrderFailedByRef(db, "viva", REF)).toBe(false);
+    const { rows } = await db.query<{ payment_status: string }>(
+      "SELECT payment_status FROM orders WHERE id = $1",
+      [order.id]
+    );
+    expect(rows[0].payment_status).toBe("paid");
   });
 });

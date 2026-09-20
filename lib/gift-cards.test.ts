@@ -214,3 +214,67 @@ describe("listGiftCards", () => {
     expect(rows.length).toBe(2);
   });
 });
+
+// Scenarie fra virkeligheden: koeberens kort afvises, Viva sender en
+// Transaction Failed-webhook, og koeberen betaler derefter med et andet kort
+// paa den SAMME betalingsside. Viva skriver udtrykkeligt, at en fejlet
+// betaling ikke er en endelig status, og at en betalt-webhook kan foelge efter
+// paa samme orderCode:
+// https://developer.viva.com/webhooks-for-payments/transaction-failed
+describe("fejlet -> betalt (afvist kort, betalt med et andet)", () => {
+  it("gavekortet udstedes stadig, efter at et forsoeg er fejlet", async () => {
+    await createGiftCard(db, input());
+    expect(await markGiftCardFailedByRef(db, REF)).toBe(true);
+
+    const r = await pay();
+    expect(r.status).toBe("paid");
+    if (r.status === "paid") {
+      // Koden og gyldigheden skal vaere sat, ellers kan mailen ikke sendes.
+      expect(r.card.code).toMatch(/^BH-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
+      expect(r.card.expiresAt).toBeTruthy();
+    }
+    const row = await getGiftCardByRef(db, REF);
+    expect(row?.status).toBe("paid");
+  });
+
+  it("beloebskontrollen gaelder stadig, naar posten stod som fejlet", async () => {
+    await createGiftCard(db, input());
+    await markGiftCardFailedByRef(db, REF);
+
+    const r = await pay(REF, 1);
+    expect(r.status).toBe("amount_mismatch");
+    const row = await getGiftCardByRef(db, REF);
+    expect(row?.status).toBe("failed");
+    expect(row?.code).toBeNull();
+  });
+
+  it("samme betalt-webhook to gange giver kun eet gavekort", async () => {
+    await createGiftCard(db, input());
+    await markGiftCardFailedByRef(db, REF);
+
+    const foerste = await pay();
+    const anden = await pay();
+    expect(foerste.status).toBe("paid");
+    expect(anden.status).toBe("already_paid");
+    // Koden maa ikke skifte ved anden webhook.
+    if (foerste.status === "paid" && anden.status === "already_paid") {
+      expect(anden.card.code).toBe(foerste.card.code);
+    }
+  });
+
+  it("to samtidige betalt-webhooks fra fejlet: praecis een vinder", async () => {
+    await createGiftCard(db, input());
+    await markGiftCardFailedByRef(db, REF);
+
+    const [a, b] = await Promise.all([pay(), pay()]);
+    expect([a.status, b.status].sort()).toEqual(["already_paid", "paid"]);
+  });
+
+  it("et betalt gavekort kan ikke saettes tilbage til fejlet af en forsinket webhook", async () => {
+    await createGiftCard(db, input());
+    await pay();
+    expect(await markGiftCardFailedByRef(db, REF)).toBe(false);
+    const row = await getGiftCardByRef(db, REF);
+    expect(row?.status).toBe("paid");
+  });
+});

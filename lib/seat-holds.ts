@@ -93,12 +93,30 @@ async function sikrTaellelinje(db: Queryable, showId: string): Promise<void> {
 
 /** De fire "hvor mange er taget"-tal for en forestilling. */
 export async function hentTagne(db: Queryable, showId: string): Promise<Pladstal> {
-  const { rows } = await db.query<TaelleRaekke>(
-    `SELECT taken_aplus_front, taken_aplus_back, taken_a, taken_b
-       FROM seat_counters WHERE show_id = $1`,
-    [showId]
+  const kort = await hentTagneForShows(db, [showId]);
+  return kort.get(showId) ?? { ...NUL };
+}
+
+/**
+ * Som hentTagne, men for mange forestillinger i ÉT kald. Adminoversigten viser
+ * alle kommende forestillinger, og ét opslag pr. forestilling ville gøre siden
+ * unødigt langsom. Forestillinger uden salg får nuller.
+ */
+export async function hentTagneForShows(
+  db: Queryable,
+  showIds: string[]
+): Promise<Map<string, Pladstal>> {
+  const ud = new Map<string, Pladstal>();
+  if (showIds.length === 0) return ud;
+  const { rows } = await db.query<TaelleRaekke & { show_id: string }>(
+    `SELECT show_id, taken_aplus_front, taken_aplus_back, taken_a, taken_b
+       FROM seat_counters WHERE show_id = ANY($1)`,
+    [showIds]
   );
-  return rows[0] ? tilPladstal(rows[0]) : { ...NUL };
+  for (const r of rows) ud.set(r.show_id, tilPladstal(r));
+  // Forestillinger, der aldrig har solgt noget, har ingen linje endnu.
+  for (const id of showIds) if (!ud.has(id)) ud.set(id, { ...NUL });
+  return ud;
 }
 
 /**
@@ -110,17 +128,33 @@ export async function genberegnTagne(
   db: Queryable,
   showId: string
 ): Promise<Pladstal> {
-  const { rows } = await db.query<{ category: string; antal: string | number }>(
-    `SELECT category, SUM(quantity) AS antal
+  const kort = await genberegnTagneForShows(db, [showId]);
+  return kort.get(showId) ?? { ...NUL };
+}
+
+/** Som genberegnTagne, men for mange forestillinger i ÉT kald. */
+export async function genberegnTagneForShows(
+  db: Queryable,
+  showIds: string[]
+): Promise<Map<string, Pladstal>> {
+  const ud = new Map<string, Pladstal>();
+  if (showIds.length === 0) return ud;
+  for (const id of showIds) ud.set(id, { ...NUL });
+  const { rows } = await db.query<{
+    show_id: string;
+    category: string;
+    antal: string | number;
+  }>(
+    `SELECT show_id, category, SUM(quantity) AS antal
        FROM seat_holds
-      WHERE show_id = $1 AND status IN ('held','sold')
-      GROUP BY category`,
-    [showId]
+      WHERE show_id = ANY($1) AND status IN ('held','sold')
+      GROUP BY show_id, category`,
+    [showIds]
   );
-  const ud: Pladstal = { ...NUL };
   for (const r of rows) {
     const k = r.category as Kapacitetskategori;
-    if (KAPACITETSKATEGORIER.includes(k)) ud[k] = Number(r.antal);
+    const tal = ud.get(r.show_id);
+    if (tal && KAPACITETSKATEGORIER.includes(k)) tal[k] = Number(r.antal);
   }
   return ud;
 }
@@ -133,22 +167,31 @@ export async function genberegnTagne(
  * reservation — så der ikke skal oprettes et cron-job til det.
  */
 export async function frigivUdloebne(db: Queryable, showId: string): Promise<void> {
+  await frigivUdloebneForShows(db, [showId]);
+}
+
+/** Som frigivUdloebne, men for mange forestillinger i ÉT greb. */
+export async function frigivUdloebneForShows(
+  db: Queryable,
+  showIds: string[]
+): Promise<void> {
+  if (showIds.length === 0) return;
   await db.query(
     `WITH udloebne AS (
        UPDATE seat_holds
           SET status = 'released'
-        WHERE show_id = $1
+        WHERE show_id = ANY($1)
           AND status = 'held'
           AND expires_at IS NOT NULL
           AND expires_at <= now()
-        RETURNING category, quantity
+        RETURNING show_id, category, quantity
      ), frigivet AS (
-       SELECT
+       SELECT show_id,
          COALESCE(SUM(quantity) FILTER (WHERE category = 'aplusForrest'), 0)::int AS k1,
          COALESCE(SUM(quantity) FILTER (WHERE category = 'aplusBagerst'), 0)::int AS k2,
          COALESCE(SUM(quantity) FILTER (WHERE category = 'a'), 0)::int AS k3,
          COALESCE(SUM(quantity) FILTER (WHERE category = 'b'), 0)::int AS k4
-       FROM udloebne
+       FROM udloebne GROUP BY show_id
      )
      UPDATE seat_counters c
         SET taken_aplus_front = GREATEST(0, c.taken_aplus_front - f.k1),
@@ -157,8 +200,8 @@ export async function frigivUdloebne(db: Queryable, showId: string): Promise<voi
             taken_b           = GREATEST(0, c.taken_b           - f.k4),
             updated_at        = now()
        FROM frigivet f
-      WHERE c.show_id = $1`,
-    [showId]
+      WHERE c.show_id = f.show_id`,
+    [showIds]
   );
 }
 
