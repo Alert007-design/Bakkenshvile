@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { generateBookingNo } from "@/lib/booking-no";
 import {
   createRecord,
   cachedListRecords,
@@ -213,7 +214,8 @@ export async function POST(req: NextRequest) {
       [FIELDS.customer.phone]: customer.phone || "",
       [FIELDS.customer.email]: customer.email || "",
     });
-    const bookingNo = `BH-${Date.now().toString().slice(-8)}`;
+    // Tilfældigt nummer, der ikke kan gættes ud fra klokkeslættet (se lib/booking-no.ts).
+    const bookingNo = generateBookingNo();
 
     const bookingFields: Record<string, unknown> = {
       [FIELDS.booking.bookingNo]: bookingNo,

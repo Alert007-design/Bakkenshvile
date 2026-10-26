@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { generateBookingNo } from "@/lib/booking-no";
 import {
   createRecord,
   cachedListRecords,
@@ -150,7 +151,7 @@ export async function POST(req: NextRequest) {
       [FIELDS.customer.email]: customer.email || "",
       [FIELDS.customer.phone]: customer.phone || "",
     });
-    const bookingNo = `BH-FRI-${Date.now().toString().slice(-6)}`;
+    const bookingNo = generateBookingNo("BH-FRI-");
 
     const bookingFields: Record<string, unknown> = {
       [FIELDS.booking.bookingNo]: bookingNo,

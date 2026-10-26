@@ -4,6 +4,7 @@
 
 import { randomBytes, timingSafeEqual } from "crypto";
 import { findRecords, getRecord, TABLES, FIELDS } from "@/lib/airtable";
+import { normalizeBookingNo } from "@/lib/booking-no";
 
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
 
@@ -20,7 +21,8 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 async function findBookingByNo(bookingNo: string): Promise<AirtableRecord | null> {
-  const safe = bookingNo.trim();
+  // Store bogstaver, så gæsten kan taste nummeret med små bogstaver.
+  const safe = normalizeBookingNo(bookingNo);
   // Kun bookingnumre i det kendte format — beskytter mod formel-injektion.
   if (!/^[A-Za-z0-9-]{1,40}$/.test(safe)) return null;
   const recs = await findRecords(
