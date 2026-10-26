@@ -48,7 +48,9 @@ import {
   retrieveVivaTransaction,
 } from "@/lib/payments/viva-client";
 import { getRecord, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
-import { addonBreakdown, mergeAddonBreakdowns, buildBookingView } from "@/lib/genbestil";
+import { buildBookingView } from "@/lib/genbestil";
+import { fulfillGenbestilling } from "@/lib/genbestil-fulfill";
+import { advarOmBeloebsfejl } from "@/lib/payment-alerts";
 import { ticketEmailHtml, daDateShort, showYear } from "@/lib/ticket-email";
 import { orderEmailHtml } from "@/lib/order-email";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
@@ -153,6 +155,17 @@ export async function POST(req: NextRequest) {
           console.error("Viva-webhook: gavekort-beløb matcher ikke ordren", {
             giftCardNo: result.card.giftCardNo,
           });
+          // Kunden har betalt, men får intet: kontoret skal have besked med det samme.
+          await advarOmBeloebsfejl({
+            type: "Gavekort",
+            reference: result.card.giftCardNo,
+            kundeNavn: result.card.purchaserName,
+            kundeEmail: result.card.purchaserEmail,
+            forventetOre: result.card.amountOre,
+            betaltOre: verified.amountOre,
+            valuta: verified.currency,
+            transaktionsId: verified.transactionId,
+          });
           return NextResponse.json({ received: true });
         }
         if (result.status !== "paid") {
@@ -202,6 +215,7 @@ export async function POST(req: NextRequest) {
           console.error("Viva-webhook: beløb matcher ikke ordrekladden", {
             orderId: result.orderId,
           });
+          await advarOmBordBeloebsfejl(result.orderId, verified);
         }
       } else if (eventTypeId === EVENT_PAYMENT_FAILED) {
         await markOrderFailedByRef(db, "viva", verified.paymentRef);
@@ -224,6 +238,18 @@ export async function POST(req: NextRequest) {
       if (result.status === "amount_mismatch") {
         console.error("Viva-webhook: beløb matcher ikke booking-total", {
           bookingNo: result.payment.bookingNo,
+        });
+        // Ingen ændring i systemet, men kontoret får besked med det samme, så
+        // kunden ikke står med en betaling og ingen billet.
+        await advarOmBeloebsfejl({
+          type: result.payment.flow === "genbestil" ? "Genbestilling" : "Billet",
+          reference: result.payment.bookingNo,
+          kundeNavn: result.payment.customerName,
+          kundeEmail: result.payment.customerEmail,
+          forventetOre: result.payment.expectedTotalOre,
+          betaltOre: verified.amountOre,
+          valuta: verified.currency,
+          transaktionsId: verified.transactionId,
         });
         return NextResponse.json({ received: true }); // ingen ændring
       }
@@ -266,6 +292,40 @@ export async function POST(req: NextRequest) {
     console.error("Viva-webhook: fejl under håndtering");
     // 500 → Viva prøver igen; håndteringen er idempotent.
     return NextResponse.json({ error: "Intern fejl" }, { status: 500 });
+  }
+}
+
+/**
+ * Advarsel til kontoret, når en bordbestilling er betalt med et andet beløb
+ * end ordren. Henter bordnummer, ordrenummer og forventet beløb fra databasen.
+ * Kaster aldrig.
+ */
+async function advarOmBordBeloebsfejl(
+  orderId: string,
+  verified: { amountOre: number; currency: string; transactionId: string | null }
+): Promise<void> {
+  try {
+    const { rows } = await getDb().query<{
+      order_number: string;
+      table_number: number;
+      total_ore: string | number;
+      guest_name: string;
+    }>(
+      `SELECT order_number, table_number, total_ore, guest_name FROM orders WHERE id = $1`,
+      [orderId]
+    );
+    const o = rows[0];
+    await advarOmBeloebsfejl({
+      type: "Bordbestilling",
+      reference: o ? `Bord ${o.table_number}, ordre ${o.order_number}` : `Ordre ${orderId}`,
+      kundeNavn: o?.guest_name ?? null,
+      forventetOre: o ? Number(o.total_ore) : 0,
+      betaltOre: verified.amountOre,
+      valuta: verified.currency,
+      transaktionsId: verified.transactionId,
+    });
+  } catch (err) {
+    console.error("Kunne ikke sende advarsel om beløbsfejl på bordbestilling");
   }
 }
 
@@ -384,39 +444,10 @@ async function fulfillTicketPayment(payment: TicketPaymentRow): Promise<void> {
   }
 
   if (payment.flow === "genbestil") {
-    // Læg tilvalgene oven i den eksisterende booking; opret ingen ny.
-    const existing = await getRecord(TABLES.bookings, payment.bookingId);
-    const prevDiscount = Number(existing.fields[FIELDS.booking.discount] ?? 0);
-    const prevPaid = Number(existing.fields[FIELDS.booking.totalPaid] ?? 0);
-    const prevAddons = String(existing.fields[FIELDS.booking.addons] ?? "");
-    const newAddons = addonBreakdown(
-      payment.lineItems.map((li) => ({ name: li.description, quantity: li.quantity }))
-    );
-    const grandTotalKr = prevPaid + paidKr;
-    await updateRecord(TABLES.bookings, payment.bookingId, {
-      [FIELDS.booking.addons]: mergeAddonBreakdowns(prevAddons, newAddons),
-      [FIELDS.booking.discount]: prevDiscount + discountKr,
-      [FIELDS.booking.totalPaid]: grandTotalKr,
-    });
-    if (payment.customerEmail) {
-      await sendMail({
-        to: payment.customerEmail,
-        subject: `Din ekstra bestilling til Bakkens Hvile — ${payment.bookingNo}`,
-        html: orderEmailHtml({
-          heading: `Tak for din ekstra bestilling${
-            payment.customerName ? ", " + payment.customerName : ""
-          }!`,
-          bookingNo: payment.bookingNo,
-          lineItems: payment.lineItems,
-          discountKr,
-          totalLabel: "Betalt nu",
-          total: `${paidKr} kr.`,
-          grandTotal: `${grandTotalKr} kr.`,
-          footerNote:
-            "Vi har lagt drikkevarerne til din bestilling. Vi glæder os til at se dig i Bakkens Hvile, Dyrehavsbakken 38, 2930 Klampenborg.",
-        }),
-      });
-    }
+    // Lægger drinks oven i bookingen og sender bekræftelsen. Fejler mailen,
+    // efter at Airtable er opdateret, kastes der IKKE (så tælles drinksene ikke
+    // dobbelt ved Vivas genforsøg); kontoret får i stedet besked.
+    await fulfillGenbestilling(payment);
     return;
   }
 

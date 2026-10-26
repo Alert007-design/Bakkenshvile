@@ -6,6 +6,7 @@ import { vivaSourceCode } from "@/lib/payments/viva-client";
 import { createTicketPayment, type TicketLineItem } from "@/lib/ticket-payments";
 import { addonsTotalDiscountKr } from "@/lib/pricing";
 import { authenticateBooking, buildBookingView } from "@/lib/genbestil";
+import { rateLimit } from "@/lib/rate-limit";
 
 // Betalingen udløber efter 30 min. (samme vindue som billetkøbet).
 const CHECKOUT_EXPIRY_MINUTES = 30;
@@ -18,6 +19,17 @@ const CLOSED_MESSAGE =
 
 export async function POST(req: NextRequest) {
   try {
+    // Samme grænse for gætteforsøg som opslaget på /api/genbestil/lookup, så
+    // bookingnummer + mail ikke kan prøves af her i stedet.
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "ukendt";
+    const rl = rateLimit(`genbestil-checkout:${ip}`, 10, 60_000);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "For mange forsøg. Vent et øjeblik og prøv igen." },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const { ref, key, bookingNo, email, addonQty } = body ?? {};
 

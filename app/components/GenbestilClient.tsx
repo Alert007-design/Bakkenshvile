@@ -197,7 +197,7 @@ export default function GenbestilClient({
                 inputMode="text"
                 autoComplete="off"
                 required
-                placeholder="fx BH-12345678"
+                placeholder="fx BH-K7M2Q9XR"
                 value={form.bookingNo}
                 onChange={(e) =>
                   setForm({ ...form, bookingNo: e.target.value })
