@@ -22,14 +22,17 @@
    testes lokalt, så sig det ligeud. Skriv aldrig "virker" om noget, du ikke
    har kørt.
 4. Én funktion ad gangen, én gren og ét pull request pr. funktion. Ved
-   opgaver i flere trin: stop efter hvert trin og vent på, at ejeren har flettet.
+   opgaver i flere trin: stop efter hvert trin og vent på, at trinnet er flettet.
 Små rettelser (stavefejl, en enkelt tekst) kræver ikke plan og tests, men
 stadig gren og pull request.
 
 ## Git
 - Commit aldrig direkte til main, og push aldrig til main.
-- GitHub CLI er ikke tilgængelig. Opret ikke pull request selv. Giv ejeren det
-  direkte link til at oprette den på github.com.
+- Ejeren fletter ikke selv. I en cloud-session opretter og fletter Claude selv
+  pull requestet, når tests og build er grønne, med de undtagelser, der står
+  under "Kræver udtrykkelig godkendelse" og "Pull requests og fletning".
+  Lokalt (uden GitHub CLI) pushes grenen, og ejeren får at vide, at den
+  flettes fra en cloud-session.
 - Midlertidige testscripts og forsøgsfiler slettes, før du committer. Afslut
   altid med git status, og skift tilbage til main.
 - Ret kun de filer, opgaven handler om. Ser du andre fejl, så nævn dem, men
@@ -81,7 +84,8 @@ stadig gren og pull request.
 Skriv en kort opsummering på dansk med disse punkter:
 1. Hvad der er ændret, og hvilke filer.
 2. Hvad der er testet og hvordan, og hvad der IKKE kunne testes.
-3. Hvad ejeren skal gøre i browseren, som klikvejledning: pull request, nye
+3. Om pull requestet er flettet og ude på siden. Hvad ejeren selv skal gøre
+   i browseren, som klikvejledning: nye
    miljøvariabler i Vercel, SQL der skal køres i Supabase SQL Editor, felter i
    Airtable.
 4. Hvordan ændringen rulles tilbage.
@@ -182,8 +186,24 @@ Node ligger i C:\ft\node, npm bruger C:\ft\npm-cache og C:\ft\npm-global.
 Programmer må kun køre fra C:\ft. PowerShell kører i begrænset sprogtilstand,
 så filer skrives med skriveværktøjet, ikke med scripts. Tests (vitest) kan
 ikke køres her, fordi Node ikke må starte esbuild.exe – kør typecheck, lint og
-build lokalt, og kør tests i en cloud-session. GitHub CLI findes ikke; pull
-requests opretter jeg selv på github.com.
+build lokalt, og kør tests i en cloud-session. GitHub CLI findes ikke her,
+så pull requests kan hverken oprettes eller flettes lokalt (se næste afsnit).
+
+## Pull requests og fletning
+Jeg fletter ikke selv på github.com. Gør så meget som muligt selv, så jeg
+ikke skal tage tekniske trin og risikere fejl.
+- I en cloud-session (claude.ai/code): opret selv pull requestet, kør tests,
+  og flet det, når typecheck, lint, build og tests er grønne. Følg bagefter
+  udrulningen på Vercel, og sig til, når ændringen er ude, eller hvad der
+  fejlede.
+- Lokalt på min pc: push grenen, og skriv kort, at den flettes fra en
+  cloud-session. Bed mig ikke om at oprette eller flette pull requests.
+- Spørg mig først og vent på et klart ja, før du fletter noget, der rammer
+  rigtige brugere: udsendelse af mails eller sms, tilmelding, samtykke,
+  privatlivspolitik og persondata, afmelding og sletning, betaling, at gøre
+  en side offentlig eller pege et domæne over, og sletning af data.
+  Almindelige rettelser, jeg har bedt om, fletter du uden at spørge.
+- Fejler tests eller build, flettes der ikke.
 
 ## Når noget går galt
 Stop. Forklar, hvad der er sket, og hvordan vi ruller tilbage, før du gør mere.
