@@ -17,6 +17,8 @@ export interface TicketLineItem {
   description: string;
   quantity: number;
   amountSubtotalOre: number; // linjens beløb i øre (efter evt. rabat på totalen)
+  /** Billet eller drikkevare. Mangler på ældre rækker. Bruges i salgsmailen. */
+  kind?: "ticket" | "addon";
 }
 
 export interface TicketPaymentRow {

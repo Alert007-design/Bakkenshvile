@@ -280,6 +280,7 @@ export async function POST(req: NextRequest) {
       description: l.description,
       quantity: l.quantity,
       amountSubtotalOre: l.amountSubtotalOre,
+      kind: l.kind,
     }));
     const expectedTotalOre = result.totals.totalOre;
     const discountOre = result.totals.discountOre;

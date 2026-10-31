@@ -50,7 +50,15 @@ export function vivaCheckoutUrl(orderCode: string, env: VivaEnv = getVivaEnv()):
  * beholdes som fallback, så bordbestillingen ikke knækker, hvis de nye variabler
  * ikke er sat endnu.
  */
-export function vivaSourceCode(kind: "table" | "tickets" | "gavekort"): string {
+export function vivaSourceCode(
+  kind: "table" | "tickets" | "gavekort" | "drinks"
+): string {
+  // Drikkevarer købt online uden billet (/genbestil) har deres egen source, så
+  // pengene kan afregnes til barens konto. Er den ikke sat endnu, bruges
+  // billet-sourcen som hidtil, så genbestillingen ikke knækker.
+  if (kind === "drinks") {
+    return process.env.VIVA_SOURCE_CODE_DRINKS || vivaSourceCode("tickets");
+  }
   const fallback = process.env.VIVA_SOURCE_CODE || "";
   const envName =
     kind === "table"
