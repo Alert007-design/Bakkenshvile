@@ -51,6 +51,7 @@ import { getRecord, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { buildBookingView } from "@/lib/genbestil";
 import { fulfillGenbestilling } from "@/lib/genbestil-fulfill";
 import { advarOmBeloebsfejl } from "@/lib/payment-alerts";
+import { meldSalg, salgFraBillet, salgFraGavekort } from "@/lib/salgsmail";
 import { ticketEmailHtml, daDateShort, showYear } from "@/lib/ticket-email";
 import { orderEmailHtml } from "@/lib/order-email";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
@@ -181,6 +182,8 @@ export async function POST(req: NextRequest) {
           console.error("Viva-webhook: kunne ikke fuldføre gavekort");
           return NextResponse.json({ error: "Intern fejl" }, { status: 500 });
         }
+        // Salgsmail til Dot — kun efter fuldført salg, dermed præcis én gang.
+        await meldSalg(salgFraGavekort(result.card));
         return NextResponse.json({ received: true });
       }
       if (eventTypeId === EVENT_PAYMENT_FAILED) {
@@ -270,6 +273,8 @@ export async function POST(req: NextRequest) {
         console.error("Viva-webhook: kunne ikke fuldføre billetbetaling");
         return NextResponse.json({ error: "Intern fejl" }, { status: 500 });
       }
+      // Salgsmail til Dot — kun efter fuldført salg, dermed præcis én gang.
+      await meldSalg(salgFraBillet(result.payment));
       return NextResponse.json({ received: true });
     }
 

@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       customerEmail = String(cust.fields[FIELDS.customer.email] ?? "") || undefined;
     }
 
-    // 5) Betaling hos den valgte udbyder (Viva) på tickets-sourcen. Markeres som
+    // 5) Betaling hos den valgte udbyder (Viva) på drikkevare-sourcen. Markeres som
     //    genbestilling via tags[0]="genbestil", så webhooken lægger oven i
     //    bookingen frem for at oprette en ny. Beløb i øre, serverberegnet.
     const origin = req.nextUrl.origin;
@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
       description: li.name,
       quantity: li.quantity,
       amountSubtotalOre: Math.round(li.price * 100) * li.quantity,
+      kind: "addon",
     }));
     const discountOre = Math.round(discount * 100);
     const expectedTotalOre =
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
       description: `Bakkens Hvile · ekstra bestilling · ${view.bookingNo}`,
       origin,
       expiresInMinutes: CHECKOUT_EXPIRY_MINUTES,
-      sourceCode: vivaSourceCode("tickets"),
+      sourceCode: vivaSourceCode("drinks"),
       tags: ["genbestil", booking.id],
       merchantTrns: `${view.bookingNo} · genbestilling`,
     });
