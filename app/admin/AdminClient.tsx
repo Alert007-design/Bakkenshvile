@@ -458,6 +458,38 @@ export default function AdminClient({
                   <tr key={r.id} style={{ borderBottom: "1px solid #eee" }}>
                     <td style={{ padding: 8 }}>
                       {r.bookingNo}
+                      {r.status === "Ekstra – afventer betaling" && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 11,
+                            background: "#8a1f2b",
+                            color: "#fff",
+                            padding: "1px 6px",
+                            borderRadius: 10,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Ekstra – afventer betaling
+                        </span>
+                      )}
+                      {r.status === "Udløbet" && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 11,
+                            background: "#999",
+                            color: "#fff",
+                            padding: "1px 6px",
+                            borderRadius: 10,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Udløbet – ikke betalt
+                        </span>
+                      )}
                       {isComp(r.bookingNo) && (
                         <span
                           style={{

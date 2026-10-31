@@ -91,6 +91,24 @@ export default function FunktionerPage() {
       status: "aktiv",
     },
     {
+      href: "/admin/ekstrabillet",
+      title: "Ekstra betalte billetter",
+      desc: "Læg betalte billetter ind ud over kapaciteten. Gæsten får et betalingslink på mail, som gælder i 24 timer.",
+      status: ticketStatus,
+    },
+    {
+      href: "/admin/gavekort",
+      title: "Gavekort",
+      desc: "Oversigt over solgte gavekort. Markér et gavekort som brugt, når det indløses.",
+      status: "aktiv",
+    },
+    {
+      href: "/admin/kapacitet",
+      title: "Kapacitet",
+      desc: "Kapacitet, solgte og reserverede pladser og hvad der er tilbage pr. forestilling og priskategori.",
+      status: "aktiv",
+    },
+    {
       href: "/genbestil",
       title: "Genbestilling af tilvalg",
       desc: "Slå en booking op og bestil ekstra drikkevarer. Gæstevendt, men praktisk at kunne åbne fra baren.",

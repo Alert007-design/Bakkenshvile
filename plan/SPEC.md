@@ -1,6 +1,6 @@
 # Ekstra betalte billetter fra admin (ud over kapaciteten)
 
-Status: UDKAST – venter på ejerens godkendelse. Der er ikke skrevet kode.
+Status: Godkendt af ejeren 31. okt. 2026. Bygget – se plan/STATUS.md.
 
 ## Hvad funktionen skal kunne
 Personalet kan på en ny side, /admin/ekstrabillet, lægge betalte billetter ind
