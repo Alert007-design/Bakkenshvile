@@ -30,10 +30,40 @@ export const billeder = {
     maksVisningsbredde: 1600,
   },
   facaden: {
+    // Beskåret 4:3 fra facade-150-aar-hoej.jpg (jubilæumsgavlen 1877-2027).
+    src: "/facade-150-aar.jpg",
+    alt: "Bakkens Hviles grønne facade på Dyrehavsbakken med jubilæumsgavlen 150 år 1877-2027",
+    bredde: 1600,
+    hoejde: 1200,
+    maksVisningsbredde: 1600,
+  },
+  facadenGammel: {
     src: "/BH (19).jpeg",
     alt: "Bakkens Hviles grønne facade på Dyrehavsbakken med neonfiguren på taget",
     bredde: 4275,
     hoejde: 4206,
+    maksVisningsbredde: 1600,
+  },
+  // Originalerne af jubilæumsfacaden (gemt til senere brug).
+  facade150Bred: {
+    src: "/billeder/150-aar/facade-150-aar-bred.jpg",
+    alt: "Bakkens Hviles facade med jubilæumsgavlen 150 år 1877-2027",
+    bredde: 1984,
+    hoejde: 1116,
+    maksVisningsbredde: 1984,
+  },
+  facade150Portraet: {
+    src: "/billeder/150-aar/facade-150-aar-portraet.jpg",
+    alt: "Bakkens Hviles facade med neonfiguren og jubilæumsgavlen 150 år 1877-2027",
+    bredde: 1893,
+    hoejde: 2576,
+    maksVisningsbredde: 1600,
+  },
+  facade150Hoej: {
+    src: "/billeder/150-aar/facade-150-aar-hoej.jpg",
+    alt: "Bakkens Hviles facade med neonfiguren og jubilæumsgavlen 150 år 1877-2027",
+    bredde: 3240,
+    hoejde: 4050,
     maksVisningsbredde: 1600,
   },
   showetRoedeKjoler: {

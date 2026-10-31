@@ -59,9 +59,9 @@ export const SOCIAL_PROFILES = [
 // bruges så automatisk på /praktisk og i LocalBusiness-data. Opfind ikke et.
 export const GOOGLE_MAPS_URL: string | null = null;
 
-/** Showets varighed — bekræftet af Bakkens Hvile 14. sep. 2026. Bruges på
- *  /praktisk. */
-export const SHOW_DURATION_TEXT: string | null = "ca. 2½ time inkl. pause";
+/** Showets varighed — rettet af Bakkens Hvile 31. okt. 2026. Bruges på
+ *  /praktisk og under billetsalget (/book) i stedet for Airtables felt. */
+export const SHOW_DURATION_TEXT: string | null = "ca. 2 timer og 15 minutter inkl. pause";
 
 /** Sæsonens besætning — navne og portrætter er verificeret i projektet
  *  (forsiden + lib/billeder.ts). Rollebetegnelsen "bakkesangerinde" bruges
