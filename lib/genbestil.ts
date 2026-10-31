@@ -126,6 +126,10 @@ export function onlineDiscountActive(showDateIso: string, now = new Date()): boo
 export type BookingView = {
   bookingNo: string;
   name: string;
+  /** Kundens adresse (tom tekst, hvis den ikke er oplyst). */
+  address: string;
+  zip: string;
+  city: string;
   showTitle: string;
   showDate: string;
   showTime: string;
@@ -150,6 +154,9 @@ export async function buildBookingView(booking: AirtableRecord): Promise<Booking
   return {
     bookingNo: String(booking.fields[FIELDS.booking.bookingNo] ?? ""),
     name: cust ? String(cust.fields[FIELDS.customer.name] ?? "") : "",
+    address: cust ? String(cust.fields[FIELDS.customer.address] ?? "") : "",
+    zip: cust ? String(cust.fields[FIELDS.customer.zip] ?? "") : "",
+    city: cust ? String(cust.fields[FIELDS.customer.city] ?? "") : "",
     showTitle: event ? String(event.fields[FIELDS.event.title] ?? "") : "",
     showDate,
     showTime: event ? String(event.fields[FIELDS.event.time] ?? "") : "",
