@@ -51,7 +51,12 @@ import { getRecord, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { buildBookingView } from "@/lib/genbestil";
 import { fulfillGenbestilling } from "@/lib/genbestil-fulfill";
 import { advarOmBeloebsfejl } from "@/lib/payment-alerts";
-import { meldSalg, salgFraBillet, salgFraGavekort } from "@/lib/salgsmail";
+import {
+  meldSalg,
+  salgFraBillet,
+  salgFraGavekort,
+  type Forestilling,
+} from "@/lib/salgsmail";
 import { ticketEmailHtml, daDateShort, showYear } from "@/lib/ticket-email";
 import { orderEmailHtml } from "@/lib/order-email";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
@@ -266,15 +271,16 @@ export async function POST(req: NextRequest) {
       }
       // Kun vinderen af pending → paid når hertil (præcis én gang). Fejler en
       // sideeffekt, frigives overgangen igen, så Vivas genforsøg kan prøve på ny.
+      let forestilling: Forestilling | null = null;
       try {
-        await fulfillTicketPayment(result.payment);
+        forestilling = await fulfillTicketPayment(result.payment);
       } catch (err) {
         await revertTicketPaidByRef(db, verified.paymentRef);
         console.error("Viva-webhook: kunne ikke fuldføre billetbetaling");
         return NextResponse.json({ error: "Intern fejl" }, { status: 500 });
       }
       // Salgsmail til Dot — kun efter fuldført salg, dermed præcis én gang.
-      await meldSalg(salgFraBillet(result.payment));
+      await meldSalg(salgFraBillet(result.payment, forestilling));
       return NextResponse.json({ received: true });
     }
 
@@ -421,7 +427,13 @@ async function advarOmSenBetaling(
  * genbestilling. Kaldes KUN af den kalder, der vandt pending → paid-overgangen.
  * Kaster ved fejl, så kalderen kan frigive overgangen igen.
  */
-async function fulfillTicketPayment(payment: TicketPaymentRow): Promise<void> {
+/**
+ * Fuldfører en betalt billet- eller genbestilling. Returnerer forestillingens
+ * detaljer (til salgsmailen), når de kunne hentes – ellers null.
+ */
+async function fulfillTicketPayment(
+  payment: TicketPaymentRow
+): Promise<Forestilling | null> {
   const paidKr = Math.round(payment.expectedTotalOre / 100);
   const discountKr = Math.round(payment.discountOre / 100);
 
@@ -453,7 +465,7 @@ async function fulfillTicketPayment(payment: TicketPaymentRow): Promise<void> {
     // efter at Airtable er opdateret, kastes der IKKE (så tælles drinksene ikke
     // dobbelt ved Vivas genforsøg); kontoret får i stedet besked.
     await fulfillGenbestilling(payment);
-    return;
+    return null;
   }
 
   // flow === "billet": markér betalt og send billetten.
@@ -461,23 +473,25 @@ async function fulfillTicketPayment(payment: TicketPaymentRow): Promise<void> {
     [FIELDS.booking.status]: "Betalt",
     [FIELDS.booking.totalPaid]: paidKr,
   });
+  // Forestillingens detaljer hentes fra bookingen. Fejler opslaget, sendes
+  // billetten stadig — blot uden de detaljer, vi ikke kunne hente.
+  let showTitle = "";
+  let showDateIso = "";
+  let showTime = "";
+  let seats = "";
+  let hentet = false;
+  try {
+    const bk = await getRecord(TABLES.bookings, payment.bookingId);
+    const view = await buildBookingView(bk);
+    showTitle = view.showTitle;
+    showDateIso = view.showDate;
+    showTime = view.showTime;
+    seats = view.ticketBreakdown;
+    hentet = true;
+  } catch (e) {
+    console.error("Kunne ikke hente forestillingsdata til billet");
+  }
   if (payment.customerEmail) {
-    // Forestillingens detaljer hentes fra bookingen. Fejler opslaget, sendes
-    // billetten stadig — blot uden de detaljer, vi ikke kunne hente.
-    let showTitle = "";
-    let showDateIso = "";
-    let showTime = "";
-    let seats = "";
-    try {
-      const bk = await getRecord(TABLES.bookings, payment.bookingId);
-      const view = await buildBookingView(bk);
-      showTitle = view.showTitle;
-      showDateIso = view.showDate;
-      showTime = view.showTime;
-      seats = view.ticketBreakdown;
-    } catch (e) {
-      console.error("Kunne ikke hente forestillingsdata til billet");
-    }
     const subtotalKr = paidKr + discountKr;
     await sendMail({
       to: payment.customerEmail,
@@ -500,6 +514,9 @@ async function fulfillTicketPayment(payment: TicketPaymentRow): Promise<void> {
       }),
     });
   }
+  return hentet
+    ? { titel: showTitle, datoIso: showDateIso, tid: showTime, pladser: seats }
+    : null;
 }
 
 /**
