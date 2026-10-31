@@ -7,15 +7,20 @@ export default function LoginClient({ next }: { next: string }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    // Læs koden direkte fra feltet. Browserens adgangskodeboks (fx Edge) kan
+    // udfylde feltet uden at give React besked, så en gammel gemt kode ellers
+    // bliver sendt i stedet for den, der står i feltet.
+    const felt = e.currentTarget.elements.namedItem("password");
+    const kode = felt instanceof HTMLInputElement ? felt.value : password;
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: kode }),
       });
       if (res.ok) {
         // Fuld navigation, så serverkomponenten på målsiden læser den nye cookie.
@@ -26,7 +31,9 @@ export default function LoginClient({ next }: { next: string }) {
       setError(
         res.status === 429
           ? "For mange forsøg. Prøv igen om lidt."
-          : "Forkert adgangskode."
+          : res.status === 401
+          ? "Forkert adgangskode."
+          : `Login lykkedes ikke (fejl ${res.status}). Prøv igen.`
       );
     } catch {
       setError("Kunne ikke logge ind. Tjek forbindelsen.");
