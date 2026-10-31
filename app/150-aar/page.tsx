@@ -56,16 +56,15 @@ export default function JubilaeumPage() {
 
           <figure>
             <Image
-              src={billeder.blomstersangen.src}
-              alt={billeder.blomstersangen.alt}
-              width={billeder.blomstersangen.bredde}
-              height={billeder.blomstersangen.hoejde}
+              src={billeder.facade150Bred.src}
+              alt={billeder.facade150Bred.alt}
+              width={billeder.facade150Bred.bredde}
+              height={billeder.facade150Bred.hoejde}
               loading="lazy"
               sizes="(max-width: 900px) 100vw, 720px"
             />
             <figcaption>
-              Bakkesangerinderne synger blomstersangen med favnen fuld af røde
-              roser.
+              Facaden på Dyrehavsbakken med jubilæumsgavlen: 150 år, 1877-2027.
             </figcaption>
           </figure>
 
