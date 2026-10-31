@@ -119,4 +119,4 @@ export const KAPELMESTER: Performer = {
 
 /** Delebillede til Open Graph m.m. — et scenefoto med korrekt alt-tekst og
  *  faktiske mål (fra lib/billeder.ts), så billede og beskrivelse stemmer. */
-export const OG_BILLEDE = billeder.blomstersangen;
+export const OG_BILLEDE = billeder.facade150Bred;
