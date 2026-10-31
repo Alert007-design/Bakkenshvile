@@ -30,7 +30,7 @@ import {
 } from "@/lib/kapacitet";
 
 /** Hvor en linje i pladsbogen kommer fra. */
-export type HoldKilde = "checkout" | "fribillet" | "import";
+export type HoldKilde = "checkout" | "fribillet" | "import" | "ekstra";
 
 /** Linjens tilstand: reserveret, endeligt solgt eller givet tilbage. */
 export type HoldStatus = "held" | "sold" | "released";
@@ -519,7 +519,7 @@ export async function registrerSalg(
     showId: string;
     bookingId: string;
     oensker: Pladsoenske[];
-    kilde: Exclude<HoldKilde, "checkout">;
+    kilde: Exclude<HoldKilde, "checkout" | "ekstra">;
     paymentRef?: string | null;
   }
 ): Promise<RegistreringsSvar> {
@@ -556,4 +556,51 @@ export async function registrerSalg(
     registreret += Number(rows[0]?.indsat ?? 0);
   }
   return { registreret };
+}
+
+/**
+ * Holder pladser til en ekstra betalt billet fra admin — UDEN loft.
+ *
+ * Personalet har set advarslen om oversalg og bekræftet den, så tallene må
+ * gerne komme over kapaciteten. Pladserne holdes som en almindelig
+ * reservation med udløb, så den eksisterende oprydning (frigivUdloebne) giver
+ * dem tilbage, hvis gæsten ikke betaler, og markerSolgt gør dem til et salg,
+ * når betalingen kommer. Den unikke indeks på (booking_id, category) gør, at
+ * samme booking aldrig tælles to gange.
+ */
+export async function holdUdenLoft(
+  db: Queryable,
+  params: {
+    showId: string;
+    bookingId: string;
+    oensker: Pladsoenske[];
+    holdMinutter: number;
+    paymentRef?: string | null;
+  }
+): Promise<void> {
+  const { showId, bookingId, oensker, holdMinutter, paymentRef } = params;
+  const antal = summerOensker(oensker);
+  await sikrTaellelinje(db, showId);
+  for (const k of KAPACITETSKATEGORIER) {
+    if (antal[k] === 0) continue;
+    const ticketTypeId =
+      oensker.find((o) => o.kategori === k && o.ticketTypeId)?.ticketTypeId ?? null;
+    await db.query(
+      `WITH ny AS (
+         INSERT INTO seat_holds
+           (show_id, booking_id, category, quantity, status, source, payment_ref,
+            ticket_type_id, expires_at)
+         VALUES ($1, $2, $3, $4, 'held', 'ekstra', $5, $6,
+                 now() + make_interval(mins => $7))
+         ON CONFLICT (booking_id, category) DO NOTHING
+         RETURNING quantity
+       )
+       UPDATE seat_counters c
+          SET ${KOLONNE[k]} = c.${KOLONNE[k]} +
+                COALESCE((SELECT SUM(quantity) FROM ny), 0)::int,
+              updated_at = now()
+        WHERE c.show_id = $1`,
+      [showId, bookingId, k, antal[k], paymentRef ?? null, ticketTypeId, holdMinutter]
+    );
+  }
 }
