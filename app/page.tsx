@@ -14,8 +14,16 @@ import {
   KAPELMESTER,
 } from "@/lib/site-config";
 import { pageMetadata, organizationGraph } from "@/lib/seo";
+import { hentPrisoversigt, type Prisraekke } from "@/lib/prisoversigt";
 
 export const metadata: Metadata = pageMetadata("forside");
+
+// Billetpriserne læses fra Airtable; siden bygges igen højst hvert 5. minut.
+export const revalidate = 300;
+
+function kr(v: number | null): string {
+  return v === null ? "–" : `${v} kr.`;
+}
 
 const NAV_LINKS = [
   { href: "#om-os", label: "Om os" },
@@ -32,7 +40,14 @@ const GALLERI: { billede: Billede; objectPosition: string }[] = [
   { billede: billeder.dotAleneMedRose, objectPosition: "center 30%" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  let priser: Prisraekke[] = [];
+  try {
+    priser = await hentPrisoversigt();
+  } catch {
+    priser = [];
+  }
+  const visPriser = priser.some((p) => p.hverdag !== null || p.weekend !== null);
   const [feature, ...galleryRest] = GALLERI;
   // QR-bestilling nævnes kun som en aktiv mulighed, når funktionen reelt er slået
   // til. Ellers omtales bordbestilling uden QR (undgår at love noget, der ikke
@@ -179,10 +194,36 @@ export default function Home() {
 
       <section id="priser" className="section">
         <div className="wrap" style={{ padding: 0 }}>
-          <p className="eyebrow" style={{ textAlign: "center" }}>
+          <h2 className="sectionTitle">Priser</h2>
+          {visPriser && (
+            <div className="prisTabelWrap">
+              <table className="prisTabel">
+                <caption>Billetpriser pr. person</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Plads</th>
+                    <th scope="col">Tirsdag, onsdag, torsdag</th>
+                    <th scope="col">Fredag, lørdag, søndag</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {priser.map((p) => (
+                    <tr key={p.kategori}>
+                      <th scope="row">{p.tekst}</th>
+                      <td>{kr(p.hverdag)}</td>
+                      <td>{kr(p.weekend)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="prisTabelNote">
+                Forpremiererne 10. og 11. maj har egne priser, som ses ved køb.
+              </p>
+            </div>
+          )}
+          <p className="eyebrow" style={{ textAlign: "center", marginTop: 48 }}>
             Baren
           </p>
-          <h2 className="sectionTitle">Priser</h2>
           <p
             style={{
               maxWidth: 640,
