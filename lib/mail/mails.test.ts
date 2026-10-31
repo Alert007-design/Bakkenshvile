@@ -150,7 +150,7 @@ describe("billetmail", () => {
     const html = billet();
     expect(html).toContain("BH-31608747");
     expect(html).toContain("150 års jubilæums show 2027");
-    expect(html).toContain("B (10. række) × 1");
+    expect(html).toContain("1 x B (10. række)");
     expect(html).toContain("364 kr.");
     expect(html).toContain("Danskvand med citrus");
   });
@@ -345,5 +345,29 @@ describe("mail om ekstra bestilling", () => {
     const html = ekstra({ heading: ONDT_NAVN });
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("billetten (rettelser 31. okt. 2026)", () => {
+  it("beder ikke længere om at vise nummeret ved indgangen", () => {
+    const html = billet();
+    expect(html).not.toContain("Vis nummeret");
+    expect(html).not.toContain("ved indgangen");
+    expect(html).toContain("Medbring billetten");
+  });
+
+  it("viser bookingnummeret på én linje", () => {
+    expect(billet()).toContain("Bookingnummer: <strong");
+  });
+
+  it("fortæller, at dørene åbner 30 minutter før", () => {
+    expect(billet()).toContain("Dørene åbner<br>30 minutter før");
+    expect(billet({ showTime: "" })).not.toContain("Dørene åbner");
+  });
+
+  it("viser antal før kategori ved pladserne", () => {
+    expect(billet({ seats: "A (7.-8.-9. række) x3" })).toContain(
+      "3 x A (7.-8.-9. række)"
+    );
   });
 });

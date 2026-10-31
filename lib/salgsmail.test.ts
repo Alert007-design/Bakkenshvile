@@ -60,7 +60,7 @@ describe("salgFraBillet", () => {
     );
     expect(s.drikkevarerOre).toBeNull();
     expect(s.billetterOre).toBeNull();
-    expect(salgsmail(s).html).toContain("Billetter og evt. drikkevarer");
+    expect(salgsmail(s).html).toContain("Billetter og drikkevarer");
   });
 
   it("genbestilling er drikkevarer til barkontoen", () => {
@@ -85,6 +85,72 @@ describe("salgFraGavekort", () => {
   });
 });
 
+describe("salgsmail viser udførligt, hvad der er købt", () => {
+  const forestilling = {
+    titel: "Forpremiere – 150 års jubilæums show 2027",
+    datoIso: "2027-05-10",
+    tid: "19:30",
+    pladser: "A+ (1.-3. rk.) x2",
+  };
+
+  it("lister hver vare med antal og beløb, rabat og total", () => {
+    const html = salgsmail(salgFraBillet(billet(), forestilling)).html;
+    expect(html).toContain("A+ (1.-3. rk.)");
+    expect(html).toContain("858 kr.");
+    expect(html).toContain("Aperol Spritz");
+    expect(html).toContain("198 kr.");
+    expect(html).toContain("&minus;20 kr.");
+    expect(html).toContain("1.096 kr.");
+  });
+
+  it("viser forestilling, dato, klokkeslæt og pladser", () => {
+    const html = salgsmail(salgFraBillet(billet(), forestilling)).html;
+    expect(html).toContain("Forpremiere");
+    expect(html).toContain("mandag den 10. maj 2027");
+    expect(html).toContain("kl. 19:30");
+    expect(html).toContain("2 x A+ (1.-3. rk.)");
+  });
+
+  it("viser kundens navn og mail som oplysninger, ikke som varer til 0 kr.", () => {
+    const html = salgsmail(salgFraBillet(billet())).html;
+    expect(html).toContain("Hanne Hansen");
+    expect(html).toContain("gaest@example.dk");
+    expect(html).not.toContain(">0 kr.</td>");
+    expect(html).not.toMatch(/Kunde: /);
+  });
+
+  it("klarer sig uden forestillingsdata", () => {
+    const html = salgsmail(salgFraBillet(billet(), null)).html;
+    expect(html).not.toContain(">Forestilling</h2>");
+    expect(html).toContain("Betalt i alt");
+  });
+
+  it("gavekort viser modtager og beløb", () => {
+    const html = salgsmail(
+      salgFraGavekort({
+        giftCardNo: "GK-1",
+        amountOre: 50000,
+        purchaserName: "Ib",
+        purchaserEmail: "ib@example.dk",
+        purchaserPhone: "12345678",
+        recipientEmail: "modtager@example.dk",
+        message: "Tillykke",
+        expiresAt: "2029-10-31T00:00:00Z",
+      } as GiftCardRow)
+    ).html;
+    expect(html).toContain("Gavekort på 500 kr.");
+    expect(html).toContain("modtager@example.dk");
+    expect(html).toContain("12345678");
+  });
+
+  it("escaper kundens navn", () => {
+    const html = salgsmail(
+      salgFraBillet(billet({ customerName: "<script>x</script>" }))
+    ).html;
+    expect(html).not.toContain("<script>x</script>");
+  });
+});
+
 describe("meldSalg", () => {
   it("sender til Dot med type, beløb og reference i emnet", async () => {
     sendMail.mockResolvedValue(undefined);
@@ -95,7 +161,7 @@ describe("meldSalg", () => {
     expect(SALGSMAIL_TIL).toBe("dot@bakkenshvile.dk");
     expect(arg.subject).toContain("Billetkøb");
     expect(arg.subject).toContain("BH-1234");
-    expect(arg.html).toContain("Drikkevarer efter onlinerabat");
+    expect(arg.html).toContain("Drikkevarer efter rabat");
   });
 
   it("kaster aldrig, selv om mailen fejler", async () => {

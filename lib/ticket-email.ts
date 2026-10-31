@@ -91,7 +91,8 @@ export interface TicketEmailParams {
   showTitle: string;
   showDateIso: string;
   showTime: string;
-  /** Billetkategori + antal, fx "A+ x2, B x1". */
+  /** Billetkategori + antal som gemt i bookingen, fx "A+ x2, B x1".
+   *  Vises på billetten som "2 x A+, 1 x B". */
   seats: string;
   /** Sand for forestillinger i 2027 (150-års-jubilæet). */
   isJubilee: boolean;
@@ -102,6 +103,25 @@ export interface TicketEmailParams {
   discountLabel: string;
 }
 
+/**
+ * Pladserne til visning på billetten: antal først, så kategori.
+ * Bookingen gemmer "A (7.-8.-9. række) x1, B x2" (det format læser
+ * pladsbogen), mens billetten viser "1 x A (7.-8.-9. række), 2 x B".
+ * Kan teksten ikke læses, vises den uændret.
+ */
+export function pladserTekst(breakdown: string): string {
+  const raa = String(breakdown ?? "").trim();
+  if (!raa) return "";
+  const dele = raa.split(",").map((d) => d.trim()).filter(Boolean);
+  const vendt: string[] = [];
+  for (const del of dele) {
+    const m = del.match(/^(.+?)\s*[x×]\s*(\d+)$/);
+    if (!m) return raa;
+    vendt.push(`${m[2]} x ${m[1].trim()}`);
+  }
+  return vendt.join(", ");
+}
+
 /** Den mørkegrønne datoblok i venstre side af billetten. */
 function datoFelt(showDateIso: string, showTime: string): string {
   const dele = datoDele(showDateIso);
@@ -109,7 +129,8 @@ function datoFelt(showDateIso: string, showTime: string): string {
   const tid = showTime
     ? `<div style="font-family:${SKRIFT};font-size:16px;line-height:26px;color:${FARVER.guld};">kl. ${escapeHtml(
         showTime
-      )}</div>`
+      )}</div>
+            <div style="font-family:${SKRIFT};font-size:12px;font-style:italic;line-height:16px;color:${FARVER.creme};padding-top:4px;">Dørene åbner<br>30 minutter før</div>`
     : "";
   return `          <td width="132" align="center" valign="middle" bgcolor="${FARVER.groen}" style="width:132px;background:${FARVER.groen};padding:20px 8px;">
             <div style="font-family:${SKRIFT};font-size:14px;font-style:italic;color:${FARVER.guld};line-height:20px;">${dele.ugedag}</div>
@@ -194,19 +215,18 @@ export function ticketEmailHtml(params: TicketEmailParams): string {
 ${datoFelt(showDateIso, showTime)}
           <td valign="middle" bgcolor="${FARVER.cremeLys}" style="background:${FARVER.cremeLys};padding:20px 22px;">
 ${titelFelt}
-${billetFelt("Pladser", seats)}
+${billetFelt("Pladser", pladserTekst(seats))}
           </td>
         </tr>
         <tr>
           <td colspan="${harDato ? 2 : 1}" bgcolor="#ffffff" style="background:#ffffff;border-top:2px dashed ${FARVER.guld};padding:16px 22px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-              <td valign="middle">
-                <div style="font-family:${SKRIFT};font-size:13px;font-style:italic;color:${FARVER.daempet};line-height:18px;">Bookingnummer</div>
-                <div style="font-family:${SKRIFT};font-size:24px;line-height:30px;font-weight:bold;letter-spacing:1px;color:${FARVER.groen};">${escapeHtml(
+              <td valign="middle" style="font-family:${SKRIFT};font-size:16px;line-height:24px;color:${FARVER.groen};white-space:nowrap;">Bookingnummer: <strong style="letter-spacing:1px;">${escapeHtml(
     bookingNo
-  )}</div>
-              </td>
-              <td align="right" valign="middle" style="font-family:${SKRIFT};font-size:14px;font-style:italic;line-height:20px;color:${FARVER.daempet};">Vis nummeret<br>ved indgangen</td>
+  )}</strong></td>
+            </tr>
+            <tr>
+              <td valign="middle" style="padding-top:6px;font-family:${SKRIFT};font-size:14px;font-style:italic;line-height:20px;color:${FARVER.daempet};">Medbring billetten, når du kommer. Det er fint at vise den på mobilen.</td>
             </tr></table>
           </td>
         </tr>
@@ -229,7 +249,7 @@ ${fremhaevetFelt(
 
   return mailLayout({
     title: "Din billet til Bakkens Hvile",
-    preheader: `Bookingnummer ${bookingNo} – vis det ved indgangen.`,
+    preheader: `Bookingnummer ${bookingNo} – medbring billetten, gerne på mobilen.`,
     indhold,
   });
 }
