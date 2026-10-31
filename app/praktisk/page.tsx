@@ -27,16 +27,16 @@ export const metadata: Metadata = pageMetadata("praktisk");
 const FAQ: Array<{ question: string; answer: string }> = [
   {
     question: "Hvad er Bakkens Hvile?",
-    answer: `Bakkens Hvile er scenen for bakkesangerinderne på Dyrehavsbakken i Klampenborg nord for København. Siden ${FOUNDING_YEAR} har huset budt på levende skønsang og syngende samfundssatire — klassiske danske sange, viser og dagens friskeste satire, oplevet ved dækkede borde i salen.`,
+    answer: `Bakkens Hvile er scenen for bakkesangerinderne på Dyrehavsbakken i Klampenborg nord for København. Siden ${FOUNDING_YEAR} har Bakkens Hvile budt på levende skønsang og syngende samfundssatire — klassiske danske sange, viser og dagens friskeste satire, oplevet ved små borde i salen.`,
   },
   {
     question: "Hvor ligger Bakkens Hvile?",
-    answer: `Adressen er ${ADDRESS.streetAddress}, ${ADDRESS.postalCode} ${ADDRESS.addressLocality}. Huset ligger midt på Dyrehavsbakken ved Dyrehavens bøgeskov i Klampenborg, nord for København.`,
+    answer: `Adressen er ${ADDRESS.streetAddress}, ${ADDRESS.postalCode} ${ADDRESS.addressLocality}. Bakkens Hvile ligger midt på Dyrehavsbakken ved Dyrehavens bøgeskov i Klampenborg, nord for København.`,
   },
   {
     question: "Hvor kan man parkere?",
     answer:
-      "Der parkeres via Bakkens parkering ved Dyrehavsbakken, hvorfra du går ind på Bakken til huset.",
+      "Der parkeres via Bakkens parkering ved Dyrehavsbakken, hvorfra du går ind på Bakken til Bakkens Hvile.",
   },
   {
     question: "Hvordan køber man billetter?",
@@ -72,7 +72,8 @@ const FAQ: Array<{ question: string; answer: string }> = [
   },
   {
     question: "Er der adgang for kørestolsbrugere?",
-    answer: `Ja. Enkelte borde i salen er indrettet til kørestolsbrugere. Skriv til ${CONTACT.email} i forvejen, så vi kan reservere et af dem til jer.`,
+    answer:
+      "Der er et begrænset antal pladser til kørestole i kategori A+ bagerst (4.-6. række). Af hensyn til brandmyndighederne skal du skrive i kommentarfeltet, når du bestiller, om der er tale om en manuel kørestol eller en elkørestol.",
   },
   {
     question: "Kan bakkesangerinderne bookes til fester og arrangementer?",

@@ -15,7 +15,7 @@ export const SITE_NAME = "Bakkens Hvile";
  *  beskrivelse i metadata og structured data. Alle elementer er verificeret
  *  i projektets eksisterende indhold. */
 export const SITE_DESCRIPTION =
-  "Bakkens Hvile er scenen for bakkesangerinderne på Dyrehavsbakken i Klampenborg nord for København. Siden 1877 har huset budt på levende skønsang og syngende samfundssatire — klassiske danske sange, viser og dagens friskeste satire, serveret ved dækkede borde i salen.";
+  "Bakkens Hvile er scenen for bakkesangerinderne på Dyrehavsbakken i Klampenborg nord for København. Siden 1877 har Bakkens Hvile budt på levende skønsang og syngende samfundssatire — klassiske danske sange, viser og dagens friskeste satire, serveret ved små borde i salen.";
 
 /** Traditionen for bakkesangen går tilbage til 1877 (verificeret i husets
  *  eget materiale og brugt gennemgående på sitet). */
@@ -86,14 +86,12 @@ export const PERFORMERS: Performer[] = [
     rolle: "Bakkesangerinde",
     billedeKey: "tinaGrunwald",
     bio: "Tina Grunwald er en af husets mest rutinerede og beskriver sig selv som den ældste nulevende bakkesangerinde.",
-    bioDraft: true,
   },
   {
     name: "Sus Mathiasen",
     rolle: "Bakkesangerinde",
     billedeKey: "susMathiasen",
-    bio: "Sus Mathiasen var lige ved at takke nej til rollen, men sagde ja — og er nu i sin tredje sæson. Hun beskriver sin stil som lidt skæv, med et blink i øjet.",
-    bioDraft: true,
+    bio: "Sus Mathiasen var lige ved at takke nej til rollen, men sagde ja — og er nu en fast del af ensemblet. Hun beskriver sin stil som lidt skæv, med et blink i øjet.",
   },
   {
     name: "Dot Wessman",
@@ -106,7 +104,6 @@ export const PERFORMERS: Performer[] = [
     rolle: "Bakkesangerinde",
     billedeKey: "annFarholt",
     bio: "Ann Farholt tager altid sig selv og sit levede liv med på scenen. Hun fremhæver balancen i satiren — hurtig på aftrækkeren, men med sans for, hvornår det bliver for meget — og kalder bakkesangen tidløs.",
-    bioDraft: true,
   },
 ];
 

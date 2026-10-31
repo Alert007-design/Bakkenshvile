@@ -40,14 +40,14 @@ export default function HistoriePage() {
 
           <h2>En scene for alle og om alle</h2>
           <p>
-            I snart 150 år har scenen leveret skønsang og syngende
+            I 150 år har scenen leveret skønsang og syngende
             samfundssatire for alle og om alle. Repertoiret spænder fra
             klassiske danske sange og viser til dagens friskeste overskrifter —
             en genre helt for sig selv, som hverken er koncert, musical eller
             traditionel revy, men netop bakkesang.
           </p>
           <p>
-            Showet opleves ved dækkede borde i salen, hvor gæsterne kan bestille
+            Showet opleves ved små borde i salen, hvor gæsterne kan bestille
             vin, øl og drinks under hele forestillingen, mens sangerinderne
             optræder tæt på publikum.
           </p>
@@ -92,7 +92,7 @@ export default function HistoriePage() {
             />
             <figcaption>
               Arkivfoto: et ungt portræt af Dot Wessman — en af sæsonens{" "}
-              <Link href="/sangerinderne">bakkesangerinder</Link> — med et fang
+              <Link href="/sangerinderne">bakkesangerinder</Link> — med en favn
               røde roser.
             </figcaption>
           </figure>

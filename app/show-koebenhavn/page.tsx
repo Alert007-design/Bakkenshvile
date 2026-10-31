@@ -49,7 +49,7 @@ export default function ShowKoebenhavnPage() {
 
           <h2>Live sang, musik og humor tæt på publikum</h2>
           <p>
-            I salen sidder du ved dækkede borde få meter fra scenen, mens{" "}
+            I salen sidder du ved små borde få meter fra scenen, mens{" "}
             <Link href="/sangerinderne">bakkesangerinderne</Link> og husets
             kapelmester leverer showet. Du kan bestille vin, øl og drinks ved
             bordet under hele forestillingen — se{" "}
@@ -66,7 +66,7 @@ export default function ShowKoebenhavnPage() {
               sizes="(max-width: 900px) 100vw, 720px"
             />
             <figcaption>
-              Salen i Bakkens Hvile med dækkede borde foran scenen.
+              Salen i Bakkens Hvile med små borde foran scenen.
             </figcaption>
           </figure>
 
