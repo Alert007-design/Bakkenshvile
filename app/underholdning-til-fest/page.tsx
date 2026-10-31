@@ -82,7 +82,7 @@ export default function FestPage() {
           <p>
             I kan også vende det om og tage festen med til showet:{" "}
             <Link href="/book">køb billetter til en forestilling</Link> i salen
-            på Dyrehavsbakken, hvor I sidder ved dækkede borde og kan bestille
+            på Dyrehavsbakken, hvor I sidder ved små borde og kan bestille
             vin, øl og drinks under hele showet. Se også{" "}
             <Link href="/praktisk">praktisk information</Link>.
           </p>

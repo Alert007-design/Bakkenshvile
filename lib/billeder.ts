@@ -77,7 +77,7 @@ export const billeder = {
   // --- Jubilæum og historie (1877–2027) ---
   dotUngdomMedRoser: {
     src: "/BH (16).jpeg",
-    alt: "Ungt arkivfoto af Dot Wessman siddende med et fang røde roser",
+    alt: "Ungt arkivfoto af Dot Wessman siddende med en favn røde roser",
     bredde: 848,
     hoejde: 1232,
     maksVisningsbredde: 800,
@@ -102,7 +102,7 @@ export const billeder = {
   denTommeSal: {
     // Skiltet "147 ÅR" er svagt synligt øverst.
     src: "/BH (7).jpeg",
-    alt: "Den tomme sal med dækkede borde og scenen i baggrunden før publikum lukkes ind",
+    alt: "Den tomme sal med små borde og scenen i baggrunden før publikum lukkes ind",
     bredde: 2636,
     hoejde: 4032,
     maksVisningsbredde: 1600,

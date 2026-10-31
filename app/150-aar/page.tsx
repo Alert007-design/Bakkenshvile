@@ -49,7 +49,7 @@ export default function JubilaeumPage() {
           <p>
             Siden {FOUNDING_YEAR} har bakkesangen været for alle slags folk:
             klassiske danske sange og viser blandet med satire over dagens
-            friskeste overskrifter, fremført ved dækkede borde i salen på
+            friskeste overskrifter, fremført ved små borde i salen på
             Dyrehavsbakken. Læs hele fortællingen på siden om{" "}
             <Link href="/historie">Bakkens Hviles historie</Link>.
           </p>
