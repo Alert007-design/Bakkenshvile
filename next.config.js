@@ -33,6 +33,14 @@ const REDIRECTS = [
   // billetter.bakkenshvile.dk peger nu på dette projekt i Vercel, og ALLE
   // adresser derfra (forside, gamle links til en bestemt forestilling, .php-
   // sider) sendes til billetkøbet, så ingen lander på en side, der ikke findes.
+  // Gamle gavekortlinks (fx fra bakken.dk) til den nye gavekortside. Skal stå
+  // før den generelle regel nedenfor, da Next bruger den første, der passer.
+  {
+    source: "/gavekort/:path*",
+    has: [{ type: "host", value: "billetter.bakkenshvile.dk" }],
+    destination: "https://bakkenshvile.dk/gavekort",
+    permanent: true,
+  },
   {
     source: "/:path*",
     has: [{ type: "host", value: "billetter.bakkenshvile.dk" }],
