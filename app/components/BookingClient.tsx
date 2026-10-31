@@ -14,7 +14,14 @@ import {
   type Pladskategori,
 } from "@/lib/seating-colors";
 import type { Kapacitetskategori } from "@/lib/kapacitet";
+import { SHOW_DURATION_TEXT } from "@/lib/site-config";
 import "./booking.css";
+
+/** Den faste varighed fra site-config vinder over Airtables felt. */
+function varighedTekst(fraAirtable: string): string {
+  const t = SHOW_DURATION_TEXT ?? fraAirtable;
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
+}
 
 type Ticket = {
   id: string;
@@ -820,7 +827,7 @@ export default function BookingClient({
             <b>Kl.</b> {selectedShow.time}
           </span>
           <span>
-            <b>Varighed</b> {selectedShow.duration}
+            <b>Varighed</b> {varighedTekst(selectedShow.duration)}
           </span>
         </div>
         <StepIndicator current={2} />

@@ -26,10 +26,9 @@ const NAV_LINKS = [
 ];
 
 // Portrætmosaik til galleriet. Første element er featuren (2×2).
-// object-position skubber årstalsskiltet i BH (6) ud af beskæringen.
 const GALLERI: { billede: Billede; objectPosition: string }[] = [
   { billede: billeder.denTommeSal, objectPosition: "center 55%" },
-  { billede: billeder.blomstersangen, objectPosition: "72% 70%" },
+  { billede: billeder.syngepigerVedBord, objectPosition: "center 40%" },
   { billede: billeder.dotAleneMedRose, objectPosition: "center 30%" },
 ];
 
@@ -66,7 +65,7 @@ export default function Home() {
         </div>
         <div className="heroInner">
           <p className="eyebrow">
-            Bakkens Hvile · Live show på Dyrehavsbakken siden {FOUNDING_YEAR}
+            Bakkens Hvile · siden {FOUNDING_YEAR}
           </p>
           <h1>
             Skønsang &amp; samfundssatire, live.
