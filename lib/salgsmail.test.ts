@@ -119,6 +119,28 @@ describe("salgsmail viser udførligt, hvad der er købt", () => {
     expect(html).not.toMatch(/Kunde: /);
   });
 
+  it("viser kundens postnummer, by og adresse", () => {
+    const html = salgsmail(
+      salgFraBillet(billet(), {
+        ...forestilling,
+        kundeAdresse: { adresse: "Strandvejen 1", postnummer: "2930", by: "Klampenborg" },
+      })
+    ).html;
+    expect(html).toContain("2930 Klampenborg");
+    expect(html).toContain("Strandvejen 1");
+  });
+
+  it("viser kun postnummeret, når vej og by mangler", () => {
+    const html = salgsmail(
+      salgFraBillet(billet(), {
+        ...forestilling,
+        kundeAdresse: { adresse: "", postnummer: "8000", by: "" },
+      })
+    ).html;
+    expect(html).toContain(">8000</td>");
+    expect(html).not.toContain(">Adresse</td>");
+  });
+
   it("klarer sig uden forestillingsdata", () => {
     const html = salgsmail(salgFraBillet(billet(), null)).html;
     expect(html).not.toContain(">Forestilling</h2>");

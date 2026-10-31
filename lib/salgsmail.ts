@@ -35,6 +35,8 @@ export interface Forestilling {
   tid: string;
   /** Som gemt i bookingen, fx "A (7.-8.-9. række) x1". */
   pladser: string;
+  /** Kundens adresse fra kunderækken (tomme felter, hvis ikke oplyst). */
+  kundeAdresse?: { adresse: string; postnummer: string; by: string };
 }
 
 export interface Salg {
@@ -56,6 +58,8 @@ export interface Salg {
   rabatOre: number;
   /** Kun billetkøb: forestilling og pladser, hvis de kunne hentes. */
   forestilling?: Forestilling | null;
+  /** Kundens adresse fra Airtable, hvis den er oplyst. */
+  kundeAdresse?: { adresse: string; postnummer: string; by: string } | null;
   /** Kun gavekort. */
   gavekort?: {
     modtagerEmail: string;
@@ -106,6 +110,7 @@ export function salgFraBillet(
     varer: p.lineItems,
     rabatOre: p.discountOre,
     forestilling,
+    kundeAdresse: forestilling?.kundeAdresse ?? null,
   };
 }
 
@@ -167,6 +172,11 @@ export function salgsmail(s: Salg): { subject: string; html: string } {
     ["Navn", s.kundeNavn],
     ["Mail", s.kundeEmail],
     ["Telefon", s.kundeTelefon],
+    ["Adresse", s.kundeAdresse?.adresse],
+    [
+      "Postnummer og by",
+      [s.kundeAdresse?.postnummer, s.kundeAdresse?.by].filter(Boolean).join(" "),
+    ],
   ]);
 
   const f = s.forestilling;

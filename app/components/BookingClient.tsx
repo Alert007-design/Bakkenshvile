@@ -499,6 +499,9 @@ export default function BookingClient({
     company: "",
     phone: "",
     email: "",
+    address: "",
+    zip: "",
+    city: "",
   });
   const [specialRequests, setSpecialRequests] = useState("");
   const [wantsMatching, setWantsMatching] = useState(false);
@@ -691,6 +694,10 @@ export default function BookingClient({
     }
     if (!customer.name || (!customer.phone && !customer.email)) {
       setError("Udfyld navn samt telefon eller e-mail.");
+      return;
+    }
+    if (!customer.zip.trim()) {
+      setError("Udfyld dit postnummer.");
       return;
     }
     if (!acceptedTerms) {
@@ -1020,6 +1027,48 @@ export default function BookingClient({
               value={customer.email}
               onChange={(e) =>
                 setCustomer({ ...customer, email: e.target.value })
+              }
+            />
+          </div>
+          <div className="field full">
+            <label htmlFor="cust-address">Adresse</label>
+            <input
+              id="cust-address"
+              type="text"
+              autoComplete="street-address"
+              maxLength={100}
+              value={customer.address}
+              onChange={(e) =>
+                setCustomer({ ...customer, address: e.target.value })
+              }
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="cust-zip">Postnummer *</label>
+            <input
+              id="cust-zip"
+              type="text"
+              inputMode="numeric"
+              autoComplete="postal-code"
+              required
+              aria-required="true"
+              maxLength={12}
+              value={customer.zip}
+              onChange={(e) =>
+                setCustomer({ ...customer, zip: e.target.value })
+              }
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="cust-city">By</label>
+            <input
+              id="cust-city"
+              type="text"
+              autoComplete="address-level2"
+              maxLength={60}
+              value={customer.city}
+              onChange={(e) =>
+                setCustomer({ ...customer, city: e.target.value })
               }
             />
           </div>

@@ -57,6 +57,7 @@ export const FIELDS = {
     company: "fldYGfTjB6CBHia6M",
     address: "fld4nTPUii8qqHuad",
     zip: "fld56cqNPbtjDOGGH",
+    city: "fldKBZzKKEj1We2it",
     phone: "fldZ7O9UcOLff1r8m",
     email: "fldTMMYOx0URW3fNm",
   },

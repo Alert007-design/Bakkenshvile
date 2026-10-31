@@ -479,6 +479,7 @@ async function fulfillTicketPayment(
   let showDateIso = "";
   let showTime = "";
   let seats = "";
+  let kundeAdresse = { adresse: "", postnummer: "", by: "" };
   let hentet = false;
   try {
     const bk = await getRecord(TABLES.bookings, payment.bookingId);
@@ -487,6 +488,7 @@ async function fulfillTicketPayment(
     showDateIso = view.showDate;
     showTime = view.showTime;
     seats = view.ticketBreakdown;
+    kundeAdresse = { adresse: view.address, postnummer: view.zip, by: view.city };
     hentet = true;
   } catch (e) {
     console.error("Kunne ikke hente forestillingsdata til billet");
@@ -515,7 +517,7 @@ async function fulfillTicketPayment(
     });
   }
   return hentet
-    ? { titel: showTitle, datoIso: showDateIso, tid: showTime, pladser: seats }
+    ? { titel: showTitle, datoIso: showDateIso, tid: showTime, pladser: seats, kundeAdresse }
     : null;
 }
 

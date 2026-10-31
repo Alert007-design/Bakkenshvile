@@ -24,6 +24,7 @@ import {
   kapaciteterFor,
   kategoriFraAirtable,
 } from "@/lib/kapacitet";
+import { laesKundeAdresse } from "@/lib/kunde-adresse";
 import {
   frigivForBooking,
   frigivUdloebne,
@@ -91,6 +92,9 @@ export async function POST(req: NextRequest) {
         company?: string;
         phone?: string;
         email?: string;
+        address?: string;
+        zip?: string;
+        city?: string;
       };
       specialRequests?: string;
       showId?: string;
@@ -110,6 +114,11 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    const adresseSvar = laesKundeAdresse(customer);
+    if (!adresseSvar.ok) {
+      return NextResponse.json({ error: adresseSvar.fejl }, { status: 400 });
+    }
+    const kundeAdresse = adresseSvar.adresse;
     // Obligatorisk accept af handelsbetingelser + privatlivspolitik. Håndhæves
     // også serverside, så købet aldrig kan gennemføres uden accept — heller
     // ikke hvis klienten omgås.
@@ -213,6 +222,9 @@ export async function POST(req: NextRequest) {
       [FIELDS.customer.company]: customer.company || "",
       [FIELDS.customer.phone]: customer.phone || "",
       [FIELDS.customer.email]: customer.email || "",
+      [FIELDS.customer.address]: kundeAdresse.adresse,
+      [FIELDS.customer.zip]: kundeAdresse.postnummer,
+      [FIELDS.customer.city]: kundeAdresse.by,
     });
     // Tilfældigt nummer, der ikke kan gættes ud fra klokkeslættet (se lib/booking-no.ts).
     const bookingNo = generateBookingNo();
