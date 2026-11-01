@@ -111,7 +111,7 @@ export default function FunktionerPage() {
     {
       href: "/admin/kapacitet",
       title: "Kapacitet",
-      desc: "Kapacitet, solgte og reserverede pladser og hvad der er tilbage pr. forestilling og priskategori.",
+      desc: "Kapacitet, solgte og reserverede pladser og hvad der er tilbage pr. forestilling og priskategori. Her kan du også sætte flere billetter til salg i en kategori på en bestemt aften.",
       status: "aktiv",
     },
     {

@@ -10,6 +10,7 @@ type Kategori = {
   noegle: string;
   navn: string;
   kapacitet: number;
+  standard: number;
   taget: number;
   tilbage: number;
   genberegnet: number;
@@ -113,6 +114,8 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
   const [arbejder, setArbejder] = useState(false);
   const [besked, setBesked] = useState<string | null>(null);
   const [valg, setValg] = useState<Record<string, string>>({});
+  // Tal, der er tastet i kapacitetsfelterne, men ikke gemt endnu.
+  const [nyKapacitet, setNyKapacitet] = useState<Record<string, string>>({});
 
   // Overblikket. Kommer hurtigt: alle tal hentes fra vores egen database.
   const hent = useCallback(async () => {
@@ -152,6 +155,35 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
   useEffect(() => {
     if (data && gamle === null && gamleFejl === null) hentGamle();
   }, [data, gamle, gamleFejl, hentGamle]);
+
+  // Gemmer en ny kapacitet (eller null = standard) for én kategori på én
+  // forestilling. Henter kun overblikket bagefter, ikke den langsomme
+  // gennemgang af gamle bookinger.
+  async function gemKapacitet(showId: string, kategori: string, navn: string, antal: number | null) {
+    setArbejder(true);
+    setBesked(null);
+    setFejl(null);
+    try {
+      const res = await fetch("/api/admin/kapacitet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ handling: "kapacitet", showId, kategori, antal }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Kapaciteten kunne ikke gemmes.");
+      setNyKapacitet((p) => {
+        const n = { ...p };
+        delete n[`${showId}:${kategori}`];
+        return n;
+      });
+      setBesked(`${navn}: kapaciteten er nu ${json.kapacitet}. Bookingsiden bruger det nye tal inden for et minut.`);
+      await hent();
+    } catch (e) {
+      setFejl(e instanceof Error ? e.message : "Noget gik galt");
+    } finally {
+      setArbejder(false);
+    }
+  }
 
   async function send(krop: Record<string, unknown>, svartekst: (d: any) => string) {
     setArbejder(true);
@@ -218,10 +250,11 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
       </div>
       <h1 style={overskrift}>Pladser og kapacitet</h1>
       <p style={broedtekst}>
-        Standardkapaciteten er 58 + 60 + 42 + 12 = 172 billetter. Vil du ændre
-        tallet for en bestemt forestilling, gør du det i Airtable på selve
-        forestillingen — felterne hedder &quot;Kapacitet …&quot;. Et tomt felt
-        betyder, at standardtallet gælder.
+        Standardkapaciteten er 58 + 60 + 42 + 12 = 172 billetter. Vil du sælge
+        flere (eller færre) billetter i en kategori til en bestemt forestilling,
+        skriver du det nye tal i feltet og trykker Gem. Tallet kan ikke sættes
+        lavere end det, der allerede er solgt. &quot;Brug standard&quot; sætter
+        kategorien tilbage til standardtallet.
       </p>
 
       {fejl && <p style={{ color: "#a00" }} role="alert">{fejl}</p>}
@@ -435,7 +468,67 @@ export default function KapacitetClient({ csrf }: { csrf: string }) {
               {f.kategorier.map((k) => (
                 <tr key={k.noegle}>
                   <td style={celle}>{k.navn}</td>
-                  <td style={{ ...celle, textAlign: "right" }}>{k.kapacitet}</td>
+                  <td style={{ ...celle, textAlign: "right", whiteSpace: "nowrap" }}>
+                    {(() => {
+                      const noegle = `${f.id}:${k.noegle}`;
+                      const tastet = nyKapacitet[noegle];
+                      const vaerdi = tastet ?? String(k.kapacitet);
+                      const aendret = tastet !== undefined && tastet !== String(k.kapacitet);
+                      return (
+                        <>
+                          <input
+                            type="number"
+                            min={0}
+                            inputMode="numeric"
+                            value={vaerdi}
+                            disabled={arbejder}
+                            aria-label={`Kapacitet ${k.navn}`}
+                            onChange={(e) =>
+                              setNyKapacitet((p) => ({ ...p, [noegle]: e.target.value }))
+                            }
+                            style={{ width: 64, padding: 4, textAlign: "right", fontSize: 14 }}
+                          />
+                          {aendret && (
+                            <button
+                              disabled={arbejder || vaerdi.trim() === ""}
+                              onClick={() => gemKapacitet(f.id, k.noegle, k.navn, Number(vaerdi))}
+                              style={{
+                                marginLeft: 6,
+                                padding: "4px 10px",
+                                background: "#0d3b2e",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: 3,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Gem
+                            </button>
+                          )}
+                          {k.kapacitet !== k.standard && !aendret && (
+                            <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
+                              Standard er {k.standard}.{" "}
+                              <button
+                                disabled={arbejder}
+                                onClick={() => gemKapacitet(f.id, k.noegle, k.navn, null)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  padding: 0,
+                                  color: "#0d3b2e",
+                                  textDecoration: "underline",
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                }}
+                              >
+                                Brug standard
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </td>
                   <td style={{ ...celle, textAlign: "right" }}>
                     {k.taget}
                     {/* Er pladsbogens tal og linjerne uenige, vises det — så

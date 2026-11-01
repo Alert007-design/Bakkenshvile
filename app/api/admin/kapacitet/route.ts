@@ -12,7 +12,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   cachedListRecords,
+  clearAirtableCache,
   getRecord,
+  updateRecord,
   TABLES,
   FIELDS,
 } from "@/lib/airtable";
@@ -27,7 +29,9 @@ import {
 import {
   KAPACITETSKATEGORIER,
   KATEGORI_NAVN,
+  STANDARD_KAPACITET,
   byggOversigt,
+  kapacitetsfejl,
   kapaciteterFor,
   kategoriFraAirtable,
   type Kapacitetskategori,
@@ -226,6 +230,7 @@ export async function GET(req: NextRequest) {
           noegle: k,
           navn: KATEGORI_NAVN[k],
           kapacitet: oversigt[k].kapacitet,
+          standard: STANDARD_KAPACITET[k],
           taget: oversigt[k].taget,
           tilbage: oversigt[k].tilbage,
           genberegnet: genberegnet[k],
@@ -250,6 +255,14 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// Forestillingens felt i Airtable for hver kategori.
+const KAPACITETSFELT: Record<Kapacitetskategori, string> = {
+  aplusForrest: FIELDS.event.kapacitetAplusForrest,
+  aplusBagerst: FIELDS.event.kapacitetAplusBagerst,
+  a: FIELDS.event.kapacitetA,
+  b: FIELDS.event.kapacitetB,
+};
+
 export async function POST(req: NextRequest) {
   const s = verifyStaffSession(req.cookies.get(STAFF_COOKIE_NAME)?.value);
   if (!s) return NextResponse.json({ error: "Log ind igen." }, { status: 401 });
@@ -262,6 +275,31 @@ export async function POST(req: NextRequest) {
     const db = getDb();
     const billettyper = await hentBillettyper();
     const shows = await listShowDates();
+
+    // "kapacitet": personalet ændrer antallet af billetter i én kategori for
+    // én forestilling. Skrives i forestillingens felt i Airtable; null =
+    // tilbage til standardtallet. Kapaciteten må aldrig sættes under det, der
+    // allerede er solgt eller reserveret.
+    if (body?.handling === "kapacitet") {
+      const showId = String(body.showId ?? "");
+      const kategori = String(body.kategori ?? "") as Kapacitetskategori;
+      const show = shows.find((x) => x.id === showId);
+      if (!show || !KAPACITETSKATEGORIER.includes(kategori)) {
+        return NextResponse.json({ error: "Ugyldig forestilling eller kategori." }, { status: 400 });
+      }
+      const nyVaerdi: number | null = body.antal === null ? null : Number(body.antal);
+      await frigivUdloebneForShows(db, [showId]);
+      const tagne = (await hentTagneForShows(db, [showId])).get(showId);
+      const taget = tagne ? tagne[kategori] : 0;
+      const effektiv = nyVaerdi === null ? STANDARD_KAPACITET[kategori] : nyVaerdi;
+      const fejlTekst = kapacitetsfejl(body.antal === null ? effektiv : body.antal, taget);
+      if (fejlTekst) return NextResponse.json({ error: fejlTekst }, { status: 400 });
+      await updateRecord(TABLES.events, showId, {
+        [KAPACITETSFELT[kategori]]: nyVaerdi,
+      });
+      clearAirtableCache(TABLES.events);
+      return NextResponse.json({ ok: true, kapacitet: effektiv });
+    }
 
     // "placer": ejeren har selv taget stilling til én booking fra listen.
     if (body?.handling === "placer") {

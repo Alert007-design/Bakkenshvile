@@ -17,6 +17,7 @@ import {
   kapaciteterFor,
   kategoriFraAirtable,
   tilbageEfterSalg,
+  kapacitetsfejl,
 } from "@/lib/kapacitet";
 
 const INGEN_TAGNE = { aplusForrest: 0, aplusBagerst: 0, a: 0, b: 0 };
@@ -174,5 +175,25 @@ describe("byggOversigt", () => {
     });
     expect(o.a.kapacitet).toBe(42);
     expect(o.a.taget).toBe(5);
+  });
+});
+
+describe("kapacitetsfejl (ændring fra admin)", () => {
+  it("godtager et helt tal, der ikke er under det solgte", () => {
+    expect(kapacitetsfejl(70, 40)).toBeNull();
+    expect(kapacitetsfejl(40, 40)).toBeNull();
+    expect(kapacitetsfejl(0, 0)).toBeNull();
+  });
+
+  it("afviser at sætte kapaciteten under det, der allerede er solgt", () => {
+    expect(kapacitetsfejl(30, 40)).toMatch(/40/);
+  });
+
+  it("afviser negative tal, kommatal, tekst og urimeligt store tal", () => {
+    expect(kapacitetsfejl(-1, 0)).not.toBeNull();
+    expect(kapacitetsfejl(2.5, 0)).not.toBeNull();
+    expect(kapacitetsfejl("10" as unknown as number, 0)).not.toBeNull();
+    expect(kapacitetsfejl(Number.NaN, 0)).not.toBeNull();
+    expect(kapacitetsfejl(1000, 0)).not.toBeNull();
   });
 });
