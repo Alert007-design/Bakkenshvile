@@ -242,17 +242,23 @@ export function updateRecords(
 
 // Airtable leverer højst 100 records pr. svar og et "offset", hvis der er
 // flere. Vi bladrer, til der ikke kommer flere, så lister aldrig klippes.
-export async function listRecords(tableId: string) {
+// fresh: true springer Next' mellemlager over. Bruges, hvor listen skal være
+// helt aktuel (bordplanen): ellers kan sider fra forskellige tidspunkter
+// blandes, så nye records falder ud.
+export async function listRecords(
+  tableId: string,
+  opts: { fresh?: boolean } = {}
+) {
   const out: AirtableRecord[] = [];
   let offset: string | undefined;
   do {
     const url =
       `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true` +
       (offset ? `&offset=${encodeURIComponent(offset)}` : "");
-    const res = await airtableFetch(url, {
-      headers: headers(),
-      next: { revalidate: 30 },
-    } as RequestInit);
+    const init: RequestInit = opts.fresh
+      ? { headers: headers(), cache: "no-store" }
+      : ({ headers: headers(), next: { revalidate: 30 } } as RequestInit);
+    const res = await airtableFetch(url, init);
     if (!res.ok) throw new Error(`Airtable-fejl (${tableId}): ${res.status}`);
     const data = await res.json();
     out.push(...((data.records as AirtableRecord[]) ?? []));
