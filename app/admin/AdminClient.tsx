@@ -340,8 +340,11 @@ export default function AdminClient({
               </h2>
               <p style={{ margin: "4px 0 0", fontSize: 13, color: "#666" }}>
                 Det er kun et forslag, og alt kan flyttes på dagen. Højst 5
-                ved et bord. Større selskaber deles ligeligt på borde ved
-                siden af hinanden, fx 6 som 3+3. Gæster, der har svaret på
+                ved et bord. Større selskaber fylder et bord med 5 og får
+                resten ved nabobordet, fx 7 som 5+2. Sidder én fra et selskab
+                alene, kommer et par eller et selskab på 3 med ved bordet.
+                Enlige sættes sammen ved et bord med et par, ellers med et
+                selskab på 3. Gæster, der har svaret på
                 matchspørgsmålene, sættes sammen efter alder, egn,
                 drikkevarer og interesser. Bruger du forslaget, overskrives
                 de nuværende bordnumre for denne forestilling.

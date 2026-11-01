@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { delLigeligt, lavBordforslag, bordTekstPrBooking, MAKS_PR_BORD, type ForslagBooking } from "./bordforslag";
+import { delIBorde, lavBordforslag, bordTekstPrBooking, MAKS_PR_BORD, type ForslagBooking } from "./bordforslag";
 import { getTable } from "./tables";
 
 function b(id: string, n: number, extra: Partial<ForslagBooking> = {}): ForslagBooking {
@@ -7,18 +7,18 @@ function b(id: string, n: number, extra: Partial<ForslagBooking> = {}): ForslagB
 }
 const FORREST = "A+ (1.-2.-3. række)";
 
-describe("delLigeligt", () => {
-  it("deler ligeligt og aldrig 5+1", () => {
-    expect(delLigeligt(5)).toEqual([5]);
-    expect(delLigeligt(6)).toEqual([3, 3]);
-    expect(delLigeligt(7)).toEqual([4, 3]);
-    expect(delLigeligt(8)).toEqual([4, 4]);
-    expect(delLigeligt(11)).toEqual([4, 4, 3]);
-    expect(delLigeligt(20)).toEqual([5, 5, 5, 5]);
-    expect(delLigeligt(12)).toEqual([4, 4, 4]);
+describe("delIBorde", () => {
+  it("fylder et bord med 5 og sætter resten ved nabobordet", () => {
+    expect(delIBorde(5)).toEqual([5]);
+    expect(delIBorde(6)).toEqual([5, 1]);
+    expect(delIBorde(7)).toEqual([5, 2]);
+    expect(delIBorde(8)).toEqual([5, 3]);
+    expect(delIBorde(10)).toEqual([5, 5]);
+    expect(delIBorde(11)).toEqual([5, 5, 1]);
+    expect(delIBorde(12)).toEqual([5, 5, 2]);
   });
   it("giver tom liste ved 0", () => {
-    expect(delLigeligt(0)).toEqual([]);
+    expect(delIBorde(0)).toEqual([]);
   });
 });
 
@@ -32,9 +32,17 @@ describe("lavBordforslag", () => {
     expect(total).toBe(16);
   });
 
-  it("deler et selskab på 6 som 3+3 ved borde ved siden af hinanden i samme række", () => {
+  it("deler et selskab på 7 som 5+2 ved borde ved siden af hinanden i samme række", () => {
+    const f = lavBordforslag([[FORREST, [b("syv", 7)]]]);
+    expect(f.map((x) => x.pladser[0].antal)).toEqual([5, 2]);
+    const [t1, t2] = f.map((x) => getTable(x.table!)!);
+    expect(t1.row).toBe(t2.row);
+    expect(Math.abs(t1.position - t2.position)).toBe(1);
+  });
+
+  it("deler et selskab på 6 som 5+1 ved borde ved siden af hinanden i samme række", () => {
     const f = lavBordforslag([[FORREST, [b("seks", 6)]]]);
-    expect(f.map((x) => x.pladser[0].antal)).toEqual([3, 3]);
+    expect(f.map((x) => x.pladser[0].antal)).toEqual([5, 1]);
     const [t1, t2] = f.map((x) => getTable(x.table!)!);
     expect(t1.row).toBe(t2.row);
     expect(Math.abs(t1.position - t2.position)).toBe(1);
@@ -72,5 +80,49 @@ describe("lavBordforslag", () => {
     expect(f.length).toBe(50);
     expect(f.filter((x) => x.table === null).length).toBe(6);
     expect(new Set(f.filter((x) => x.table !== null).map((x) => x.table)).size).toBe(44);
+  });
+
+  it("sætter et selskab på 2-3 ved bordet med den ene fra et selskab på 6", () => {
+    const f = lavBordforslag([[FORREST, [b("seks", 6), b("par", 2), b("fire", 4)]]]);
+    const enerBord = f.find((x) => x.pladser.some((p) => p.row.id === "seks" && p.antal === 1))!;
+    expect(enerBord.pladser.map((p) => p.row.id).sort()).toEqual(["par", "seks"]);
+  });
+
+  it("bruger et selskab på 3 ved enerbordet, når der ikke er et par", () => {
+    const f = lavBordforslag([[FORREST, [b("seks", 6), b("tre", 3)]]]);
+    const enerBord = f.find((x) => x.pladser.some((p) => p.row.id === "seks" && p.antal === 1))!;
+    expect(enerBord.pladser.map((p) => p.row.id).sort()).toEqual(["seks", "tre"]);
+  });
+
+  it("sætter enlige sammen ved et bord med et par", () => {
+    const f = lavBordforslag([[FORREST, [b("e1", 1), b("e2", 1), b("par", 2), b("tre", 3)]]]);
+    const tekst = bordTekstPrBooking(f);
+    expect(tekst.get("e1")).toBe(tekst.get("par"));
+    expect(tekst.get("e2")).toBe(tekst.get("par"));
+    expect(tekst.get("tre")).not.toBe(tekst.get("par"));
+  });
+
+  it("sætter enlige ved et bord med et selskab på 3, når der ikke er et par", () => {
+    const f = lavBordforslag([[FORREST, [b("e1", 1), b("e2", 1), b("tre", 3), b("fire", 4)]]]);
+    const tekst = bordTekstPrBooking(f);
+    expect(tekst.get("e1")).toBe(tekst.get("tre"));
+    expect(tekst.get("e2")).toBe(tekst.get("tre"));
+  });
+
+  it("deler mange enlige ud på flere par og fylder aldrig over 5", () => {
+    const enlige = Array.from({ length: 5 }, (_, i) => b(`e${i}`, 1));
+    const f = lavBordforslag([[FORREST, [...enlige, b("p1", 2), b("p2", 2)]]]);
+    for (const bord of f) {
+      expect(bord.pladser.reduce((s, p) => s + p.antal, 0)).toBeLessThanOrEqual(MAKS_PR_BORD);
+    }
+    const tekst = bordTekstPrBooking(f);
+    const vedPar = enlige.filter((e) => [tekst.get("p1"), tekst.get("p2")].includes(tekst.get(e.id)));
+    expect(vedPar.length).toBe(5);
+  });
+
+  it("sætter enlige sammen, når der hverken er par eller selskaber på 3", () => {
+    const f = lavBordforslag([[FORREST, [b("e1", 1), b("e2", 1), b("fire", 4)]]]);
+    const tekst = bordTekstPrBooking(f);
+    expect(tekst.get("e1")).toBe(tekst.get("e2"));
   });
 });

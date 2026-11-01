@@ -2,10 +2,15 @@
 // flytter frit rundt på dagen, fordi den endelige placering afhænger af,
 // hvordan selskaberne faktisk ser ud.
 //
-// Regler (besluttet af ejeren 31-10-2026):
+// Regler (besluttet af ejeren 31-10-2026, ændret 01-11-2026):
 //  - Højst 5 personer ved ét bord.
-//  - Et selskab på mere end 5 deles ligeligt på borde ved siden af hinanden,
-//    fx 6 = 3+3, 8 = 4+4, 11 = 4+4+3 (aldrig 5+1).
+//  - Et selskab på mere end 5 fylder et bord med 5 og sætter resten ved
+//    nabobordet: 6 = 5+1, 7 = 5+2, 11 = 5+5+1.
+//  - Sidder én fra et stort selskab alene ved nabobordet, sættes et selskab
+//    på 2 (ellers 3) ved samme bord.
+//  - Enlige sættes sammen med andre enlige i samme kategori ved et bord med
+//    et selskab på 2 (højst 3 enlige), ellers på 3 (højst 2 enlige). Er der
+//    hverken par eller selskaber på 3, sidder de enlige sammen.
 //  - Mindre selskaber kan dele bord, hvis de passer ind; matchsvarene
 //    (alder, egn, drikkevarer, interesser) afgør, hvem der sidder sammen.
 //  - Borde tildeles med salens rigtige numre (lib/tables.ts) inden for den
@@ -65,13 +70,16 @@ function matchNoegle(r: ForslagBooking): string {
   return [r.ageGroup, normalize(r.location), r.drinkPreference].join("|");
 }
 
-/** Deler et antal personer ligeligt på så få borde som muligt (højst 5 pr. bord). */
-export function delLigeligt(antal: number, maks = MAKS_PR_BORD): number[] {
+/** Deler et stort selskab: fulde borde med 5 og resten ved nabobordet. */
+export function delIBorde(antal: number, maks = MAKS_PR_BORD): number[] {
   if (antal <= 0) return [];
-  const borde = Math.ceil(antal / maks);
-  const grund = Math.floor(antal / borde);
-  const rest = antal % borde;
-  return Array.from({ length: borde }, (_, i) => grund + (i < rest ? 1 : 0));
+  const ud: number[] = [];
+  let rest = antal;
+  while (rest > 0) {
+    ud.push(Math.min(maks, rest));
+    rest -= maks;
+  }
+  return ud;
 }
 
 /** Hvilke rækker en billetkategori hører til. Null = ukendt kategori. */
@@ -130,27 +138,82 @@ export function lavBordforslag<R extends ForslagBooking>(
     return Array.from({ length: k }, () => nytBord(kategori));
   }
 
+  function optaget(b: BordIForslag<R>): number {
+    return b.pladser.reduce((s, p) => s + p.antal, 0);
+  }
+
+  // Tager det selskab fra listen, der passer bedst til dem, der allerede
+  // sidder ved bordet (matchsvarene). Ved lige godt vinder den første.
+  function taBedste(liste: R[], ved: R[]): R | undefined {
+    if (liste.length === 0) return undefined;
+    let bedst = 0;
+    let score = -Infinity;
+    liste.forEach((r, i) => {
+      const s = ved.reduce((sum, v) => sum + affinity(r, v), 0);
+      if (s > score) {
+        score = s;
+        bedst = i;
+      }
+    });
+    return liste.splice(bedst, 1)[0];
+  }
+
   for (const [kategori, rows] of grupper) {
-    const store = rows.filter((r) => r.ticketCount > MAKS_PR_BORD);
-    const smaa = rows
-      .filter((r) => r.ticketCount > 0 && r.ticketCount <= MAKS_PR_BORD)
+    const aktive = rows.filter((r) => r.ticketCount > 0);
+    const store = aktive
+      .filter((r) => r.ticketCount > MAKS_PR_BORD)
+      .sort((a, b) => b.ticketCount - a.ticketCount);
+    const enlige = aktive.filter((r) => r.ticketCount === 1);
+    const par = aktive.filter((r) => r.ticketCount === 2);
+    const tre = aktive.filter((r) => r.ticketCount === 3);
+    const aabne: BordIForslag<R>[] = [];
+
+    // 1. Store selskaber først, så de får borde ved siden af hinanden.
+    //    Resten af selskabet ved nabobordet er et åbent bord, andre kan
+    //    sættes ved.
+    for (const r of store) {
+      const dele = delIBorde(r.ticketCount);
+      const borde = nabobord(kategori, dele.length);
+      borde.forEach((b, i) => b.pladser.push({ row: r, antal: dele[i] }));
+      resultat.push(...borde);
+      const sidste = borde[borde.length - 1];
+      if (dele[dele.length - 1] < MAKS_PR_BORD) aabne.push(sidste);
+    }
+
+    // 2. Sidder én fra et stort selskab alene, får bordet et par, ellers tre.
+    for (const b of aabne) {
+      if (optaget(b) !== 1) continue;
+      const ved = b.pladser.map((p) => p.row);
+      const gaest = taBedste(par, ved) ?? taBedste(tre, ved);
+      if (gaest) b.pladser.push({ row: gaest, antal: gaest.ticketCount });
+    }
+
+    // 3. Enlige: ved et bord med et par (højst 3 enlige), ellers med et
+    //    selskab på 3 (højst 2 enlige), ellers enlige sammen (højst 5).
+    while (enlige.length > 0) {
+      const foerste = enlige.shift()!;
+      const vaert = taBedste(par, [foerste]) ?? taBedste(tre, [foerste]);
+      const bord = nytBord(kategori);
+      bord.pladser.push({ row: foerste, antal: 1 });
+      if (vaert) bord.pladser.push({ row: vaert, antal: vaert.ticketCount });
+      while (enlige.length > 0 && optaget(bord) < MAKS_PR_BORD) {
+        const ved = bord.pladser.map((p) => p.row);
+        const naeste = taBedste(enlige, ved)!;
+        bord.pladser.push({ row: naeste, antal: 1 });
+      }
+      aabne.push(bord);
+      resultat.push(bord);
+    }
+
+    // 4. Resten (par og selskaber på 3 uden enlige, og selskaber på 4-5):
+    //    ved det bord, hvor de passer bedst, ellers et nyt.
+    const smaa = [...par, ...tre, ...aktive.filter((r) => r.ticketCount >= 4 && r.ticketCount <= MAKS_PR_BORD)]
       // Størst først. Ved lige store kommer selskaber med samme matchsvar
       // lige efter hinanden, så de lander ved samme bord.
       .sort(
         (a, b) =>
           b.ticketCount - a.ticketCount || matchNoegle(a).localeCompare(matchNoegle(b))
       );
-
-    // Store selskaber først, så de får borde ved siden af hinanden.
-    for (const r of [...store].sort((a, b) => b.ticketCount - a.ticketCount)) {
-      const dele = delLigeligt(r.ticketCount);
-      const borde = nabobord(kategori, dele.length);
-      borde.forEach((b, i) => b.pladser.push({ row: r, antal: dele[i] }));
-      resultat.push(...borde);
-    }
-
-    // Små selskaber: sæt ved det bord, hvor de passer bedst, ellers et nyt.
-    const aabne: BordIForslag<R>[] = [];
     for (const r of smaa) {
       let bedst: BordIForslag<R> | null = null;
       // Et selskab, der gerne vil matches, får hellere sit eget bord end at
@@ -158,8 +221,8 @@ export function lavBordforslag<R extends ForslagBooking>(
       // fælles. Andre fylder bare op, hvor der er plads.
       let bedstScore = r.wantsMatching ? -0.5 : -Infinity;
       for (const b of aabne) {
-        const optaget = b.pladser.reduce((s, p) => s + p.antal, 0);
-        if (optaget + r.ticketCount > MAKS_PR_BORD) continue;
+        const o = optaget(b);
+        if (o + r.ticketCount > MAKS_PR_BORD) continue;
         let score = 0;
         let uenig = false;
         for (const p of b.pladser) {
@@ -168,7 +231,7 @@ export function lavBordforslag<R extends ForslagBooking>(
           if (a === 0 && r.wantsMatching && p.row.wantsMatching) uenig = true;
         }
         if (uenig && score === 0) score -= 1;
-        score += optaget * 0.01; // let præference for at fylde bordet op
+        score += o * 0.01; // let præference for at fylde bordet op
         if (score > bedstScore) {
           bedstScore = score;
           bedst = b;
