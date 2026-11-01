@@ -141,3 +141,32 @@ describe("cachedListRecords — TTL og stale-on-error", () => {
     }
   });
 });
+
+describe("listRecords — henter alle sider", () => {
+  it("følger offset, så mere end 100 records kommer med", async () => {
+    const side1 = Array.from({ length: 100 }, (_, i) => ({ id: `rec${i}`, fields: {} }));
+    const side2 = [{ id: "rec100", fields: {} }];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(res(200, { records: side1, offset: "itrNæste" }))
+      .mockResolvedValueOnce(res(200, { records: side2 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { listRecords } = await import("@/lib/airtable");
+    const records = await listRecords("tblTest");
+    expect(records).toHaveLength(101);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1][0])).toContain("offset=itrN%C3%A6ste");
+  });
+
+  it("kaster fejl, hvis en senere side fejler (ingen halve lister)", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(res(200, { records: [{ id: "rec1", fields: {} }], offset: "x" }))
+      .mockResolvedValueOnce(res(404));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { listRecords } = await import("@/lib/airtable");
+    await expect(listRecords("tblTest")).rejects.toThrow();
+  });
+});
