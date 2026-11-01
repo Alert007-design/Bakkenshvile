@@ -10,6 +10,7 @@ import {
 import {
   delPaaKategorier,
   kundeBemaerkning,
+  manglerBetaling,
   sorterEfterBestilt,
   UKENDT_KATEGORI,
 } from "@/lib/gaesteliste";
@@ -42,6 +43,8 @@ type Row = {
   specialRequests: string;
   /** Forudbestilte drikkevarer, fx "Øl x2, Husets vin x1". */
   addons: string;
+  /** Feltet "Betalt i alt"; null hvis tomt. */
+  totalPaid: number | null;
 };
 
 /**
@@ -63,6 +66,24 @@ function nummerTekst(r: Row): string {
   if (r.gaestenummer === null) return "–";
   return `${r.gaestenummer}${kundeBemaerkning(r.specialRequests) ? "*" : ""}`;
 }
+
+/** Beløb, en booking fra det gamle system mangler at betale; null hvis intet. */
+function mangler(r: Row): number | null {
+  return manglerBetaling(r.specialRequests, r.totalPaid);
+}
+
+const KRONER = new Intl.NumberFormat("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 2 });
+
+const manglerMaerke: React.CSSProperties = {
+  marginLeft: 6,
+  fontSize: 11,
+  background: "#b3261e",
+  color: "#fff",
+  padding: "1px 6px",
+  borderRadius: 10,
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+};
 
 function harDrikkevarer(r: Row): boolean {
   return r.addons.trim().length > 0;
@@ -423,6 +444,9 @@ export default function AdminClient({
                       <strong>{nummerTekst(r)}</strong> {r.customerName} – {antal} pers.
                       {antal < r.antalIKategori ? ` (af ${r.antalIKategori})` : ""}
                       {harDrikkevarer(r) ? " · drikkevarer" : ""}
+                      {mangler(r) !== null && (
+                        <strong style={{ color: "#b3261e" }}> · mangler betaling</strong>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -596,6 +620,9 @@ export default function AdminClient({
                     <td style={{ padding: 8 }}>
                       {r.customerName}
                       {harDrikkevarer(r) && <span style={drikMaerke}>Drikkevarer</span>}
+                      {mangler(r) !== null && (
+                        <span style={manglerMaerke}>Mangler betaling · {KRONER.format(mangler(r)!)}</span>
+                      )}
                       <br />
                       <span style={{ color: "#999", fontSize: 12 }}>
                         {r.customerPhone}
@@ -669,9 +696,36 @@ export default function AdminClient({
         );
         const medBemaerkning = iNummerOrden.filter((r) => kundeBemaerkning(r.specialRequests));
         const medDrikkevarer = iNummerOrden.filter(harDrikkevarer);
+        const medMangler = iNummerOrden.filter((r) => mangler(r) !== null);
         const celle: React.CSSProperties = { padding: "6px 8px", verticalAlign: "top" };
         return (
           <div style={{ marginTop: 32 }}>
+            {medMangler.length > 0 && (
+              <>
+                <h2 style={{ color: "#b3261e" }}>Mangler betaling</h2>
+                <p style={{ color: "#555", fontSize: 13, marginTop: -6 }}>
+                  Bestillinger fra det gamle system, som ikke er betalt. Pladserne er holdt. Mærket forsvinder, når
+                  det fulde beløb står i feltet &quot;Betalt i alt&quot; i Airtable.
+                </p>
+                <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14, marginBottom: 28 }}>
+                  <tbody>
+                    {medMangler.map((r) => (
+                      <tr key={r.id} style={{ borderBottom: "1px solid #eee" }}>
+                        <td style={{ ...celle, fontWeight: 700, whiteSpace: "nowrap" }}>{nummerTekst(r)}</td>
+                        <td style={{ ...celle, whiteSpace: "nowrap" }}>
+                          {r.customerName}
+                          <div style={{ color: "#999", fontSize: 12 }}>{r.bookingNo}</div>
+                        </td>
+                        <td style={celle}>{r.ticketCount} pers.</td>
+                        <td style={{ ...celle, fontWeight: 700, color: "#b3261e", whiteSpace: "nowrap" }}>
+                          {KRONER.format(mangler(r)!)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
             <h2>Bemærkninger fra gæsterne</h2>
             {medBemaerkning.length === 0 ? (
               <p style={{ color: "#999" }}>Ingen bemærkninger til denne forestilling.</p>
@@ -737,6 +791,7 @@ export default function AdminClient({
                   {g.ticketBreakdown ? ` (${g.ticketBreakdown})` : ""}
                   {isComp(g.bookingNo) ? " · fribillet" : ""}
                   {harDrikkevarer(g) ? " · drikkevarer" : ""}
+                  {mangler(g) !== null ? " · MANGLER BETALING" : ""}
                   {g.wantsMatching && g.note ? ` — ${g.note}` : ""}
                 </li>
               ))}

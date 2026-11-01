@@ -115,7 +115,29 @@ export function delPaaKategorier(nedbrydning: string, antalIAlt: number): Katego
 }
 
 // Tekster, som systemet selv skriver i "Særlige ønsker" — ikke kundens egne.
-const SYSTEMTEKST = /^(overført fra|fra) ticketcloud\b/i;
+const SYSTEMTEKST = /^((overført fra|fra) ticketcloud\b|ikke betalt i det gamle system\b)/i;
+
+// Noten, importen fra det gamle system skrev på ubetalte bookinger, fx
+// "Ikke betalt i det gamle system (Telefonbestilling): mangler 24622 kr.".
+const MANGLER_NOTE = /ikke betalt i det gamle system[^|]*?mangler\s+([\d.]+(?:,\d+)?)\s*kr/i;
+
+/**
+ * Beløbet, en booking fra det gamle system stadig mangler at betale, eller
+ * null. Det, der står i "Betalt i alt", trækkes fra, så mærket forsvinder af
+ * sig selv, når hele beløbet er registreret som betalt i Airtable.
+ */
+export function manglerBetaling(
+  saerligeOensker: string | undefined | null,
+  betaltIAlt: number | null | undefined
+): number | null {
+  const m = String(saerligeOensker ?? "").match(MANGLER_NOTE);
+  if (!m) return null;
+  const beloeb = Number(m[1].replace(/\./g, "").replace(",", "."));
+  if (!Number.isFinite(beloeb) || beloeb <= 0) return null;
+  const betalt = typeof betaltIAlt === "number" && Number.isFinite(betaltIAlt) ? betaltIAlt : 0;
+  const rest = Math.round((beloeb - betalt) * 100) / 100;
+  return rest > 0 ? rest : null;
+}
 
 /**
  * Kundens egen bemærkning fra feltet "Særlige ønsker", uden systemets tekster.

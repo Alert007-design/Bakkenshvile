@@ -69,4 +69,22 @@ describe("bygOpslag", () => {
     expect(o.kunde.navn).toBe("");
     expect(o.forestilling).toBeNull();
   });
+
+  it("viser beløbet, der mangler fra det gamle system", () => {
+    const ubetalt = {
+      ...booking,
+      fields: {
+        ...booking.fields,
+        [FIELDS.booking.specialRequests]:
+          "Ikke betalt i det gamle system (Telefonbestilling): mangler 24622 kr. | Fra TicketCloud, gl. bord 08",
+        [FIELDS.booking.totalPaid]: 0,
+      },
+    };
+    expect(bygOpslag(ubetalt, null, null).manglerBetaling).toBe(24622);
+    expect(bygOpslag(ubetalt, null, null).bemaerkning).toBe("");
+  });
+
+  it("viser intet beløb for en betalt booking", () => {
+    expect(bygOpslag(booking, kunde, null).manglerBetaling).toBeNull();
+  });
 });

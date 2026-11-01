@@ -145,6 +145,10 @@ export async function GET(req: NextRequest) {
       note: String(b.fields[FIELDS.booking.matchNote] ?? ""),
       specialRequests: String(b.fields[FIELDS.booking.specialRequests] ?? ""),
       addons: String(b.fields[FIELDS.booking.addons] ?? ""),
+      totalPaid:
+        typeof b.fields[FIELDS.booking.totalPaid] === "number"
+          ? (b.fields[FIELDS.booking.totalPaid] as number)
+          : null,
       customerName: String(customerFields[FIELDS.customer.name] ?? ""),
       customerPhone: String(customerFields[FIELDS.customer.phone] ?? ""),
     };
