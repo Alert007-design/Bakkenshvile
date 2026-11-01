@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listRecords, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
+import {
+  cachedListRecords,
+  listRecords,
+  updateRecord,
+  updateRecords,
+  TABLES,
+  FIELDS,
+} from "@/lib/airtable";
 import { verifyStaffSession, verifyCsrf, STAFF_COOKIE_NAME } from "@/lib/staff-auth";
 import { getDb } from "@/lib/db";
-import { frigivUdloebne } from "@/lib/seat-holds";
+import { frigivUdloebne, hentTagneForShows } from "@/lib/seat-holds";
+import { getShowDate } from "@/lib/events";
+import { byggOversigt, kapaciteterFor, kategoriFraAirtable } from "@/lib/kapacitet";
+import { tildelGaestenumre, type NummerBooking } from "@/lib/gaesteliste";
 import {
   EKSTRA_STATUS_AFVENTER,
   EKSTRA_STATUS_UDLOEBET,
@@ -63,34 +73,112 @@ export async function GET(req: NextRequest) {
     console.error("Bordplan: kunne ikke tjekke udløbne ekstrabilletter");
   }
 
-  const rows = bookings
-    .filter((b) => {
-      const shows = b.fields[FIELDS.booking.show] as string[] | undefined;
-      return Array.isArray(shows) && shows.includes(showId);
-    })
-    .map((b) => {
-      const customerIds = (b.fields[FIELDS.booking.customer] as string[]) || [];
-      const customerFields = customerMap.get(customerIds[0]) || {};
-      return {
-        id: b.id,
-        bookingNo: String(b.fields[FIELDS.booking.bookingNo] ?? ""),
-        ticketCount: Number(b.fields[FIELDS.booking.ticketCount] ?? 0),
-        ticketBreakdown: String(b.fields[TICKET_BREAKDOWN_FIELD] ?? ""),
-        status: udloebne.has(b.id)
-          ? EKSTRA_STATUS_UDLOEBET
-          : String(b.fields[FIELDS.booking.status] ?? ""),
-        tableNumber: String(b.fields[FIELDS.booking.tableNumber] ?? ""),
-        wantsMatching: Boolean(b.fields[FIELDS.booking.wantsMatching]),
-        ageGroup: String(b.fields[FIELDS.booking.ageGroup] ?? ""),
-        location: String(b.fields[FIELDS.booking.location] ?? ""),
-        interests: String(b.fields[FIELDS.booking.interests] ?? ""),
-        drinkPreference: String(b.fields[FIELDS.booking.drinkPreference] ?? ""),
-        note: String(b.fields[FIELDS.booking.matchNote] ?? ""),
-        customerName: String(customerFields[FIELDS.customer.name] ?? ""),
-        customerPhone: String(customerFields[FIELDS.customer.phone] ?? ""),
-      };
-    });
-  return NextResponse.json({ rows });
+  const forestillingens = bookings.filter((b) => {
+    const shows = b.fields[FIELDS.booking.show] as string[] | undefined;
+    return Array.isArray(shows) && shows.includes(showId);
+  });
+
+  function kundeFor(b: (typeof bookings)[number]) {
+    const customerIds = (b.fields[FIELDS.booking.customer] as string[]) || [];
+    return customerMap.get(customerIds[0]) || {};
+  }
+  function bestiltFor(b: (typeof bookings)[number]): string {
+    const felt = b.fields[FIELDS.booking.bestilt];
+    if (typeof felt === "string" && felt) return felt;
+    return b.createdTime ?? "";
+  }
+  function statusFor(b: (typeof bookings)[number]): string {
+    return udloebne.has(b.id)
+      ? EKSTRA_STATUS_UDLOEBET
+      : String(b.fields[FIELDS.booking.status] ?? "");
+  }
+
+  // Faste gæstenumre: nye numre gemmes i Airtable, så de følger bookingen
+  // til showet. Fejler gemningen, vises bordplanen alligevel uden de nye
+  // numre, og der prøves igen næste gang siden åbnes.
+  const numre = new Map<string, number>();
+  for (const b of forestillingens) {
+    const n = b.fields[FIELDS.booking.gaestenummer];
+    if (typeof n === "number") numre.set(b.id, n);
+  }
+  let nummerFejl = false;
+  try {
+    const grundlag: NummerBooking[] = forestillingens.map((b) => ({
+      id: b.id,
+      email: String(kundeFor(b)[FIELDS.customer.email] ?? ""),
+      bestilt: bestiltFor(b),
+      gaestenummer: numre.get(b.id) ?? null,
+      status: statusFor(b),
+    }));
+    const nye = tildelGaestenumre(grundlag);
+    if (nye.size > 0) {
+      await updateRecords(
+        TABLES.bookings,
+        Array.from(nye.entries()).map(([id, nr]) => ({
+          id,
+          fields: { [FIELDS.booking.gaestenummer]: nr },
+        }))
+      );
+      nye.forEach((nr, id) => numre.set(id, nr));
+    }
+  } catch (err) {
+    nummerFejl = true;
+    console.error("Bordplan: kunne ikke gemme nye gæstenumre");
+  }
+
+  const rows = forestillingens.map((b) => {
+    const customerFields = kundeFor(b);
+    return {
+      id: b.id,
+      bookingNo: String(b.fields[FIELDS.booking.bookingNo] ?? ""),
+      gaestenummer: numre.get(b.id) ?? null,
+      bestilt: bestiltFor(b),
+      ticketCount: Number(b.fields[FIELDS.booking.ticketCount] ?? 0),
+      ticketBreakdown: String(b.fields[TICKET_BREAKDOWN_FIELD] ?? ""),
+      status: statusFor(b),
+      tableNumber: String(b.fields[FIELDS.booking.tableNumber] ?? ""),
+      wantsMatching: Boolean(b.fields[FIELDS.booking.wantsMatching]),
+      ageGroup: String(b.fields[FIELDS.booking.ageGroup] ?? ""),
+      location: String(b.fields[FIELDS.booking.location] ?? ""),
+      interests: String(b.fields[FIELDS.booking.interests] ?? ""),
+      drinkPreference: String(b.fields[FIELDS.booking.drinkPreference] ?? ""),
+      note: String(b.fields[FIELDS.booking.matchNote] ?? ""),
+      specialRequests: String(b.fields[FIELDS.booking.specialRequests] ?? ""),
+      addons: String(b.fields[FIELDS.booking.addons] ?? ""),
+      customerName: String(customerFields[FIELDS.customer.name] ?? ""),
+      customerPhone: String(customerFields[FIELDS.customer.phone] ?? ""),
+    };
+  });
+
+  // Billetter tilbage pr. billetkategori (samme tal som /admin/kapacitet).
+  // Kategorinavnet på bookingen slås op i billettyperne for at finde den
+  // priskategori, det trækker fra. Fejler det, vises listen uden tallene.
+  let tilbage: Record<string, number> | null = null;
+  try {
+    const [show, billettyper, tagne] = await Promise.all([
+      getShowDate(showId),
+      cachedListRecords(TABLES.ticketTypes, 60_000),
+      hentTagneForShows(getDb(), [showId]),
+    ]);
+    if (show) {
+      const nul = { aplusForrest: 0, aplusBagerst: 0, a: 0, b: 0 };
+      const oversigt = byggOversigt({
+        kapaciteter: kapaciteterFor(show.kapacitetsjustering),
+        tagne: tagne.get(showId) ?? nul,
+        manueltUdsolgt: show.soldOut,
+      });
+      tilbage = {};
+      for (const t of billettyper) {
+        const navn = String(t.fields[FIELDS.ticketType.category] ?? "").trim();
+        const k = kategoriFraAirtable(t.fields[FIELDS.ticketType.kapacitetskategori]);
+        if (navn && k) tilbage[navn] = oversigt[k].tilbage;
+      }
+    }
+  } catch (err) {
+    console.error("Bordplan: kunne ikke hente billetter tilbage");
+  }
+
+  return NextResponse.json({ rows, tilbage, nummerFejl });
 }
 export async function PATCH(req: NextRequest) {
   const s = session(req);

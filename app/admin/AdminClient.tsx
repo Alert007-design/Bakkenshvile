@@ -7,6 +7,13 @@ import {
   MAKS_PR_BORD,
   type BordIForslag,
 } from "@/lib/bordforslag";
+import {
+  delPaaKategorier,
+  kundeBemaerkning,
+  sorterEfterBestilt,
+  UKENDT_KATEGORI,
+} from "@/lib/gaesteliste";
+import { TABLES } from "@/lib/tables";
 
 type Show = { id: string; title: string; date: string; time: string };
 
@@ -26,20 +33,50 @@ type Row = {
   customerPhone: string;
   // Nedbrydning af billetter pr. kategori, fx "A+ x2, B x1".
   ticketBreakdown: string;
+  /** Aftenens faste gæstenummer; null for forladte kurve m.m. */
+  gaestenummer: number | null;
+  /** Bestillingstidspunkt (ISO). */
+  bestilt: string;
+  /** Feltet "Særlige ønsker" som det står i Airtable. */
+  specialRequests: string;
+  /** Forudbestilte drikkevarer, fx "Øl x2, Husets vin x1". */
+  addons: string;
 };
 
-const UKENDT_KATEGORI = "Ukendt kategori";
+/**
+ * Én linje i en kategori. En booking med billetter i flere kategorier står
+ * én gang i hver, med det antal, der hører til kategorien.
+ */
+type Linje = Row & { antalIKategori: number };
 
+// Salens rækker forfra og bagud, med bordene i rækkefølge (lib/tables.ts).
+const SALENS_RAEKKER: number[][] = Array.from(
+  new Set(TABLES.map((t) => t.row))
+).map((r) =>
+  TABLES.filter((t) => t.row === r)
+    .sort((a, b) => a.position - b.position)
+    .map((t) => t.number)
+);
 
-// Bookingens primære (dyreste) kategori — det første segment i
-// ticketBreakdown, da checkout-koden allerede skriver kategorierne i
-// dyreste-først-rækkefølge.
-function primaryCategory(row: Row): string {
-  if (!row.ticketBreakdown) return UKENDT_KATEGORI;
-  const first = row.ticketBreakdown.split(",")[0]?.trim() ?? "";
-  const match = first.match(/^(.+?)\s+x\d+$/);
-  return match ? match[1].trim() : first || UKENDT_KATEGORI;
+function nummerTekst(r: Row): string {
+  if (r.gaestenummer === null) return "–";
+  return `${r.gaestenummer}${kundeBemaerkning(r.specialRequests) ? "*" : ""}`;
 }
+
+function harDrikkevarer(r: Row): boolean {
+  return r.addons.trim().length > 0;
+}
+
+const drikMaerke: React.CSSProperties = {
+  marginLeft: 6,
+  fontSize: 11,
+  background: "#0d3b2e",
+  color: "#fff",
+  padding: "1px 6px",
+  borderRadius: 10,
+  fontWeight: 600,
+  whiteSpace: "nowrap",
+};
 
 // En booking er en fribillet, hvis bookingnummeret har fribillet-præfikset
 // (sat af /api/admin/comp).
@@ -58,8 +95,10 @@ export default function AdminClient({
 }) {
   const [showId, setShowId] = useState(shows[0]?.id ?? "");
   const [rows, setRows] = useState<Row[]>([]);
+  const [tilbage, setTilbage] = useState<Record<string, number> | null>(null);
+  const [nummerFejl, setNummerFejl] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [suggestion, setSuggestion] = useState<BordIForslag<Row>[] | null>(null);
+  const [suggestion, setSuggestion] = useState<BordIForslag<Linje>[] | null>(null);
   const [applying, setApplying] = useState(false);
   // Status pr. booking for "gensend billet"-knappen.
   const [resend, setResend] = useState<Record<string, "sending" | "sent" | "error">>({});
@@ -70,7 +109,11 @@ export default function AdminClient({
     setSuggestion(null);
     fetch(`/api/admin/bookings?showId=${encodeURIComponent(showId)}`)
       .then((r) => r.json())
-      .then((data) => setRows(data.rows || []))
+      .then((data) => {
+        setRows(data.rows || []);
+        setTilbage(data.tilbage ?? null);
+        setNummerFejl(Boolean(data.nummerFejl));
+      })
       .finally(() => setLoading(false));
   }, [showId]);
 
@@ -126,11 +169,12 @@ export default function AdminClient({
   // kategorierne er prissat (dyreste først). Ukendte/blandede kategorier
   // havner sidst.
   const byCategory = useMemo(() => {
-    const map = new Map<string, Row[]>();
-    for (const r of rows) {
-      const key = primaryCategory(r);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(r);
+    const map = new Map<string, Linje[]>();
+    for (const r of sorterEfterBestilt(rows)) {
+      for (const del of delPaaKategorier(r.ticketBreakdown, r.ticketCount)) {
+        if (!map.has(del.kategori)) map.set(del.kategori, []);
+        map.get(del.kategori)!.push({ ...r, antalIKategori: del.antal });
+      }
     }
     const orderIndex = new Map(categoryOrder.map((c, i) => [c, i]));
     return Array.from(map.entries()).sort(([a], [b]) => {
@@ -149,9 +193,14 @@ export default function AdminClient({
       if (ai !== bi) return ai - bi;
       return a.localeCompare(b);
     });
-    const grupper: [string, Row[]][] = catsSorted.map((cat) => [
+    // Hver kategoridel placeres for sig med sit eget antal; en opdelt booking
+    // får derfor bordnumre i begge dele af salen ("12+101").
+    const grupper: [string, Linje[]][] = catsSorted.map((cat) => [
       cat,
-      byCategory.find(([c]) => c === cat)?.[1] ?? [],
+      (byCategory.find(([c]) => c === cat)?.[1] ?? []).map((l) => ({
+        ...l,
+        ticketCount: l.antalIKategori,
+      })),
     ]);
     const result = lavBordforslag(grupper);
     setSuggestion(result);
@@ -215,7 +264,9 @@ export default function AdminClient({
         <p style={{ color: "#666", marginTop: 0 }}>
           Vælg en visning, tildel bordnumre, og print planen inden showet.
           Bookingerne herunder står grupperet efter billetkategori, dyreste
-          først.
+          først, og inden for hver kategori med den først bestilte øverst.
+          Nummeret foran er gæstens faste nummer for aftenen. En stjerne betyder,
+          at gæsten har skrevet en bemærkning; den står under listen.
         </p>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <select
@@ -264,6 +315,12 @@ export default function AdminClient({
       </div>
 
       {loading && <p>Henter...</p>}
+      {nummerFejl && (
+        <p className="no-print" style={{ color: "#8a1f2b" }}>
+          Nye gæstenumre kunne ikke gemmes lige nu. Bookinger uden nummer står med en
+          streg. Genindlæs siden om lidt, så prøves der igen.
+        </p>
+      )}
 
       {suggestion && (
         <div
@@ -320,8 +377,14 @@ export default function AdminClient({
               </button>
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-            {suggestion.map((g) => {
+          {(() => {
+            // Forslaget vises som salen: én linje pr. række, bordene i
+            // rækkefølge (11-15, 21-25 ... 101-102). Tomme borde står som
+            // tomme felter, så rækkerne flugter. Ekstra borde står til sidst.
+            const prBord = new Map<number, BordIForslag<Linje>>();
+            for (const g of suggestion) if (g.table !== null) prBord.set(g.table, g);
+            const ekstra = suggestion.filter((g) => g.table === null);
+            const kort = (g: BordIForslag<Linje>) => {
               const used = g.pladser.reduce((s, p) => s + p.antal, 0);
               return (
                 <div
@@ -330,12 +393,13 @@ export default function AdminClient({
                     background: "white",
                     border: "1px solid #e5e0d0",
                     borderRadius: 4,
-                    padding: 12,
-                    fontSize: 13,
+                    padding: 10,
+                    fontSize: 12,
+                    minWidth: 0,
                   }}
                 >
                   <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                    {g.label} · {g.category}
+                    {g.label}
                     <span style={{ color: "#999", fontWeight: 400 }}>
                       {" "}
                       ({used}/{MAKS_PR_BORD})
@@ -343,15 +407,60 @@ export default function AdminClient({
                   </div>
                   {g.pladser.map(({ row: r, antal }) => (
                     <div key={r.id} style={{ color: "#555", marginBottom: 2 }}>
-                      {r.customerName} — {antal} pers.
-                      {antal < r.ticketCount ? ` (af ${r.ticketCount})` : ""}
-                      {r.wantsMatching && r.ageGroup ? ` · ${r.ageGroup}` : ""}
+                      <strong>{nummerTekst(r)}</strong> {r.customerName} – {antal} pers.
+                      {antal < r.antalIKategori ? ` (af ${r.antalIKategori})` : ""}
+                      {harDrikkevarer(r) ? " · drikkevarer" : ""}
                     </div>
                   ))}
                 </div>
               );
-            })}
-          </div>
+            };
+            const tomt = (nr: number) => (
+              <div
+                key={`tom-${nr}`}
+                style={{
+                  border: "1px dashed #e5e0d0",
+                  borderRadius: 4,
+                  padding: 10,
+                  fontSize: 12,
+                  color: "#bbb",
+                }}
+              >
+                Bord {nr}
+              </div>
+            );
+            return (
+              <div style={{ overflowX: "auto" }}>
+                {SALENS_RAEKKER.map((raekke, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(5, minmax(150px, 1fr))",
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {raekke.map((nr) => {
+                      const g = prBord.get(nr);
+                      return g ? kort(g) : tomt(nr);
+                    })}
+                  </div>
+                ))}
+                {ekstra.length > 0 && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(5, minmax(150px, 1fr))",
+                      gap: 8,
+                    }}
+                  >
+                    {ekstra.map(kort)}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -371,9 +480,17 @@ export default function AdminClient({
             >
               {category}
             </h3>
+            {tilbage && tilbage[category] !== undefined && (
+              <span style={{ marginLeft: 12, fontSize: 13, color: "#555" }}>
+                {tilbage[category] === 0
+                  ? "Udsolgt"
+                  : `${tilbage[category]} ${tilbage[category] === 1 ? "billet" : "billetter"} tilbage`}
+              </span>
+            )}
             <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
               <thead>
                 <tr style={{ textAlign: "left", borderBottom: "2px solid #ccc" }}>
+                  <th style={{ padding: 8 }}>Nr.</th>
                   <th style={{ padding: 8 }}>Booking</th>
                   <th style={{ padding: 8 }}>Kunde</th>
                   <th style={{ padding: 8 }}>Billetter</th>
@@ -386,6 +503,9 @@ export default function AdminClient({
               <tbody>
                 {categoryRows.map((r) => (
                   <tr key={r.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: 8, fontWeight: 700, whiteSpace: "nowrap" }}>
+                      {nummerTekst(r)}
+                    </td>
                     <td style={{ padding: 8 }}>
                       {r.bookingNo}
                       {r.status === "Ekstra – afventer betaling" && (
@@ -439,6 +559,7 @@ export default function AdminClient({
                     </td>
                     <td style={{ padding: 8 }}>
                       {r.customerName}
+                      {harDrikkevarer(r) && <span style={drikMaerke}>Drikkevarer</span>}
                       <br />
                       <span style={{ color: "#999", fontSize: 12 }}>
                         {r.customerPhone}
@@ -447,7 +568,12 @@ export default function AdminClient({
                     <td style={{ padding: 8, fontSize: 12, color: "#555" }}>
                       {r.ticketBreakdown || "—"}
                     </td>
-                    <td style={{ padding: 8 }}>{r.ticketCount}</td>
+                    <td style={{ padding: 8 }}>
+                      {r.antalIKategori}
+                      {r.antalIKategori < r.ticketCount && (
+                        <span style={{ color: "#999", fontSize: 12 }}> af {r.ticketCount}</span>
+                      )}
+                    </td>
                     <td style={{ padding: 8, fontSize: 12, color: "#555" }}>
                       {r.wantsMatching ? (
                         <>
@@ -499,6 +625,68 @@ export default function AdminClient({
         ))}
       </div>
 
+      {(() => {
+        // Oversigt under gæstelisten: kundens bemærkninger og forudbestilte
+        // drikkevarer, i gæstenummerorden. Vises også på udskriften.
+        const iNummerOrden = [...sorterEfterBestilt(rows)].sort(
+          (a, b) => (a.gaestenummer ?? Infinity) - (b.gaestenummer ?? Infinity)
+        );
+        const medBemaerkning = iNummerOrden.filter((r) => kundeBemaerkning(r.specialRequests));
+        const medDrikkevarer = iNummerOrden.filter(harDrikkevarer);
+        const celle: React.CSSProperties = { padding: "6px 8px", verticalAlign: "top" };
+        return (
+          <div style={{ marginTop: 32 }}>
+            <h2>Bemærkninger fra gæsterne</h2>
+            {medBemaerkning.length === 0 ? (
+              <p style={{ color: "#999" }}>Ingen bemærkninger til denne forestilling.</p>
+            ) : (
+              <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
+                <tbody>
+                  {medBemaerkning.map((r) => (
+                    <tr key={r.id} style={{ borderBottom: "1px solid #eee" }}>
+                      <td style={{ ...celle, fontWeight: 700, whiteSpace: "nowrap" }}>{nummerTekst(r)}</td>
+                      <td style={{ ...celle, whiteSpace: "nowrap" }}>
+                        {r.customerName}
+                        <div style={{ color: "#999", fontSize: 12 }}>{r.bookingNo}</div>
+                      </td>
+                      <td style={{ ...celle, whiteSpace: "pre-line" }}>
+                        {kundeBemaerkning(r.specialRequests)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            <h2 style={{ marginTop: 28 }}>Forudbestilte drikkevarer</h2>
+            {medDrikkevarer.length === 0 ? (
+              <p style={{ color: "#999" }}>Ingen har forudbestilt drikkevarer til denne forestilling.</p>
+            ) : (
+              <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
+                <tbody>
+                  {medDrikkevarer.map((r) => (
+                    <tr key={r.id} style={{ borderBottom: "1px solid #eee" }}>
+                      <td style={{ ...celle, fontWeight: 700, whiteSpace: "nowrap" }}>{nummerTekst(r)}</td>
+                      <td style={{ ...celle, whiteSpace: "nowrap" }}>
+                        {r.customerName}
+                        <div style={{ color: "#999", fontSize: 12 }}>
+                          {r.tableNumber ? `Bord ${r.tableNumber}` : "Intet bord endnu"}
+                        </div>
+                      </td>
+                      <td style={celle}>
+                        {r.addons.split(",").map((v) => v.trim()).filter(Boolean).map((v, i) => (
+                          <div key={i}>{v}</div>
+                        ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+      })()}
+
       <div style={{ marginTop: 40 }}>
         <h2>Printvenlig bordplan</h2>
         {byTable.map(([table, guests]) => (
@@ -509,9 +697,10 @@ export default function AdminClient({
             <ul style={{ margin: 0 }}>
               {guests.map((g) => (
                 <li key={g.id}>
-                  {g.customerName} — {g.ticketCount} pers.
+                  <strong>{nummerTekst(g)}</strong> {g.customerName} – {g.ticketCount} pers.
                   {g.ticketBreakdown ? ` (${g.ticketBreakdown})` : ""}
                   {isComp(g.bookingNo) ? " · fribillet" : ""}
+                  {harDrikkevarer(g) ? " · drikkevarer" : ""}
                   {g.wantsMatching && g.note ? ` — ${g.note}` : ""}
                 </li>
               ))}
