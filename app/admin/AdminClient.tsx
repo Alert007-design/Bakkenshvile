@@ -257,6 +257,9 @@ export default function AdminClient({
         <a href="/admin/opslag" style={{ color: "#0d3b2e", fontWeight: 600 }}>
           Slå en booking op
         </a>
+        <a href="/admin/kapacitet" style={{ color: "#0d3b2e", fontWeight: 600 }}>
+          Ret antal billetter
+        </a>
         <a href="/api/auth/logout" style={{ color: "#8a1f2b", fontWeight: 600 }}>
           Log ud
         </a>

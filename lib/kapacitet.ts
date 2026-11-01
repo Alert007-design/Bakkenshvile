@@ -138,3 +138,26 @@ export function byggOversigt(params: {
   }
   return ud;
 }
+
+/** Højeste kapacitet, admin kan sætte i én kategori — et værn mod tastefejl. */
+export const MAKS_KAPACITET = 500;
+
+/**
+ * Kan kapaciteten i en kategori sættes til `antal`, når `taget` billetter
+ * allerede er solgt eller reserveret? Returnerer en fejltekst, eller null hvis
+ * tallet er i orden. Kapaciteten må ikke sættes under det solgte: så ville
+ * oversigten vise "udsolgt", mens der faktisk sidder flere gæster, end loftet
+ * siger.
+ */
+export function kapacitetsfejl(antal: number, taget: number): string | null {
+  if (typeof antal !== "number" || !Number.isInteger(antal) || antal < 0) {
+    return "Skriv et helt tal, 0 eller derover.";
+  }
+  if (antal > MAKS_KAPACITET) {
+    return `Kapaciteten kan højst være ${MAKS_KAPACITET} i én kategori.`;
+  }
+  if (antal < taget) {
+    return `Der er allerede solgt eller reserveret ${taget} billetter i kategorien, så kapaciteten kan ikke være lavere.`;
+  }
+  return null;
+}
