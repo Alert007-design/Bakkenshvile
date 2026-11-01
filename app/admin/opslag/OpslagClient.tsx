@@ -177,6 +177,25 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
                   <span style={{ color: "#777", fontWeight: 400 }}> · gæst nr. {o.gaestenummer}</span>
                 )}
               </h2>
+              {o.manglerBetaling !== null && (
+                <div
+                  style={{
+                    background: "#fbe9e7",
+                    border: "2px solid #b3261e",
+                    color: "#b3261e",
+                    borderRadius: 4,
+                    padding: "10px 14px",
+                    marginBottom: 14,
+                    fontWeight: 700,
+                  }}
+                >
+                  Mangler betaling: {KR.format(o.manglerBetaling)}
+                  <div style={{ fontWeight: 400, fontSize: 13, color: "#5a1a14", marginTop: 4 }}>
+                    Bestillingen er ikke betalt i det gamle system. Pladserne er holdt. Mærket forsvinder, når det fulde
+                    beløb står i feltet &quot;Betalt i alt&quot; i Airtable.
+                  </div>
+                </div>
+              )}
               <table style={{ borderCollapse: "collapse", fontSize: 15 }}>
                 <tbody>
                   <Linje navn="Status">{o.status}</Linje>

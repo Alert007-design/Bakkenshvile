@@ -3,7 +3,7 @@
 
 import { FIELDS, type AirtableRecord } from "@/lib/airtable";
 import { normalizeBookingNo } from "@/lib/booking-no";
-import { delPaaKategorier, kundeBemaerkning, type Kategoridel } from "@/lib/gaesteliste";
+import { delPaaKategorier, kundeBemaerkning, manglerBetaling, type Kategoridel } from "@/lib/gaesteliste";
 
 /**
  * Ensretter et indtastet bookingnummer og afviser alt andet end bogstaver,
@@ -33,6 +33,8 @@ export interface Opslag {
   tilvalg: string;
   onlinerabat: number | null;
   betaltIAlt: number | null;
+  /** Beløb, der mangler fra det gamle system; null når intet mangler. */
+  manglerBetaling: number | null;
   /** Kundens egen bemærkning uden systemtekster. */
   bemaerkning: string;
   /** Feltet "Særlige ønsker" præcis som det står. */
@@ -94,6 +96,7 @@ export function bygOpslag(
     tilvalg: tekst(f[FIELDS.booking.addons]),
     onlinerabat: tal(f[FIELDS.booking.discount]),
     betaltIAlt: tal(f[FIELDS.booking.totalPaid]),
+    manglerBetaling: manglerBetaling(raa, tal(f[FIELDS.booking.totalPaid])),
     bemaerkning: kundeBemaerkning(raa),
     saerligeOenskerRaa: raa,
     varselSendt: Boolean(f[FIELDS.booking.varselSent]),

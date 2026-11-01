@@ -6,6 +6,7 @@ import {
   sorterEfterBestilt,
   kundeBemaerkning,
   faarNummer,
+  manglerBetaling,
   type NummerBooking,
 } from "./gaesteliste";
 
@@ -164,10 +165,10 @@ describe("kundeBemaerkning", () => {
     expect(kundeBemaerkning("Gerne 1. række | Fra TicketCloud, gl. bord 01")).toBe("Gerne 1. række");
   });
 
-  it("beholder oplysning om manglende betaling i det gamle system", () => {
+  it("flytter oplysning om manglende betaling ud af bemærkningen (den har sit eget mærke)", () => {
     expect(
       kundeBemaerkning("Ikke betalt i det gamle system (Telefonbestilling): mangler 900 kr. | Fra TicketCloud")
-    ).toBe("Ikke betalt i det gamle system (Telefonbestilling): mangler 900 kr.");
+    ).toBe("");
   });
 
   it("fjerner forestillingsteksten fra nye køb", () => {
@@ -185,5 +186,52 @@ describe("kundeBemaerkning", () => {
   it("tåler tom og manglende tekst", () => {
     expect(kundeBemaerkning("")).toBe("");
     expect(kundeBemaerkning(undefined)).toBe("");
+  });
+});
+
+describe("manglerBetaling", () => {
+  const note = "Ikke betalt i det gamle system (Telefonbestilling): mangler 24622 kr. | Fra TicketCloud, gl. bord 08";
+
+  it("finder beløbet, der mangler fra det gamle system", () => {
+    expect(manglerBetaling(note, 0)).toBe(24622);
+    expect(manglerBetaling(note, null)).toBe(24622);
+  });
+
+  it("trækker det, der siden er betalt, fra", () => {
+    expect(manglerBetaling(note, 10000)).toBe(14622);
+  });
+
+  it("forsvinder, når hele beløbet er betalt", () => {
+    expect(manglerBetaling(note, 24622)).toBeNull();
+    expect(manglerBetaling(note, 30000)).toBeNull();
+  });
+
+  it("virker, når noten står midt i teksten", () => {
+    const midt = "skal sidde 4-5 række .betaler senest 4. maj 2027 | Ikke betalt i det gamle system (Telefonbestilling): mangler 9816 kr. | Fra TicketCloud, gl. bord 03";
+    expect(manglerBetaling(midt, 0)).toBe(9816);
+  });
+
+  it("forstår beløb med tusindtalspunktum og øre", () => {
+    expect(manglerBetaling("Ikke betalt i det gamle system: mangler 1.377,50 kr.", 0)).toBe(1377.5);
+  });
+
+  it("giver null uden noten", () => {
+    expect(manglerBetaling("Kørestol | Fra TicketCloud, gl. bord 12", 0)).toBeNull();
+    expect(manglerBetaling("", 0)).toBeNull();
+    expect(manglerBetaling(undefined, 0)).toBeNull();
+  });
+});
+
+describe("kundeBemaerkning og noten om manglende betaling", () => {
+  it("viser ikke systemets note om manglende betaling som kundens bemærkning", () => {
+    expect(
+      kundeBemaerkning("Ikke betalt i det gamle system (Telefonbestilling): mangler 24622 kr. | Fra TicketCloud, gl. bord 08")
+    ).toBe("");
+  });
+
+  it("beholder kundens egen tekst ved siden af noten", () => {
+    expect(
+      kundeBemaerkning("betaler ved indgang | Ikke betalt i det gamle system (Telefonbestilling): mangler 1377 kr. | Fra TicketCloud")
+    ).toBe("betaler ved indgang");
   });
 });
