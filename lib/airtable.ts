@@ -60,6 +60,8 @@ export const FIELDS = {
     city: "fldKBZzKKEj1We2it",
     phone: "fldZ7O9UcOLff1r8m",
     email: "fldTMMYOx0URW3fNm",
+    // Kundens bookinger (link til Bookings).
+    bookings: "fldi6yEvfRL8XnjN0",
   },
   booking: {
     bookingNo: "fldnA26oRG6pJ2wID",
