@@ -12,6 +12,9 @@ import { siteUrl } from "@/lib/site-url";
 // Selve mailen bygges i lib/mail/varsel-email.ts, så den deler layout med
 // husets øvrige mails og kan ses i forhåndsvisningen under /admin.
 import { formatDanishDate, varselEmailHtml } from "@/lib/mail/varsel-email";
+import { koerFrister, type FristResultat } from "@/lib/selskab";
+import { faelles } from "@/lib/selskab-server";
+import { SALGSMAIL_TIL } from "@/lib/salgsmail";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -116,9 +119,32 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Store selskaber: påmindelse 3 dage før betalingsfristen og annullering
+    // dagen efter. Annulleringen sker KUN, når SELSKAB_AUTO_ANNULLERING=true.
+    // Fejler det, går varselmailene ovenfor ikke tabt.
+    let selskaber: FristResultat | { fejl: string } | null = null;
+    try {
+      selskaber = await koerFrister({
+        db: faelles.db,
+        hentShow: faelles.hentShow,
+        hentBilletTyper: faelles.hentBilletTyper,
+        hentBooking: faelles.hentBooking,
+        opdaterBooking: faelles.opdaterBooking,
+        sendMail: faelles.sendMail,
+        origin,
+        idag: danishToday(),
+        kontorMail: SALGSMAIL_TIL,
+        autoAnnuller: process.env.SELSKAB_AUTO_ANNULLERING === "true",
+      });
+    } catch (err) {
+      console.error("Selskaber: fristkørslen fejlede");
+      selskaber = { fejl: "Fristkørslen fejlede" };
+    }
+
     return NextResponse.json({
       ok: true,
       target,
+      selskaber,
       shows: todaysShows.length,
       sent,
       failed,

@@ -30,7 +30,7 @@ import {
 } from "@/lib/kapacitet";
 
 /** Hvor en linje i pladsbogen kommer fra. */
-export type HoldKilde = "checkout" | "fribillet" | "import" | "ekstra";
+export type HoldKilde = "checkout" | "fribillet" | "import" | "ekstra" | "selskab";
 
 /** Linjens tilstand: reserveret, endeligt solgt eller givet tilbage. */
 export type HoldStatus = "held" | "sold" | "released";
@@ -448,11 +448,59 @@ export async function markerSolgt(
  * Giver pladserne tilbage, når en betaling fejler eller afbrydes. Rører kun
  * reservationer — en plads, der allerede er solgt, frigives aldrig herfra.
  */
+/**
+ * Som markerSolgt, men slår op på bookingen. Bruges, når betalingens
+ * reference ikke (længere) står på pladserne — fx hvis et stort selskab har
+ * startet to betalinger og betaler den ældste. Uskadelig at køre igen.
+ */
+export async function markerSolgtForBooking(
+  db: Queryable,
+  bookingId: string
+): Promise<SalgsSvar> {
+  const { rows: linjer } = await db.query<{ show_id: string; status: HoldStatus }>(
+    `SELECT show_id, status FROM seat_holds WHERE booking_id = $1 AND status IN ('held','released')`,
+    [bookingId]
+  );
+  if (linjer.length === 0) return { linjer: 0, udloebet: false, showId: null };
+  const showId = linjer[0].show_id;
+  const udloebet = linjer.some((l) => l.status === "released");
+  await sikrTaellelinje(db, showId);
+  const { rows } = await db.query<{ id: string }>(
+    `WITH genindsat AS (
+       SELECT
+         COALESCE(SUM(quantity) FILTER (WHERE category = 'aplusForrest'), 0)::int AS k1,
+         COALESCE(SUM(quantity) FILTER (WHERE category = 'aplusBagerst'), 0)::int AS k2,
+         COALESCE(SUM(quantity) FILTER (WHERE category = 'a'), 0)::int AS k3,
+         COALESCE(SUM(quantity) FILTER (WHERE category = 'b'), 0)::int AS k4
+       FROM seat_holds
+       WHERE booking_id = $1 AND status = 'released'
+     ), opdater AS (
+       UPDATE seat_counters c
+          SET taken_aplus_front = c.taken_aplus_front + g.k1,
+              taken_aplus_back  = c.taken_aplus_back  + g.k2,
+              taken_a           = c.taken_a           + g.k3,
+              taken_b           = c.taken_b           + g.k4,
+              updated_at        = now()
+         FROM genindsat g
+        WHERE c.show_id = $2
+       RETURNING c.show_id
+     )
+     UPDATE seat_holds
+        SET status = 'sold', expires_at = NULL
+      WHERE booking_id = $1 AND status IN ('held','released')
+     RETURNING id`,
+    [bookingId, showId]
+  );
+  return { linjer: rows.length, udloebet, showId };
+}
+
 export async function frigivReservation(
   db: Queryable,
   paymentRef: string
 ): Promise<void> {
-  await frigivEfterNoegle(db, "payment_ref", paymentRef);
+  // Et mislykket betalingsforsøg fra et stort selskab må IKKE give pladserne
+  // tilbage: selskabet kan prøve igen frem til sin betalingsfrist.
+  await frigivEfterNoegle(db, "payment_ref", paymentRef, true);
 }
 
 /**
@@ -471,13 +519,15 @@ export async function frigivForBooking(
 async function frigivEfterNoegle(
   db: Queryable,
   kolonne: "payment_ref" | "booking_id",
-  vaerdi: string
+  vaerdi: string,
+  undtagSelskaber = false
 ): Promise<void> {
+  const ekstraBetingelse = undtagSelskaber ? " AND source <> 'selskab'" : "";
   await db.query(
     `WITH frigivne AS (
        UPDATE seat_holds
           SET status = 'released'
-        WHERE ${kolonne} = $1 AND status = 'held'
+        WHERE ${kolonne} = $1 AND status = 'held'${ekstraBetingelse}
         RETURNING show_id, category, quantity
      ), summer AS (
        SELECT show_id,
@@ -574,11 +624,14 @@ export async function holdUdenLoft(
     showId: string;
     bookingId: string;
     oensker: Pladsoenske[];
-    holdMinutter: number;
+    /** null = ingen udløbstid (store selskaber holdes til betaling/annullering). */
+    holdMinutter: number | null;
     paymentRef?: string | null;
+    kilde?: "ekstra" | "selskab";
   }
 ): Promise<void> {
   const { showId, bookingId, oensker, holdMinutter, paymentRef } = params;
+  const kilde = params.kilde ?? "ekstra";
   const antal = summerOensker(oensker);
   await sikrTaellelinje(db, showId);
   for (const k of KAPACITETSKATEGORIER) {
@@ -590,8 +643,9 @@ export async function holdUdenLoft(
          INSERT INTO seat_holds
            (show_id, booking_id, category, quantity, status, source, payment_ref,
             ticket_type_id, expires_at)
-         VALUES ($1, $2, $3, $4, 'held', 'ekstra', $5, $6,
-                 now() + make_interval(mins => $7))
+         VALUES ($1, $2, $3, $4, 'held', $8, $5, $6,
+                 CASE WHEN $7::int IS NULL THEN NULL
+                      ELSE now() + make_interval(mins => $7::int) END)
          ON CONFLICT (booking_id, category) DO NOTHING
          RETURNING quantity
        )
@@ -600,7 +654,7 @@ export async function holdUdenLoft(
                 COALESCE((SELECT SUM(quantity) FROM ny), 0)::int,
               updated_at = now()
         WHERE c.show_id = $1`,
-      [showId, bookingId, k, antal[k], paymentRef ?? null, ticketTypeId, holdMinutter]
+      [showId, bookingId, k, antal[k], paymentRef ?? null, ticketTypeId, holdMinutter, kilde]
     );
   }
 }

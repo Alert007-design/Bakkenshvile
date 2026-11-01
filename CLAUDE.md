@@ -131,6 +131,7 @@ produktionsdatabasen, verificeret 15-09-2026. Fremgangsmåde med klikvejledning:
 `VIVA_SOURCE_CODE_TICKETS`, `VIVA_SOURCE_CODE_GAVEKORT`,
 `VIVA_SOURCE_CODE_TABLE`, `VIVA_SOURCE_CODE`, `TICKETS_LIVE`, `GAVEKORT_LIVE`,
 `TABLE_ORDERING_ENABLED`, `TABLE_ORDERING_LIVE`, `SALES_REGISTRATION`,
+`SELSKAB_AUTO_ANNULLERING`,
 `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`.
 
 **Livebetaling er spærret pr. flow** (fejler lukket). `VIVA_ENV=live` kræver
