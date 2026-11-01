@@ -254,6 +254,9 @@ export default function AdminClient({
         <a href="/funktioner" style={{ color: "#0d3b2e", fontWeight: 600 }}>
           ← Funktioner
         </a>
+        <a href="/admin/opslag" style={{ color: "#0d3b2e", fontWeight: 600 }}>
+          Slå en booking op
+        </a>
         <a href="/api/auth/logout" style={{ color: "#8a1f2b", fontWeight: 600 }}>
           Log ud
         </a>
@@ -510,7 +513,14 @@ export default function AdminClient({
                       {nummerTekst(r)}
                     </td>
                     <td style={{ padding: 8 }}>
-                      {r.bookingNo}
+                      <a
+                        href={`/admin/opslag?nr=${encodeURIComponent(r.bookingNo)}`}
+                        target="_blank"
+                        rel="noopener"
+                        style={{ color: "#0d3b2e" }}
+                      >
+                        {r.bookingNo}
+                      </a>
                       {r.status === "Ekstra – afventer betaling" && (
                         <span
                           style={{

@@ -79,6 +79,12 @@ export default function FunktionerPage() {
       status: "aktiv",
     },
     {
+      href: "/admin/opslag",
+      title: "Slå en booking op",
+      desc: "Skriv bookingnummeret og se alt om bookingen og kunden: billetter, drikkevarer, bemærkninger, kontaktoplysninger og kundens andre bookinger.",
+      status: "aktiv",
+    },
+    {
       href: "/admin/qr",
       title: "Udskriv QR-koder",
       desc: "Generér og print QR-ark til bordene (ét kort pr. bord, kan genprintes enkeltvis).",
