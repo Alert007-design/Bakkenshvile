@@ -81,6 +81,11 @@ export const FIELDS = {
     addons: "fldmL8WJLs0OHLPd3",
     totalPaid: "fldfamJJegkmOLm1q",
     varselSent: "fldOjgNoFV98SFA5m",
+    // Oprindeligt bestillingstidspunkt. Udfyldt fra det gamle systems backup
+    // for de overførte bookinger; tomt felt = postens createdTime.
+    bestilt: "fldXa3SBt7PdqXMyb",
+    // Aftenens faste gæstenummer. Tildeles af bordplanen (lib/gaesteliste.ts).
+    gaestenummer: "fldgpLSnEm3UzPE3d",
   },
 } as const;
 
@@ -120,7 +125,12 @@ function baseId() {
 // barens løbende polling skal vi derfor: (1) aldrig lade klienter kalde Airtable
 // direkte, (2) cache serverside, og (3) tåle 429/5xx med eksponentiel backoff.
 
-export type AirtableRecord = { id: string; fields: Record<string, unknown> };
+export type AirtableRecord = {
+  id: string;
+  fields: Record<string, unknown>;
+  /** Hvornår posten blev oprettet i Airtable (sendes altid med af Airtable). */
+  createdTime?: string;
+};
 
 const MAX_RETRIES = 4;
 
