@@ -31,8 +31,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "showId mangler" }, { status: 400 });
   }
   const [bookings, customers] = await Promise.all([
-    listRecords(TABLES.bookings),
-    listRecords(TABLES.customers),
+    listRecords(TABLES.bookings, { fresh: true }),
+    listRecords(TABLES.customers, { fresh: true }),
   ]);
   const customerMap = new Map(customers.map((c) => [c.id, c.fields]));
 

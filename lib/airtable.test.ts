@@ -170,3 +170,24 @@ describe("listRecords — henter alle sider", () => {
     await expect(listRecords("tblTest")).rejects.toThrow();
   });
 });
+
+describe("listRecords — friske data til bordplanen", () => {
+  it("bruger ikke mellemlager, når fresh er sat", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(res(200, { records: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { listRecords } = await import("@/lib/airtable");
+    await listRecords("tblTest", { fresh: true });
+    const init = fetchMock.mock.calls[0][1] as RequestInit & { next?: unknown };
+    expect(init.cache).toBe("no-store");
+    expect(init.next).toBeUndefined();
+  });
+
+  it("bevarer 30 sekunders mellemlager som standard", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(res(200, { records: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { listRecords } = await import("@/lib/airtable");
+    await listRecords("tblTest");
+    const init = fetchMock.mock.calls[0][1] as RequestInit & { next?: { revalidate: number } };
+    expect(init.next?.revalidate).toBe(30);
+  });
+});
