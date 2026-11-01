@@ -79,6 +79,12 @@ export default function FunktionerPage() {
       status: "aktiv",
     },
     {
+      href: "/admin/selskab",
+      title: "Store selskaber",
+      desc: "Reservér billetter til et selskab med en sidste betalingsfrist. Kunden får et link til betaling, påmindelse tre dage før fristen, og ubetalte reservationer kan annulleres automatisk.",
+      status: ticketStatus,
+    },
+    {
       href: "/admin/opslag",
       title: "Slå en booking op",
       desc: "Skriv bookingnummeret og se alt om bookingen og kunden: billetter, drikkevarer, bemærkninger, kontaktoplysninger og kundens andre bookinger.",

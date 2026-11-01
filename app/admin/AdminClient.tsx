@@ -14,6 +14,7 @@ import {
   UKENDT_KATEGORI,
 } from "@/lib/gaesteliste";
 import { TABLES } from "@/lib/tables";
+import { SELSKAB_STATUS } from "@/lib/selskab-konstanter";
 
 type Show = { id: string; title: string; date: string; time: string };
 
@@ -259,6 +260,9 @@ export default function AdminClient({
         </a>
         <a href="/admin/kapacitet" style={{ color: "#0d3b2e", fontWeight: 600 }}>
           Ret antal billetter
+        </a>
+        <a href="/admin/selskab" style={{ color: "#0d3b2e", fontWeight: 600 }}>
+          Store selskaber
         </a>
         <a href="/api/auth/logout" style={{ color: "#8a1f2b", fontWeight: 600 }}>
           Log ud
@@ -538,6 +542,22 @@ export default function AdminClient({
                           }}
                         >
                           Ekstra – afventer betaling
+                        </span>
+                      )}
+                      {r.status === SELSKAB_STATUS && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 11,
+                            background: "#8a1f2b",
+                            color: "#fff",
+                            padding: "1px 6px",
+                            borderRadius: 10,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Selskab – afventer betaling
                         </span>
                       )}
                       {r.status === "Udløbet" && (

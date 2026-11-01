@@ -10,8 +10,10 @@
 //  - Et nummer ændres aldrig, når det først er givet. Slettes en booking,
 //    mangler nummeret bare; der fyldes ikke op.
 
+import { SELSKAB_STATUS } from "@/lib/selskab-konstanter";
+
 /** Bookingstatusser, der får et gæstenummer. */
-const STATUSER_MED_NUMMER = new Set(["Betalt", "Ekstra – afventer betaling"]);
+const STATUSER_MED_NUMMER = new Set(["Betalt", "Ekstra – afventer betaling", SELSKAB_STATUS]);
 
 export const UKENDT_KATEGORI = "Ukendt kategori";
 

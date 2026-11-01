@@ -38,6 +38,8 @@ export interface Opslag {
   /** Feltet "Særlige ønsker" præcis som det står. */
   saerligeOenskerRaa: string;
   varselSendt: boolean;
+  /** Sidste betalingsfrist for store selskaber (ÅÅÅÅ-MM-DD), ellers tom. */
+  betalingsfrist: string;
   match: {
     vilMatches: boolean;
     alder: string;
@@ -95,6 +97,7 @@ export function bygOpslag(
     bemaerkning: kundeBemaerkning(raa),
     saerligeOenskerRaa: raa,
     varselSendt: Boolean(f[FIELDS.booking.varselSent]),
+    betalingsfrist: tekst(f[FIELDS.booking.betalingsfrist]),
     match: {
       vilMatches: Boolean(f[FIELDS.booking.wantsMatching]),
       alder: tekst(f[FIELDS.booking.ageGroup]),

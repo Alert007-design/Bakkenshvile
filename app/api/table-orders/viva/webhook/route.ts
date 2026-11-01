@@ -61,7 +61,13 @@ import { ticketEmailHtml, daDateShort, showYear } from "@/lib/ticket-email";
 import { orderEmailHtml } from "@/lib/order-email";
 import { ADDON_DISCOUNT_LABEL } from "@/lib/pricing";
 import { sendMail, EMAIL_REPLY_TO } from "@/lib/resend";
-import { frigivReservation, hentTagne, markerSolgt } from "@/lib/seat-holds";
+import {
+  frigivReservation,
+  hentTagne,
+  markerSolgt,
+  markerSolgtForBooking,
+} from "@/lib/seat-holds";
+import { hentSelskab, markerSelskabBetalt, tilvalgstekst } from "@/lib/selskab";
 import {
   KAPACITETSKATEGORIER,
   KATEGORI_NAVN,
@@ -448,7 +454,13 @@ async function fulfillTicketPayment(
   // en kort advarsel, så tallene kan rettes bagefter.
   if (payment.flow === "billet") {
     try {
-      const salg = await markerSolgt(getDb(), payment.paymentRef);
+      let salg = await markerSolgt(getDb(), payment.paymentRef);
+      // Står betalingens reference ikke på pladserne (et stort selskab, der
+      // har startet flere betalinger og betaler en ældre), sælges pladserne
+      // via bookingen i stedet.
+      if (salg.linjer === 0) {
+        salg = await markerSolgtForBooking(getDb(), payment.bookingId);
+      }
       if (salg.udloebet && salg.showId) {
         await advarOmSenBetaling(salg.showId, payment.bookingNo);
       }
@@ -469,10 +481,20 @@ async function fulfillTicketPayment(
   }
 
   // flow === "billet": markér betalt og send billetten.
+  // Store selskaber vælger drikkevarer først på betalingssiden; de gemmes på
+  // bookingen her. Almindelige køb har allerede fået dem ved bestillingen.
+  // Fejler opslaget (fx hvis migration 007 endnu ikke er kørt), behandles
+  // betalingen som et almindeligt billetkøb. Det må aldrig stoppe billetten.
+  const selskab = await hentSelskab(getDb(), payment.bookingId).catch(() => null);
+  const drikke = selskab ? tilvalgstekst(payment.lineItems) : "";
   await updateRecord(TABLES.bookings, payment.bookingId, {
     [FIELDS.booking.status]: "Betalt",
     [FIELDS.booking.totalPaid]: paidKr,
+    ...(selskab && drikke
+      ? { [FIELDS.booking.addons]: drikke, [FIELDS.booking.discount]: discountKr }
+      : {}),
   });
+  if (selskab) await markerSelskabBetalt(getDb(), payment.bookingId).catch(() => false);
   // Forestillingens detaljer hentes fra bookingen. Fejler opslaget, sendes
   // billetten stadig — blot uden de detaljer, vi ikke kunne hente.
   let showTitle = "";

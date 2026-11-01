@@ -88,6 +88,8 @@ export const FIELDS = {
     bestilt: "fldXa3SBt7PdqXMyb",
     // Aftenens faste gæstenummer. Tildeles af bordplanen (lib/gaesteliste.ts).
     gaestenummer: "fldgpLSnEm3UzPE3d",
+    // Sidste betalingsfrist for store selskaber (lib/selskab.ts).
+    betalingsfrist: "fldvo05ZM5DrLyAju",
   },
 } as const;
 
@@ -308,14 +310,17 @@ export async function getRecord(tableId: string, recordId: string) {
 
 export async function createRecord(
   tableId: string,
-  fields: Record<string, unknown>
+  fields: Record<string, unknown>,
+  // typecast: lader Airtable oprette et nyt valg i et valgfelt (fx en ny
+  // status), første gang det bruges. Kun til kendte, faste tekster fra koden.
+  opts: { typecast?: boolean } = {}
 ) {
   const res = await airtableFetch(
     `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true`,
     {
       method: "POST",
       headers: headers(),
-      body: JSON.stringify({ fields }),
+      body: JSON.stringify(opts.typecast ? { fields, typecast: true } : { fields }),
     }
   );
   if (!res.ok) {

@@ -21,5 +21,10 @@ export default function OpslagPage({
     session = null;
   }
   if (!session) redirect("/login?next=/admin/opslag");
-  return <OpslagClient startNr={typeof searchParams.nr === "string" ? searchParams.nr : ""} />;
+  return (
+    <OpslagClient
+      startNr={typeof searchParams.nr === "string" ? searchParams.nr : ""}
+      csrf={session.csrf}
+    />
+  );
 }

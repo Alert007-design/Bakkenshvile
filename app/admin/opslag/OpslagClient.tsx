@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Opslag } from "@/lib/bookingopslag";
+import { SELSKAB_STATUS } from "@/lib/selskab-konstanter";
 
 type Anden = { bookingNo: string; antal: number; status: string; dato: string; tid: string };
 
@@ -60,12 +61,41 @@ function Linje({ navn, children }: { navn: string; children: React.ReactNode }) 
   );
 }
 
-export default function OpslagClient({ startNr }: { startNr: string }) {
+export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf: string }) {
   const [nr, setNr] = useState(startNr);
   const [henter, setHenter] = useState(false);
   const [fejl, setFejl] = useState("");
   const [opslag, setOpslag] = useState<Opslag | null>(null);
   const [andre, setAndre] = useState<Anden[]>([]);
+  const [fakturaBesked, setFakturaBesked] = useState("");
+  const [fakturaArbejder, setFakturaArbejder] = useState(false);
+
+  async function markerFaktura(bookingId: string, bookingNo: string) {
+    if (
+      !window.confirm(
+        `Markér ${bookingNo} som betalt på faktura? Kunden får sin billet på mail, og pladserne tælles som solgt.`
+      )
+    ) {
+      return;
+    }
+    setFakturaArbejder(true);
+    setFakturaBesked("");
+    try {
+      const res = await fetch("/api/admin/selskab", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ handling: "faktura", bookingId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Det lykkedes ikke.");
+      setFakturaBesked("Markeret som betalt. Kunden har fået sin billet, og Dot har fået besked.");
+      await slaaOp(bookingNo);
+    } catch (e) {
+      setFakturaBesked(e instanceof Error ? e.message : "Det lykkedes ikke.");
+    } finally {
+      setFakturaArbejder(false);
+    }
+  }
 
   const slaaOp = useCallback(async (vaerdi: string) => {
     if (!vaerdi.trim()) return;
@@ -150,6 +180,7 @@ export default function OpslagClient({ startNr }: { startNr: string }) {
               <table style={{ borderCollapse: "collapse", fontSize: 15 }}>
                 <tbody>
                   <Linje navn="Status">{o.status}</Linje>
+                  <Linje navn="Betalingsfrist">{o.betalingsfrist ? visDato(o.betalingsfrist) : ""}</Linje>
                   <Linje navn="Forestilling">
                     {o.forestilling ? `${visDato(o.forestilling.date)} kl. ${o.forestilling.time}` : ""}
                   </Linje>
@@ -168,6 +199,27 @@ export default function OpslagClient({ startNr }: { startNr: string }) {
                   <Linje navn="Påmindelse sendt">{o.varselSendt ? "Ja" : ""}</Linje>
                 </tbody>
               </table>
+              {o.status === SELSKAB_STATUS && (
+                <div style={{ marginTop: 14 }}>
+                  <button
+                    type="button"
+                    disabled={fakturaArbejder}
+                    onClick={() => markerFaktura(o.id, o.bookingNo)}
+                    style={{
+                      padding: "8px 16px",
+                      background: "#0d3b2e",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 3,
+                      cursor: "pointer",
+                      fontSize: 14,
+                    }}
+                  >
+                    {fakturaArbejder ? "Gemmer…" : "Markér som betalt (faktura)"}
+                  </button>
+                </div>
+              )}
+              {fakturaBesked && <p style={{ marginBottom: 0 }}>{fakturaBesked}</p>}
             </div>
 
             <div style={boks}>
