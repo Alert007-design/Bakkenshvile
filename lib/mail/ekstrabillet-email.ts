@@ -75,7 +75,7 @@ ${p.linjer.map(varelinje).join("\n")}
 ${ialtLinje("At betale", kr(p.totalOre))}
       </table>
 ${momsNote(
-  "Alle priser er inklusive 25 % moms. Momsbeløbet svarer til 20 % af den samlede pris inklusive moms."
+  "Alle priser er inklusive 25 % moms."
 )}
 
 ${fremhaevetFelt(
