@@ -113,3 +113,57 @@ export async function advarOmManglendeBekraeftelse(i: {
     });
   }
 }
+
+export interface BetalingPaaAnnulleretInput {
+  type: "Billet" | "Genbestilling";
+  bookingNo: string;
+  kundeNavn?: string | null;
+  kundeEmail?: string | null;
+  betaltOre: number;
+  transaktionsId: string | null;
+}
+
+/** Mailen til kontoret, når en betaling kommer ind på en annulleret booking. */
+export function betalingPaaAnnulleretMail(i: BetalingPaaAnnulleretInput): { subject: string; html: string } {
+  const linjer = [
+    { description: `Type: ${i.type}`, quantity: 1, amountSubtotalOre: 0 },
+    ...(i.kundeNavn ? [{ description: `Kunde: ${i.kundeNavn}`, quantity: 1, amountSubtotalOre: 0 }] : []),
+    ...(i.kundeEmail ? [{ description: `Mail: ${i.kundeEmail}`, quantity: 1, amountSubtotalOre: 0 }] : []),
+    {
+      description: `Viva har trukket ${kr(i.betaltOre)}`,
+      quantity: 1,
+      amountSubtotalOre: i.betaltOre,
+    },
+    {
+      description: `Vivas transaktionsnummer: ${i.transaktionsId ?? "ukendt"}`,
+      quantity: 1,
+      amountSubtotalOre: 0,
+    },
+  ];
+
+  return {
+    subject: `Betaling på annulleret booking kræver refundering – ${i.bookingNo}`,
+    html: orderEmailHtml({
+      heading: "Der er kommet en betaling på en annulleret booking",
+      bookingNo: i.bookingNo,
+      lineItems: linjer,
+      discountKr: 0,
+      totalLabel: "Handling",
+      total: "Refundér i Viva",
+      footerNote:
+        "Bookingen var annulleret, da betalingen kom. Systemet har derfor ikke ændret bookingen, ikke taget pladserne og ikke sendt billet eller bekræftelse. Kunden har ikke fået besked. Find transaktionen i Viva, og refundér betalingen manuelt.",
+    }),
+  };
+}
+
+/** Sender advarslen til kontoret (aldrig til kunden). Kaster aldrig. */
+export async function advarOmBetalingPaaAnnulleret(i: BetalingPaaAnnulleretInput): Promise<void> {
+  try {
+    const { subject, html } = betalingPaaAnnulleretMail(i);
+    await sendMail({ to: EMAIL_REPLY_TO, subject, html });
+  } catch (err) {
+    console.error("Kunne ikke sende advarsel om betaling på annulleret booking", {
+      bookingNo: i.bookingNo,
+    });
+  }
+}
