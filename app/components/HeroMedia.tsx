@@ -15,11 +15,11 @@ const CROP_MOBIL = "center center";
 const CROP_DESKTOP = "center 35%";
 
 // Afspilningstempo for baggrundsvideoen pr. skærmstørrelse.
-// På desktop kører videoen i halvt tempo (roligere baggrund til den
-// vandrette stribe); på mobil beholdes det oprindelige tempo. Tempoet
+// På mobil kører videoen i halvt tempo og på desktop i kvart tempo
+// (roligere baggrund, især til den vandrette stribe på desktop). Tempoet
 // sættes på selve <video> via playbackRate — kildefilen ændres ikke.
-const TEMPO_MOBIL = 1;
-const TEMPO_DESKTOP = 0.5;
+const TEMPO_MOBIL = 0.5;
+const TEMPO_DESKTOP = 0.25;
 
 type Mode = "video" | "posterStill";
 
