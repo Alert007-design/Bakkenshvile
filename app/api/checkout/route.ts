@@ -3,6 +3,7 @@ import { generateBookingNo } from "@/lib/booking-no";
 import {
   createRecord,
   cachedListRecords,
+  getRecord,
   TABLES,
   FIELDS,
   priceGroupName,
@@ -25,6 +26,7 @@ import {
   kategoriFraAirtable,
 } from "@/lib/kapacitet";
 import { laesKundeAdresse } from "@/lib/kunde-adresse";
+import { hentBetalteBookingIds, tjekDobbeltbooking } from "@/lib/dobbeltbooking";
 import {
   frigivForBooking,
   frigivUdloebne,
@@ -214,6 +216,35 @@ export async function POST(req: NextRequest) {
           },
           { status: 409 }
         );
+      }
+    }
+
+    // --- Advarsel om dobbeltbooking ------------------------------------------
+    //
+    // Lige før der oprettes noget: har samme e-mail inden for den seneste time
+    // betalt for samme forestilling med samme antal gæster? Så får kunden en
+    // advarsel og vælger selv. Der er oprettet INTET endnu (ingen kunde,
+    // booking, reservation eller betaling). "Bestil alligevel" sender samme
+    // kald igen med bekraeftDobbeltbooking: true, og så springes tjekket over.
+    // Fejler tjekket, sendes kunden videre som i dag (se lib/dobbeltbooking.ts).
+    if (body.bekraeftDobbeltbooking !== true && customer.email) {
+      let advar = false;
+      try {
+        advar = await tjekDobbeltbooking(
+          {
+            hentBetalteBookingIds: (email, fra) => hentBetalteBookingIds(db, email, fra),
+            hentBooking: (id) => getRecord(TABLES.bookings, id),
+            nu: () => new Date(),
+            log: (besked, ctx) => console.error(besked, ctx),
+          },
+          { email: customer.email, showId: show.id, antal: result.totals.ticketCount }
+        );
+      } catch {
+        console.error("Dobbeltbooking-tjek fejlede, kunden sendes videre til betaling");
+      }
+      if (advar) {
+        // Kun ja/nej. Intet om den første booking.
+        return NextResponse.json({ dobbeltbooking: true }, { status: 409 });
       }
     }
 
