@@ -215,7 +215,7 @@ describe("billetmail", () => {
       "Bliver du selv forhindret, kan billetten ikke byttes eller refunderes, men den kan i stedet overdrages til tredjemand. Hvis en forestilling aflyses, tilbagebetales billetprisen og prisen for ikke-leverede tilvalg."
     );
     expect(billet()).toContain(
-      "Alle priser er inklusive 25 % moms. Momsbeløbet svarer til 20 % af den samlede pris inklusive moms."
+      "Alle priser er inklusive 25 % moms."
     );
   });
 

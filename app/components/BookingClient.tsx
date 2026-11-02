@@ -850,8 +850,7 @@ export default function BookingClient({
       <div className="section">
         <div className="section-title">Vælg billetter</div>
         <div className="section-sub">
-          Alle priser er inklusive 25 % moms og gebyr. Momsbeløbet svarer til 20 %
-          af den samlede pris inklusive moms.
+          Alle priser er inklusive 25 % moms og gebyr.
         </div>
         <button
           type="button"
@@ -923,9 +922,16 @@ export default function BookingClient({
       {groupedAddons.length > 0 && (
         <div className="section">
           <div className="section-title">Tilvalg</div>
-          <div className="section-sub">
+          <div
+            className="section-sub"
+            style={
+              discountActive
+                ? { fontSize: 22, color: "var(--paper)", lineHeight: 1.35 }
+                : undefined
+            }
+          >
             {discountActive
-              ? "Drikkevarer og snacks til bordet — 10 % onlinerabat er trukket fra. Rabatten gælder til kl. 12.00 på forestillingsdagen."
+              ? "Bestil dine drikkevarer sammen med billetten – og få 10 % rabat på drikkevarerne"
               : "Drikkevarer og snacks til bordet. Onlinerabatten er udløbet (den gælder til kl. 12.00 på forestillingsdagen), så de almindelige priser gælder."}
           </div>
           <div className="addon-groups">
