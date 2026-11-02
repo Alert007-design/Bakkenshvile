@@ -75,7 +75,7 @@ ${ialtLinje(totalLabel, total)}
 ${samletLinje}
       </table>
 ${momsNote(
-  "Alle priser er inklusive 25 % moms. Momsbeløbet svarer til 20 % af den samlede pris inklusive moms."
+  "Alle priser er inklusive 25 % moms."
 )}
 
       <p style="margin:26px 0 0;font-family:${SKRIFT};font-size:15px;line-height:24px;color:${FARVER.blaek};">${escapeHtml(

@@ -296,7 +296,7 @@ export default function GenbestilClient({
             <div className="section-title">Tilføj drikkevarer</div>
             <div className="section-sub">
               Alle priser er inklusive 25 % moms — 10 % onlinerabat er trukket
-              fra. Momsbeløbet svarer til 20 % af den samlede pris inklusive moms.
+              fra.
             </div>
             <div className="addon-groups">
               {groupedAddons.map(([category, items]) => (
