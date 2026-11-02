@@ -235,9 +235,7 @@ export default async function Home() {
             }}
           >
             Bestil drikkevarer online med{" "}
-            <strong style={{ color: "var(--gold)" }}>10 % rabat</strong> senest
-            kl. 12.00 på forestillingsdagen. Herefter gælder de almindelige
-            priser.{" "}
+            <strong style={{ color: "var(--gold)" }}>10 % rabat</strong>.{" "}
             {qrOrdering
               ? "Bestilling via QR-systemet og ved bordene sker til fuld pris."
               : "Bestilling ved bordene sker til fuld pris."}
