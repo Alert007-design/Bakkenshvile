@@ -513,6 +513,8 @@ export default function BookingClient({
     note: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  // Serveren har fundet en betalt booking inden for den seneste time, der ligner denne.
+  const [dobbeltAdvarsel, setDobbeltAdvarsel] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSeatingChart, setShowSeatingChart] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -678,7 +680,7 @@ export default function BookingClient({
     });
   }
 
-  async function submit() {
+  async function submit(bekraeftDobbeltbooking = false) {
     setError(null);
     if (!selectedShow) {
       setError("Vælg en dato.");
@@ -733,9 +735,17 @@ export default function BookingClient({
           showId: selectedShow.id,
           acceptTerms: acceptedTerms,
           matching: wantsMatching ? { wantsMatching, ...matching } : undefined,
+          // Sættes kun, når kunden har valgt "Bestil alligevel".
+          ...(bekraeftDobbeltbooking ? { bekraeftDobbeltbooking: true } : {}),
         }),
       });
       const data = await res.json();
+      // Advarslen blokerer ikke: kunden vælger selv. Der er endnu ikke oprettet noget.
+      if (res.status === 409 && data?.dobbeltbooking === true) {
+        setDobbeltAdvarsel(true);
+        setSubmitting(false);
+        return;
+      }
       if (!res.ok) {
         // Er der solgt billetter, mens kunden udfyldte formularen, sender
         // serveren opdaterede tal med. Vis dem med det samme.
@@ -1242,11 +1252,84 @@ export default function BookingClient({
         </div>
         <button
           className="submit-btn"
-          onClick={submit}
+          onClick={() => submit(false)}
           disabled={submitting || !acceptedTerms}
         >
           {submitting ? "Sender..." : "Gå til betaling"}
         </button>
+        {dobbeltAdvarsel && (
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="dobbelt-titel"
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.65)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+              zIndex: 100,
+            }}
+          >
+            <div
+              style={{
+                background: "var(--ink-800)",
+                color: "var(--paper)",
+                border: "1px solid var(--line-strong)",
+                borderRadius: 6,
+                padding: 24,
+                maxWidth: 460,
+                width: "100%",
+              }}
+            >
+              <h2 id="dobbelt-titel" style={{ marginTop: 0, fontSize: 22 }}>
+                Du har måske allerede bestilt
+              </h2>
+              <p style={{ lineHeight: 1.6 }}>
+                Det ser ud til, at du allerede har bestilt og betalt for den samme forestilling med det samme antal
+                gæster inden for den seneste time. Har du ikke fået din bekræftelse endnu, så vent lidt og kig også i
+                din spam-mappe. Vil du bestille en gang til, kan du gå videre.
+              </p>
+              <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setDobbeltAdvarsel(false)}
+                  style={{
+                    padding: "10px 18px",
+                    background: "var(--gold)",
+                    color: "var(--ink-950)",
+                    border: "none",
+                    borderRadius: 4,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Gå tilbage
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDobbeltAdvarsel(false);
+                    submit(true);
+                  }}
+                  style={{
+                    padding: "10px 18px",
+                    background: "transparent",
+                    color: "var(--paper)",
+                    border: "1px solid var(--line-strong)",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                  }}
+                >
+                  Bestil alligevel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
