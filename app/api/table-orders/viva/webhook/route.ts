@@ -51,7 +51,7 @@ import { getRecord, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { fuldfoerKunHvisAktiv } from "@/lib/annuller-booking";
 import { buildBookingView } from "@/lib/genbestil";
 import { fulfillGenbestilling } from "@/lib/genbestil-fulfill";
-import { advarOmBeloebsfejl } from "@/lib/payment-alerts";
+import { advarOmBeloebsfejl, advarOmBetalingPaaAnnulleret } from "@/lib/payment-alerts";
 import {
   meldSalg,
   salgFraBillet,
@@ -293,6 +293,15 @@ export async function POST(req: NextRequest) {
         if (!udfald.udfoert) {
           console.error("Viva-webhook: betaling modtaget på en annulleret booking, ingen ændring", {
             bookingNo: result.payment.bookingNo,
+          });
+          // Kontoret får besked, så betalingen kan refunderes. Kaster aldrig.
+          await advarOmBetalingPaaAnnulleret({
+            type: result.payment.flow === "genbestil" ? "Genbestilling" : "Billet",
+            bookingNo: result.payment.bookingNo,
+            kundeNavn: result.payment.customerName,
+            kundeEmail: result.payment.customerEmail,
+            betaltOre: verified.amountOre,
+            transaktionsId: verified.transactionId,
           });
           return NextResponse.json({ received: true });
         }

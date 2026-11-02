@@ -8,8 +8,10 @@ vi.mock("@/lib/resend", () => ({
 
 import {
   advarOmBeloebsfejl,
+  advarOmBetalingPaaAnnulleret,
   advarOmManglendeBekraeftelse,
   beloebsfejlMail,
+  betalingPaaAnnulleretMail,
 } from "@/lib/payment-alerts";
 
 beforeEach(() => {
@@ -116,5 +118,59 @@ describe("advarOmManglendeBekraeftelse", () => {
     await expect(
       advarOmManglendeBekraeftelse({ bookingNo: "BH-X" })
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("betalingPaaAnnulleretMail", () => {
+  const input = {
+    type: "Billet" as const,
+    bookingNo: "BH-K7M2Q9XR",
+    kundeNavn: "Hanne Hansen",
+    kundeEmail: "hanne@example.dk",
+    betaltOre: 57500,
+    transaktionsId: "abc-123",
+  };
+
+  it("har bookingnummeret og beløbet, så der kan refunderes", () => {
+    const m = betalingPaaAnnulleretMail(input);
+    expect(m.subject).toContain("BH-K7M2Q9XR");
+    expect(m.subject.toLowerCase()).toContain("annulleret");
+    expect(m.html).toContain("575");
+    expect(m.html).toContain("abc-123");
+    expect(m.html).toContain("Hanne Hansen");
+    expect(m.html).toContain("hanne@example.dk");
+  });
+
+  it("siger, at intet er ændret, og at kunden ikke har fået besked", () => {
+    const { html } = betalingPaaAnnulleretMail(input);
+    expect(html).toContain("annulleret");
+    expect(html.toLowerCase()).toContain("refund");
+    expect(html).toContain("ikke fået besked");
+  });
+
+  it("escaper felter, som kunden selv har skrevet", () => {
+    const { html } = betalingPaaAnnulleretMail({ ...input, kundeNavn: '<script>alert("x")</script>' });
+    expect(html).not.toContain("<script>");
+  });
+
+  it("virker uden kundeoplysninger og uden transaktionsnummer", () => {
+    const m = betalingPaaAnnulleretMail({ type: "Genbestilling", bookingNo: "BH-X", betaltOre: 4500, transaktionsId: null });
+    expect(m.html).toContain("ukendt");
+  });
+});
+
+describe("advarOmBetalingPaaAnnulleret", () => {
+  const input = { type: "Billet" as const, bookingNo: "BH-K7M2Q9XR", betaltOre: 57500, transaktionsId: "t-1", kundeEmail: "hanne@example.dk" };
+
+  it("sender kun til kontoret, aldrig til kunden", async () => {
+    sendMail.mockResolvedValue(undefined);
+    await advarOmBetalingPaaAnnulleret(input);
+    expect(sendMail).toHaveBeenCalledTimes(1);
+    expect(sendMail.mock.calls[0][0].to).toBe("kontor@bakkenshvile.dk");
+  });
+
+  it("kaster aldrig, heller ikke når mailen fejler", async () => {
+    sendMail.mockRejectedValue(new Error("Resend nede"));
+    await expect(advarOmBetalingPaaAnnulleret(input)).resolves.toBeUndefined();
   });
 });
