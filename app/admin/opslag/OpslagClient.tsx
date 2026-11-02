@@ -459,8 +459,8 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
                     </tbody>
                   </table>
                   <p style={{ fontSize: 14, marginTop: 0 }}>
-                    Pladserne bliver frigivet og kan sælges igen. Bookingen slettes ikke. Der refunderes ikke noget
-                    automatisk, og kunden får ingen besked.
+                    Pladserne frigives og kan sælges igen. Bookingen gemmes som annulleret af hensyn til regnskabet. Der
+                    refunderes ikke noget automatisk, og kunden får ingen besked.
                   </p>
                   <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 14, marginBottom: 14 }}>
                     <input
