@@ -1,7 +1,7 @@
 "use client";
 
 // Slå en booking op på bookingnummeret og se alt om bookingen og kunden.
-// Kun visning; intet ændres herfra.
+// Herfra kan man også annullere en betalt booking.
 
 import { useCallback, useEffect, useState } from "react";
 import type { Opslag } from "@/lib/bookingopslag";
@@ -69,6 +69,64 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
   const [andre, setAndre] = useState<Anden[]>([]);
   const [fakturaBesked, setFakturaBesked] = useState("");
   const [fakturaArbejder, setFakturaArbejder] = useState(false);
+  const [visAnnuller, setVisAnnuller] = useState(false);
+  const [harForstaaet, setHarForstaaet] = useState(false);
+  const [annullerArbejder, setAnnullerArbejder] = useState(false);
+  const [annullerFejl, setAnnullerFejl] = useState("");
+  const [annullerResultat, setAnnullerResultat] = useState<{
+    bookingNo: string;
+    beloebKr: number;
+    beloebKilde: "viva" | "airtable" | "ingen";
+    pladserFrigivet: boolean;
+  } | null>(null);
+
+  async function annuller(o: Opslag) {
+    setAnnullerArbejder(true);
+    setAnnullerFejl("");
+    try {
+      const res = await fetch("/api/admin/annuller", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ bookingId: o.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Det lykkedes ikke.");
+      setAnnullerResultat({
+        bookingNo: data.bookingNo,
+        beloebKr: data.beloebKr,
+        beloebKilde: data.beloebKilde,
+        pladserFrigivet: data.pladserFrigivet,
+      });
+      setVisAnnuller(false);
+      setHarForstaaet(false);
+      await slaaOp(o.bookingNo);
+    } catch (e) {
+      setAnnullerFejl(e instanceof Error ? e.message : "Det lykkedes ikke.");
+    } finally {
+      setAnnullerArbejder(false);
+    }
+  }
+
+  // Prøver at frigive pladser, der blev hængende efter en annullering. Serveren
+  // afviser selve annulleringen (den er allerede sket), men prøver frigivelsen.
+  async function proevPladserIgen(o: Opslag) {
+    setAnnullerArbejder(true);
+    try {
+      const res = await fetch("/api/admin/annuller", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ bookingId: o.id }),
+      });
+      const data = await res.json();
+      if (data?.pladserFrigivet === true) {
+        setAnnullerResultat((r) => (r ? { ...r, pladserFrigivet: true } : r));
+      }
+    } catch {
+      // Beskeden om manglende frigivelse står stadig, så man kan prøve igen.
+    } finally {
+      setAnnullerArbejder(false);
+    }
+  }
 
   async function markerFaktura(bookingId: string, bookingNo: string) {
     if (
@@ -170,6 +228,70 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
 
         {o && (
           <>
+            {annullerResultat && annullerResultat.bookingNo === o.bookingNo && (
+              <div
+                style={{
+                  background: "#fff4d6",
+                  border: "2px solid #b8860b",
+                  borderRadius: 4,
+                  padding: "12px 16px",
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 17 }}>
+                  Bookingen er annulleret.
+                </div>
+                {annullerResultat.beloebKilde === "ingen" ? (
+                  <p style={{ margin: "8px 0 0" }}>
+                    Der er ikke betalt noget for {annullerResultat.bookingNo} (fribillet eller ingen betaling), så der
+                    er ikke noget at refundere.
+                  </p>
+                ) : (
+                  <>
+                    <p style={{ margin: "8px 0 0", fontWeight: 700 }}>
+                      Husk at refundere betalingen manuelt i Viva: {KR.format(annullerResultat.beloebKr)}
+                    </p>
+                    <p style={{ margin: "4px 0 0", fontSize: 14 }}>
+                      Søg efter bookingnummer {annullerResultat.bookingNo} i Viva.
+                      {annullerResultat.beloebKilde === "airtable"
+                        ? " Beløbet er læst fra feltet \"Betalt i alt\" i Airtable, så tjek det mod betalingen i Viva."
+                        : ""}
+                    </p>
+                  </>
+                )}
+                <p style={{ margin: "4px 0 0", fontSize: 14 }}>Kunden har ikke fået nogen besked fra systemet.</p>
+                {!annullerResultat.pladserFrigivet && (
+                  <div style={{ marginTop: 10, color: "#8a1f2b", fontWeight: 700 }}>
+                    Pladserne blev ikke frigivet, så de kan endnu ikke sælges igen.
+                    <div>
+                      <button
+                        type="button"
+                        disabled={annullerArbejder}
+                        onClick={() => proevPladserIgen(o)}
+                        style={{ marginTop: 6, padding: "6px 12px", cursor: "pointer" }}
+                      >
+                        {annullerArbejder ? "Prøver…" : "Prøv at frigive pladserne igen"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {o.status === "Annulleret" && (
+              <div
+                style={{
+                  background: "#fbe9e7",
+                  border: "2px solid #b3261e",
+                  color: "#b3261e",
+                  borderRadius: 4,
+                  padding: "10px 14px",
+                  marginBottom: 16,
+                  fontWeight: 700,
+                }}
+              >
+                Denne booking er annulleret.
+              </div>
+            )}
             <div style={boks}>
               <h2 style={{ marginTop: 0, fontSize: 18 }}>
                 {o.bookingNo}
@@ -239,6 +361,35 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
                 </div>
               )}
               {fakturaBesked && <p style={{ marginBottom: 0 }}>{fakturaBesked}</p>}
+              {o.status === "Betalt" && (
+                <div style={{ marginTop: 14 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnnullerFejl("");
+                      setHarForstaaet(false);
+                      setVisAnnuller(true);
+                    }}
+                    style={{
+                      padding: "8px 16px",
+                      background: "#fff",
+                      color: "#b3261e",
+                      border: "2px solid #b3261e",
+                      borderRadius: 3,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Annullér booking
+                  </button>
+                </div>
+              )}
+              {o.status !== "Betalt" && o.status !== "Annulleret" && (
+                <p style={{ color: "#777", fontSize: 13, marginBottom: 0 }}>
+                  Kun betalte bookinger kan annulleres her.
+                </p>
+              )}
             </div>
 
             <div style={boks}>
@@ -274,6 +425,80 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
                     <Linje navn="Andet">{o.match.note}</Linje>
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {visAnnuller && (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Annullér booking"
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0,0,0,0.5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 16,
+                  zIndex: 50,
+                }}
+              >
+                <div style={{ background: "#fff", borderRadius: 6, padding: 24, maxWidth: 480, width: "100%" }}>
+                  <h2 style={{ marginTop: 0, fontSize: 20 }}>Annullér denne booking?</h2>
+                  <table style={{ borderCollapse: "collapse", fontSize: 15, marginBottom: 14 }}>
+                    <tbody>
+                      <Linje navn="Bookingnummer">{o.bookingNo}</Linje>
+                      <Linje navn="Navn">{o.kunde.navn}</Linje>
+                      <Linje navn="Forestilling">
+                        {o.forestilling
+                          ? `${o.forestilling.title}, ${visDato(o.forestilling.date)} kl. ${o.forestilling.time}`
+                          : ""}
+                      </Linje>
+                      <Linje navn="Antal billetter">{String(o.antal)}</Linje>
+                    </tbody>
+                  </table>
+                  <p style={{ fontSize: 14, marginTop: 0 }}>
+                    Pladserne bliver frigivet og kan sælges igen. Bookingen slettes ikke. Der refunderes ikke noget
+                    automatisk, og kunden får ingen besked.
+                  </p>
+                  <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 14, marginBottom: 14 }}>
+                    <input
+                      type="checkbox"
+                      checked={harForstaaet}
+                      onChange={(e) => setHarForstaaet(e.target.checked)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <span>Jeg ved, at pladserne frigives, og at jeg selv skal refundere betalingen i Viva.</span>
+                  </label>
+                  {annullerFejl && <p style={{ color: "#8a1f2b" }}>{annullerFejl}</p>}
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      disabled={annullerArbejder}
+                      onClick={() => setVisAnnuller(false)}
+                      style={{ padding: "8px 16px", cursor: "pointer" }}
+                    >
+                      Fortryd
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!harForstaaet || annullerArbejder}
+                      onClick={() => annuller(o)}
+                      style={{
+                        padding: "8px 16px",
+                        background: harForstaaet ? "#b3261e" : "#ccc",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 3,
+                        cursor: harForstaaet ? "pointer" : "not-allowed",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {annullerArbejder ? "Annullerer…" : "Ja, annullér bookingen"}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 

@@ -126,7 +126,7 @@ export function kategoriTekst(nedbrydning: string, antalIAlt: number): string {
 }
 
 // Tekster, som systemet selv skriver i "Særlige ønsker" — ikke kundens egne.
-const SYSTEMTEKST = /^((overført fra|fra) ticketcloud\b|ikke betalt i det gamle system\b)/i;
+const SYSTEMTEKST = /^((overført fra|fra) ticketcloud\b|ikke betalt i det gamle system\b|annulleret af personale\b)/i;
 
 // Noten, importen fra det gamle system skrev på ubetalte bookinger, fx
 // "Ikke betalt i det gamle system (Telefonbestilling): mangler 24622 kr.".

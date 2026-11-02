@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { getDb } from "@/lib/db";
+import { erAnnulleret } from "@/lib/annuller-booking";
 import {
   getLatestTicketPaymentByBooking,
   type TicketLineItem,
@@ -57,6 +58,12 @@ export async function POST(req: NextRequest) {
     }
 
     const booking = await getRecord(TABLES.bookings, bookingId);
+    if (erAnnulleret(booking.fields[FIELDS.booking.status])) {
+      return NextResponse.json(
+        { error: "Bookingen er annulleret, så billetten kan ikke sendes igen." },
+        { status: 409 }
+      );
+    }
     const bookingNo = String(booking.fields[FIELDS.booking.bookingNo] ?? "");
     const ticketBreakdown = String(
       booking.fields[FIELDS.booking.ticketBreakdown] ?? ""

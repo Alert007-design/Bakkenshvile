@@ -48,6 +48,7 @@ import {
   retrieveVivaTransaction,
 } from "@/lib/payments/viva-client";
 import { getRecord, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
+import { fuldfoerKunHvisAktiv } from "@/lib/annuller-booking";
 import { buildBookingView } from "@/lib/genbestil";
 import { fulfillGenbestilling } from "@/lib/genbestil-fulfill";
 import { advarOmBeloebsfejl } from "@/lib/payment-alerts";
@@ -279,7 +280,23 @@ export async function POST(req: NextRequest) {
       // sideeffekt, frigives overgangen igen, så Vivas genforsøg kan prøve på ny.
       let forestilling: Forestilling | null = null;
       try {
-        forestilling = await fulfillTicketPayment(result.payment);
+        // En annulleret booking må aldrig ændres af en betaling: hverken
+        // sættes til "Betalt", få pladserne igen, få drikkevarer lagt på
+        // eller få en ny billet. Se lib/annuller-booking.ts.
+        const udfald = await fuldfoerKunHvisAktiv(
+          async () =>
+            (await getRecord(TABLES.bookings, result.payment.bookingId)).fields[
+              FIELDS.booking.status
+            ],
+          () => fulfillTicketPayment(result.payment)
+        );
+        if (!udfald.udfoert) {
+          console.error("Viva-webhook: betaling modtaget på en annulleret booking, ingen ændring", {
+            bookingNo: result.payment.bookingNo,
+          });
+          return NextResponse.json({ received: true });
+        }
+        forestilling = udfald.resultat;
       } catch (err) {
         await revertTicketPaidByRef(db, verified.paymentRef);
         console.error("Viva-webhook: kunne ikke fuldføre billetbetaling");
