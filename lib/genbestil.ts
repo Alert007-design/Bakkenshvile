@@ -5,6 +5,7 @@
 import { randomBytes, timingSafeEqual } from "crypto";
 import { findRecords, getRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { normalizeBookingNo } from "@/lib/booking-no";
+import { erAnnulleret } from "@/lib/annuller-booking";
 
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
 
@@ -49,6 +50,8 @@ export async function authenticateBooking(
     const booking = await findBookingByNo(p.ref);
     if (!booking) return null;
     const stored = String(booking.fields[FIELDS.booking.key] ?? "");
+    // En annulleret booking kan ikke genbestilles på (samme generiske svar).
+    if (erAnnulleret(booking.fields[FIELDS.booking.status])) return null;
     return safeEqual(stored, p.key) ? booking : null;
   }
   if (p.bookingNo && p.email) {
@@ -63,6 +66,7 @@ export async function authenticateBooking(
       .trim()
       .toLowerCase();
     const given = p.email.trim().toLowerCase();
+    if (erAnnulleret(booking.fields[FIELDS.booking.status])) return null;
     return email && email === given ? booking : null;
   }
   return null;

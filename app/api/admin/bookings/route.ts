@@ -13,6 +13,7 @@ import { frigivUdloebne, hentTagneForShows } from "@/lib/seat-holds";
 import { getShowDate } from "@/lib/events";
 import { byggOversigt, kapaciteterFor, kategoriFraAirtable } from "@/lib/kapacitet";
 import { tildelGaestenumre, type NummerBooking } from "@/lib/gaesteliste";
+import { udenAnnullerede } from "@/lib/annuller-booking";
 import {
   EKSTRA_STATUS_AFVENTER,
   EKSTRA_STATUS_UDLOEBET,
@@ -126,7 +127,8 @@ export async function GET(req: NextRequest) {
     console.error("Bordplan: kunne ikke gemme nye gæstenumre");
   }
 
-  const rows = forestillingens.map((b) => {
+  // Annullerede bookinger tæller ikke med i bordplan, gæsteliste og gæstetal.
+  const rows = udenAnnullerede(forestillingens.map((b) => {
     const customerFields = kundeFor(b);
     return {
       id: b.id,
@@ -152,7 +154,7 @@ export async function GET(req: NextRequest) {
       customerName: String(customerFields[FIELDS.customer.name] ?? ""),
       customerPhone: String(customerFields[FIELDS.customer.phone] ?? ""),
     };
-  });
+  }));
 
   // Billetter tilbage pr. billetkategori (samme tal som /admin/kapacitet).
   // Kategorinavnet på bookingen slås op i billettyperne for at finde den

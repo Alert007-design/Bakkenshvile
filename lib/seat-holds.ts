@@ -515,19 +515,37 @@ export async function frigivForBooking(
   await frigivEfterNoegle(db, "booking_id", bookingId);
 }
 
+/**
+ * Frigiver ALLE en bookings pladser — både reserverede og solgte — når
+ * personalet annullerer en betalt booking. Linjerne slettes ikke, men markeres
+ * som givet tilbage, og tællerne falder tilsvarende. Kan gentages uden skade:
+ * en booking uden aktive linjer ændrer ingenting.
+ *
+ * frigivForBooking ovenfor frigiver kun reserverede pladser og er uændret.
+ */
+export async function annullerPladser(
+  db: Queryable,
+  bookingId: string
+): Promise<void> {
+  await frigivEfterNoegle(db, "booking_id", bookingId, false, ["held", "sold"]);
+}
+
 /** Fælles krop. Kolonnenavnet er fast tekst i koden — aldrig brugerinput. */
 async function frigivEfterNoegle(
   db: Queryable,
   kolonne: "payment_ref" | "booking_id",
   vaerdi: string,
-  undtagSelskaber = false
+  undtagSelskaber = false,
+  statuser: readonly ("held" | "sold")[] = ["held"]
 ): Promise<void> {
   const ekstraBetingelse = undtagSelskaber ? " AND source <> 'selskab'" : "";
+  // Fast liste fra koden ('held' og/eller 'sold') — aldrig brugerinput.
+  const statusListe = statuser.map((s) => `'${s}'`).join(",");
   await db.query(
     `WITH frigivne AS (
        UPDATE seat_holds
           SET status = 'released'
-        WHERE ${kolonne} = $1 AND status = 'held'${ekstraBetingelse}
+        WHERE ${kolonne} = $1 AND status IN (${statusListe})${ekstraBetingelse}
         RETURNING show_id, category, quantity
      ), summer AS (
        SELECT show_id,
