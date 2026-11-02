@@ -296,6 +296,24 @@ export async function findRecords(tableId: string, filterByFormula: string) {
   return data.records as AirtableRecord[];
 }
 
+/** Som findRecords, men henter alle sider, så intet falder fra over 100 poster. */
+export async function findAllRecords(tableId: string, filterByFormula: string) {
+  const out: AirtableRecord[] = [];
+  let offset: string | undefined;
+  do {
+    const url =
+      `${BASE_URL}/${baseId()}/${tableId}?returnFieldsByFieldId=true&filterByFormula=${encodeURIComponent(
+        filterByFormula
+      )}` + (offset ? `&offset=${encodeURIComponent(offset)}` : "");
+    const res = await airtableFetch(url, { headers: headers(), cache: "no-store" });
+    if (!res.ok) throw new Error(`Airtable-fejl (${tableId}): ${res.status}`);
+    const data = await res.json();
+    out.push(...((data.records as AirtableRecord[]) ?? []));
+    offset = typeof data.offset === "string" ? data.offset : undefined;
+  } while (offset);
+  return out;
+}
+
 export async function getRecord(tableId: string, recordId: string) {
   const res = await airtableFetch(
     `${BASE_URL}/${baseId()}/${tableId}/${recordId}?returnFieldsByFieldId=true`,

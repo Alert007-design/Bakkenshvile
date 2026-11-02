@@ -115,6 +115,12 @@ export default function FunktionerPage() {
       status: "aktiv",
     },
     {
+      href: "/admin/salgsstatus",
+      title: "Salgsstatus",
+      desc: "Alle kommende forestillinger på én side: hvad der er solgt, hvad der er reserveret, og hvor mange billetter der er til salg i hver kategori.",
+      status: "aktiv",
+    },
+    {
       href: "/admin/kapacitet",
       title: "Kapacitet",
       desc: "Kapacitet, solgte og reserverede pladser og hvad der er tilbage pr. forestilling og priskategori. Her kan du også sætte flere billetter til salg i en kategori på en bestemt aften.",

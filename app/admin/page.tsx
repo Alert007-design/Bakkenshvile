@@ -9,7 +9,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: { show?: string };
+}) {
   // Adgang via den fælles personalesession (middleware håndhæver den også).
   // Ingen nøgle i URL'en. csrf sendes til klienten til muterende kald.
   let session = null;
@@ -48,6 +52,11 @@ export default async function AdminPage() {
     .filter(Boolean);
 
   return (
-    <AdminClient shows={shows} csrf={session.csrf} categoryOrder={categoryOrder} />
+    <AdminClient
+      shows={shows}
+      csrf={session.csrf}
+      categoryOrder={categoryOrder}
+      initialShowId={typeof searchParams?.show === "string" ? searchParams.show : undefined}
+    />
   );
 }

@@ -7,6 +7,7 @@ import {
   kundeBemaerkning,
   faarNummer,
   manglerBetaling,
+  kategoriTekst,
   type NummerBooking,
 } from "./gaesteliste";
 
@@ -233,5 +234,22 @@ describe("kundeBemaerkning og noten om manglende betaling", () => {
     expect(
       kundeBemaerkning("betaler ved indgang | Ikke betalt i det gamle system (Telefonbestilling): mangler 1377 kr. | Fra TicketCloud")
     ).toBe("betaler ved indgang");
+  });
+});
+
+describe("kategoriTekst", () => {
+  it("viser kategorien uden antal, når der kun er én", () => {
+    expect(kategoriTekst("A+ (1.-2.-3. række) x4", 4)).toBe("A+ (1.-2.-3. række)");
+  });
+
+  it("viser alle kategorier med antal, når der er flere", () => {
+    expect(kategoriTekst("A+ (1.-2.-3. række) x30, A+ (4.-5.-6. række) x28", 58)).toBe(
+      "30 × A+ (1.-2.-3. række), 28 × A+ (4.-5.-6. række)"
+    );
+  });
+
+  it("giver tom tekst, når kategorien ikke kan læses", () => {
+    expect(kategoriTekst("", 2)).toBe("");
+    expect(kategoriTekst("noget rod", 2)).toBe("");
   });
 });
