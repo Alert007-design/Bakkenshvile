@@ -11,6 +11,7 @@ import {
   delPaaKategorier,
   kundeBemaerkning,
   manglerBetaling,
+  kategoriTekst,
   sorterEfterBestilt,
   UKENDT_KATEGORI,
 } from "@/lib/gaesteliste";
@@ -110,12 +111,17 @@ export default function AdminClient({
   shows,
   csrf,
   categoryOrder,
+  initialShowId,
 }: {
   shows: Show[];
   csrf: string;
   categoryOrder: string[];
+  /** Aften valgt via ?show= (fx fra Salgsstatus). */
+  initialShowId?: string;
 }) {
-  const [showId, setShowId] = useState(shows[0]?.id ?? "");
+  const [showId, setShowId] = useState(
+    initialShowId && shows.some((s) => s.id === initialShowId) ? initialShowId : shows[0]?.id ?? ""
+  );
   const [rows, setRows] = useState<Row[]>([]);
   const [tilbage, setTilbage] = useState<Record<string, number> | null>(null);
   const [nummerFejl, setNummerFejl] = useState(false);
@@ -278,6 +284,9 @@ export default function AdminClient({
         </a>
         <a href="/admin/opslag" style={{ color: "#0d3b2e", fontWeight: 600 }}>
           Slå en booking op
+        </a>
+        <a href="/admin/salgsstatus" style={{ color: "#0d3b2e", fontWeight: 600 }}>
+          Salgsstatus
         </a>
         <a href="/admin/kapacitet" style={{ color: "#0d3b2e", fontWeight: 600 }}>
           Ret antal billetter
@@ -739,6 +748,9 @@ export default function AdminClient({
                         {r.customerName}
                         <div style={{ color: "#999", fontSize: 12 }}>{r.bookingNo}</div>
                       </td>
+                      <td style={{ ...celle, color: "#555", fontSize: 13 }}>
+                        {kategoriTekst(r.ticketBreakdown, r.ticketCount)}
+                      </td>
                       <td style={{ ...celle, whiteSpace: "pre-line" }}>
                         {kundeBemaerkning(r.specialRequests)}
                       </td>
@@ -762,6 +774,9 @@ export default function AdminClient({
                         <div style={{ color: "#999", fontSize: 12 }}>
                           {r.tableNumber ? `Bord ${r.tableNumber}` : "Intet bord endnu"}
                         </div>
+                      </td>
+                      <td style={{ ...celle, color: "#555", fontSize: 13 }}>
+                        {kategoriTekst(r.ticketBreakdown, r.ticketCount)}
                       </td>
                       <td style={celle}>
                         {r.addons.split(",").map((v) => v.trim()).filter(Boolean).map((v, i) => (

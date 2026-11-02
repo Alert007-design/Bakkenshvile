@@ -114,6 +114,17 @@ export function delPaaKategorier(nedbrydning: string, antalIAlt: number): Katego
   return Array.from(dele.entries()).map(([kategori, antal]) => ({ kategori, antal }));
 }
 
+/**
+ * Gæstens kategori som kort tekst til listerne under bordplanen. Én kategori
+ * vises uden antal; flere vises med antal. Kan teksten ikke læses: tom tekst.
+ */
+export function kategoriTekst(nedbrydning: string, antalIAlt: number): string {
+  const dele = delPaaKategorier(nedbrydning, antalIAlt).filter((d) => d.kategori !== UKENDT_KATEGORI);
+  if (dele.length === 0) return "";
+  if (dele.length === 1) return dele[0].kategori;
+  return dele.map((d) => `${d.antal} × ${d.kategori}`).join(", ");
+}
+
 // Tekster, som systemet selv skriver i "Særlige ønsker" — ikke kundens egne.
 const SYSTEMTEKST = /^((overført fra|fra) ticketcloud\b|ikke betalt i det gamle system\b)/i;
 
