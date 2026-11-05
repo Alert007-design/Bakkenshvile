@@ -174,15 +174,81 @@ describe("JSON-LD", () => {
     const events = eventsJsonLd(shows);
     expect(events.length).toBe(2);
     expect(events[0].startDate).toBe("2027-06-12T19:30:00");
-    expect(events[0].offers.availability).toBe("https://schema.org/InStock");
+    expect((events[0].offers as any).availability).toBe("https://schema.org/InStock");
     expect(events[1].startDate).toBe("2027-06-13");
-    expect(events[1].offers.availability).toBe("https://schema.org/SoldOut");
-    // Priser beregnes serverside pr. billettype og må ikke opfindes i schema.
+    expect((events[1].offers as any).availability).toBe("https://schema.org/SoldOut");
+    // Uden billettyper findes ingen synlig pris, og så opfindes der ingen.
     expect(JSON.stringify(events)).not.toContain('"price"');
     for (const e of events) {
       expect(e.eventStatus).toBe("https://schema.org/EventScheduled");
       expect(e.location.address.addressLocality).toBe("Klampenborg");
     }
+  });
+
+  describe("eventsJsonLd opfylder Googles anbefalede Event-felter", () => {
+    const show: ShowDate = {
+      id: "rec1",
+      title: "Aftenshow",
+      date: "2027-06-12",
+      time: "20:30",
+      duration: "",
+      notes: "",
+      priceGroup: "Jubilæum",
+      soldOut: false,
+      kapacitetsjustering: {},
+      createdTime: "2026-11-01T09:15:00.000Z",
+    };
+    const billettyper = [
+      { category: "A+ (1.-2.-3. række)", price: 429, fee: 30, priceGroup: "Jubilæum" },
+      { category: "B (10. række)", price: 289, fee: 30, priceGroup: "Jubilæum" },
+      // Anden prisgruppe må ikke komme med på denne forestilling.
+      { category: "A", price: 999, fee: 30, priceGroup: "Andet" },
+    ];
+
+    it("arrangøren har en webadresse", () => {
+      const [e] = eventsJsonLd([show], billettyper);
+      expect(e.organizer.url).toMatch(/^https?:\/\/.+\/$/);
+    });
+
+    it("sluttid er starttid plus showets varighed på 2 t 15 min", () => {
+      const [e] = eventsJsonLd([show], billettyper);
+      expect(e.endDate).toBe("2027-06-12T22:45:00");
+    });
+
+    it("sluttid efter midnat ruller over til næste dag", () => {
+      const [e] = eventsJsonLd([{ ...show, time: "22:30" }], billettyper);
+      expect(e.endDate).toBe("2027-06-13T00:45:00");
+    });
+
+    it("uden klokkeslæt er sluttiden selve datoen", () => {
+      const [e] = eventsJsonLd([{ ...show, time: "" }], billettyper);
+      expect(e.endDate).toBe("2027-06-12");
+    });
+
+    it("ét tilbud pr. billettype i forestillingens prisgruppe, med synlig pris inkl. gebyr i DKK", () => {
+      const [e] = eventsJsonLd([show], billettyper);
+      expect(Array.isArray(e.offers)).toBe(true);
+      const offers = e.offers as any[];
+      expect(offers.length).toBe(2);
+      expect(offers.map((o) => o.price)).toEqual([459, 319]);
+      for (const o of offers) {
+        expect(o.priceCurrency).toBe("DKK");
+        expect(o.validFrom).toBe("2026-11-01T09:15:00.000Z");
+        expect(o.availability).toBe("https://schema.org/InStock");
+        expect(o.url).toMatch(/\/book$/);
+      }
+      expect(offers[0].name).toBe("A+ (1.-2.-3. række)");
+    });
+
+    it("udsolgt forestilling markeres udsolgt i alle tilbud", () => {
+      const [e] = eventsJsonLd([{ ...show, soldOut: true }], billettyper);
+      for (const o of e.offers as any[]) expect(o.availability).toBe("https://schema.org/SoldOut");
+    });
+
+    it("mangler oprettelsestid, udelades validFrom i stedet for at blive gættet", () => {
+      const [e] = eventsJsonLd([{ ...show, createdTime: undefined }], billettyper);
+      for (const o of e.offers as any[]) expect(o).not.toHaveProperty("validFrom");
+    });
   });
 
   it("performersJsonLd indeholder hele den navngivne besætning", () => {

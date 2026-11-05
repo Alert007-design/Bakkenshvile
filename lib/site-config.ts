@@ -62,6 +62,9 @@ export const GOOGLE_MAPS_URL: string | null = null;
 /** Showets varighed — rettet af Bakkens Hvile 31. okt. 2026. Bruges på
  *  /praktisk og under billetsalget (/book) i stedet for Airtables felt. */
 export const SHOW_DURATION_TEXT: string | null = "ca. 2 timer og 15 minutter inkl. pause";
+/** Samme varighed i minutter. Bruges til sluttidspunktet i Googles
+ *  forestillingsdata (endDate). Skal følge SHOW_DURATION_TEXT. */
+export const SHOW_DURATION_MINUTES = 135;
 
 /** Sæsonens besætning — navne og portrætter er verificeret i projektet
  *  (forsiden + lib/billeder.ts). Rollebetegnelsen "bakkesangerinde" bruges

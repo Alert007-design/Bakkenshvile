@@ -23,6 +23,7 @@ import {
   PERFORMERS,
   KAPELMESTER,
   OG_BILLEDE,
+  SHOW_DURATION_MINUTES,
 } from "@/lib/site-config";
 import { billeder } from "@/lib/billeder";
 
@@ -230,46 +231,87 @@ export function breadcrumbs(items: Array<[string, string]>) {
   };
 }
 
+/** Billettype som den vises på /book. Prisen gæsten ser er price + fee. */
+export type EventTicketType = {
+  category: string;
+  price: number;
+  fee: number;
+  priceGroup: string;
+};
+
+/** Sluttidspunkt = start + showets varighed, som lokal tid uden tidszone
+ *  (samme form som startDate). Uden klokkeslæt bruges ren dato. */
+function endDateFor(date: string, time: string): string {
+  if (!/^\d{2}:\d{2}$/.test(time)) return date;
+  const [y, m, d] = date.split("-").map(Number);
+  const [hh, mm] = time.split(":").map(Number);
+  // Regnes i UTC som et neutralt ur, så sommertid ikke flytter resultatet.
+  const t = new Date(Date.UTC(y, m - 1, d, hh, mm + SHOW_DURATION_MINUTES));
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${t.getUTCFullYear()}-${p(t.getUTCMonth() + 1)}-${p(t.getUTCDate())}T${p(t.getUTCHours())}:${p(t.getUTCMinutes())}:00`;
+}
+
 /** Event-data for kommende forestillinger — bygget af PRÆCIS samme datakilde
- *  (lib/events.ts) som den synlige datovælger på /book, så synligt indhold og
- *  structured data aldrig kan være uenige. Priser medtages ikke, da de afhænger
- *  af billettype og altid beregnes serverside; offers peger på billetkøbet, og
- *  availability afspejler eventets udsolgt-flag. */
-export function eventsJsonLd(shows: ShowDate[]) {
+ *  (lib/events.ts og billettyperne fra Airtable) som den synlige datovælger på
+ *  /book, så synligt indhold og structured data aldrig kan være uenige.
+ *  Ét Offer pr. billettype i forestillingens prisgruppe med den pris inkl.
+ *  gebyr, der står på siden. Uden billettyper udelades prisen frem for at
+ *  blive gættet. validFrom er forestillingens oprettelse i Airtable, da den
+ *  kan købes fra da; mangler den, udelades feltet. */
+export function eventsJsonLd(shows: ShowDate[], ticketTypes: EventTicketType[] = []) {
   const site = siteUrl();
   const bookUrl = `${site}/book`;
   return shows
     .filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s.date))
-    .map((s) => ({
-      "@context": "https://schema.org",
-      "@type": "Event",
-      name: s.title,
-      description: SITE_DESCRIPTION,
-      image: `${site}${encodeURI(OG_BILLEDE.src)}`,
-      // Dansk lokal tid; uden klokkeslæt bruges ren dato.
-      startDate: /^\d{2}:\d{2}$/.test(s.time) ? `${s.date}T${s.time}:00` : s.date,
-      eventStatus: "https://schema.org/EventScheduled",
-      eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-      location: {
-        "@type": "PerformingArtsTheater",
-        "@id": VENUE_ID(),
-        name: SITE_NAME,
-        address: postalAddress(),
-      },
-      performer: {
-        "@type": "PerformingGroup",
-        name: "Bakkesangerinderne",
-      },
-      organizer: { "@type": "Organization", "@id": ORG_ID(), name: SITE_NAME },
-      offers: {
-        "@type": "Offer",
+    .map((s) => {
+      const availability = s.soldOut
+        ? "https://schema.org/SoldOut"
+        : "https://schema.org/InStock";
+      const validFrom = s.createdTime ? { validFrom: s.createdTime } : {};
+      const typer = ticketTypes.filter((t) => t.priceGroup === s.priceGroup);
+      const offers =
+        typer.length > 0
+          ? typer.map((t) => ({
+              "@type": "Offer",
+              name: t.category,
+              url: bookUrl,
+              price: t.price + t.fee,
+              priceCurrency: "DKK",
+              availability,
+              ...validFrom,
+            }))
+          : { "@type": "Offer", url: bookUrl, availability, ...validFrom };
+      return {
+        "@context": "https://schema.org",
+        "@type": "Event",
+        name: s.title,
+        description: SITE_DESCRIPTION,
+        image: `${site}${encodeURI(OG_BILLEDE.src)}`,
+        // Dansk lokal tid; uden klokkeslæt bruges ren dato.
+        startDate: /^\d{2}:\d{2}$/.test(s.time) ? `${s.date}T${s.time}:00` : s.date,
+        endDate: endDateFor(s.date, s.time),
+        eventStatus: "https://schema.org/EventScheduled",
+        eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+        location: {
+          "@type": "PerformingArtsTheater",
+          "@id": VENUE_ID(),
+          name: SITE_NAME,
+          address: postalAddress(),
+        },
+        performer: {
+          "@type": "PerformingGroup",
+          name: "Bakkesangerinderne",
+        },
+        organizer: {
+          "@type": "Organization",
+          "@id": ORG_ID(),
+          name: SITE_NAME,
+          url: `${site}/`,
+        },
+        offers,
         url: bookUrl,
-        availability: s.soldOut
-          ? "https://schema.org/SoldOut"
-          : "https://schema.org/InStock",
-      },
-      url: bookUrl,
-    }));
+      };
+    });
 }
 
 /** Person-data for sæsonens besætning (til /sangerinderne). Kun navn, rolle og

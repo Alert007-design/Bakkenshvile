@@ -34,6 +34,9 @@ export type ShowDate = {
    * felt i Airtable bliver til null her og betyder "brug standardtallet".
    */
   kapacitetsjustering: Kapacitetsjustering;
+  /** Hvornår forestillingen blev oprettet i Airtable (ISO). Fra da kan den
+   *  købes på siden; bruges som "til salg fra" i Googles forestillingsdata. */
+  createdTime?: string;
 };
 
 /** Læser et kapacitetsfelt. Tomt eller ikke-tal bliver til null. */
@@ -60,6 +63,7 @@ export function toShowDate(record: AirtableRecord): ShowDate {
       a: kapacitetsfelt(f[FIELDS.event.kapacitetA]),
       b: kapacitetsfelt(f[FIELDS.event.kapacitetB]),
     },
+    ...(record.createdTime ? { createdTime: record.createdTime } : {}),
   };
 }
 
