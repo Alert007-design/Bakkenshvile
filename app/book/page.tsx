@@ -56,7 +56,7 @@ export default async function Page() {
           derfor aldrig være uenige om datoer eller udsolgt-status. */}
       <JsonLd
         data={[
-          ...eventsJsonLd(shows),
+          ...eventsJsonLd(shows, tickets),
           breadcrumbs([
             ["Forside", "/"],
             ["Billetter", "/book"],
