@@ -8,6 +8,8 @@ import {
   faarNummer,
   manglerBetaling,
   kategoriTekst,
+  erIkkeBetalt,
+  delEfterBetaling,
   type NummerBooking,
 } from "./gaesteliste";
 
@@ -251,5 +253,44 @@ describe("kategoriTekst", () => {
   it("giver tom tekst, når kategorien ikke kan læses", () => {
     expect(kategoriTekst("", 2)).toBe("");
     expect(kategoriTekst("noget rod", 2)).toBe("");
+  });
+});
+
+describe("erIkkeBetalt", () => {
+  it("regner forladte og udløbne køb som ikke betalt", () => {
+    expect(erIkkeBetalt("Afventer betaling")).toBe(true);
+    expect(erIkkeBetalt("Udløbet")).toBe(true);
+    expect(erIkkeBetalt("  Afventer betaling ")).toBe(true);
+  });
+
+  it("regner betalte, ekstrabilletter, selskaber og gamle bookinger som gæster", () => {
+    expect(erIkkeBetalt("Betalt")).toBe(false);
+    expect(erIkkeBetalt("Ekstra – afventer betaling")).toBe(false);
+    expect(erIkkeBetalt("Reserveret – afventer betaling")).toBe(false);
+    // Ukendt eller tom status (fx en ældre import) fjernes ikke fra listen.
+    expect(erIkkeBetalt("")).toBe(false);
+    expect(erIkkeBetalt("Noget andet")).toBe(false);
+  });
+});
+
+describe("delEfterBetaling", () => {
+  const r = (id: string, status: string, ticketCount: number) => ({ id, status, ticketCount });
+
+  it("deler aftenens bookinger i gæster og ikke betalte forsøg", () => {
+    // Som den 20. maj 2027: 2 rigtige gæster og 3 ens forsøg uden betaling.
+    const { gaester, ikkeBetalte } = delEfterBetaling([
+      r("a", "Betalt", 4),
+      r("b", "Afventer betaling", 3),
+      r("c", "Afventer betaling", 3),
+      r("d", "Ekstra – afventer betaling", 2),
+      r("e", "Udløbet", 3),
+    ]);
+    expect(gaester.map((x) => x.id)).toEqual(["a", "d"]);
+    expect(ikkeBetalte.map((x) => x.id)).toEqual(["b", "c", "e"]);
+    expect(gaester.reduce((s, x) => s + x.ticketCount, 0)).toBe(6);
+  });
+
+  it("giver tomme lister uden bookinger", () => {
+    expect(delEfterBetaling([])).toEqual({ gaester: [], ikkeBetalte: [] });
   });
 });

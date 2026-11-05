@@ -17,6 +17,29 @@ const STATUSER_MED_NUMMER = new Set(["Betalt", "Ekstra – afventer betaling", S
 
 export const UKENDT_KATEGORI = "Ukendt kategori";
 
+/**
+ * Statusser for køb, der aldrig blev betalt: kunden forlod betalingen, kortet
+ * blev afvist, eller betalingslinket udløb. De er ikke gæster og skal hverken
+ * stå på bordplanen eller tælle med i gæstetallet.
+ */
+const STATUSER_IKKE_BETALT = new Set(["Afventer betaling", "Udløbet"]);
+
+/** Er bookingen et køb, der aldrig blev betalt? Ukendt status regnes som gæst. */
+export function erIkkeBetalt(status: string): boolean {
+  return STATUSER_IKKE_BETALT.has(String(status ?? "").trim());
+}
+
+/** Deler aftenens bookinger i gæster og ikke betalte forsøg. Rækkefølgen bevares. */
+export function delEfterBetaling<T extends { status: string }>(
+  bookinger: T[]
+): { gaester: T[]; ikkeBetalte: T[] } {
+  const gaester: T[] = [];
+  const ikkeBetalte: T[] = [];
+  for (const b of bookinger) (erIkkeBetalt(b.status) ? ikkeBetalte : gaester).push(b);
+  return { gaester, ikkeBetalte };
+}
+
+
 /** Får en booking med denne status et gæstenummer? */
 export function faarNummer(status: string): boolean {
   return STATUSER_MED_NUMMER.has(status);

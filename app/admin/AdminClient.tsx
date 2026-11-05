@@ -123,6 +123,7 @@ export default function AdminClient({
     initialShowId && shows.some((s) => s.id === initialShowId) ? initialShowId : shows[0]?.id ?? ""
   );
   const [rows, setRows] = useState<Row[]>([]);
+  const [ikkeBetalte, setIkkeBetalte] = useState<Row[]>([]);
   const [tilbage, setTilbage] = useState<Record<string, number> | null>(null);
   const [nummerFejl, setNummerFejl] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -139,6 +140,7 @@ export default function AdminClient({
       .then((r) => r.json())
       .then((data) => {
         setRows(data.rows || []);
+        setIkkeBetalte(data.ikkeBetalte || []);
         setTilbage(data.tilbage ?? null);
         setNummerFejl(Boolean(data.nummerFejl));
       })
@@ -696,6 +698,54 @@ export default function AdminClient({
           </div>
         ))}
       </div>
+
+      {ikkeBetalte.length > 0 && (
+        <div className="no-print" style={{ marginTop: 32 }}>
+          <h2 style={{ fontSize: 18, marginBottom: 4 }}>
+            Ikke betalt ({ikkeBetalte.length})
+          </h2>
+          <p style={{ fontSize: 13, color: "#666", marginTop: 0 }}>
+            Køb, der blev påbegyndt, men aldrig betalt. Kunden har forladt betalingen, kortet
+            blev afvist, eller betalingen udløb. De har ingen pladser og tæller ikke med i
+            gæstetallet ovenfor.
+          </p>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>
+                <th style={{ padding: 6 }}>Booking</th>
+                <th style={{ padding: 6 }}>Kunde</th>
+                <th style={{ padding: 6 }}>Billetter</th>
+                <th style={{ padding: 6 }}>Påbegyndt</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorterEfterBestilt(ikkeBetalte).map((r) => (
+                <tr key={r.id} style={{ borderBottom: "1px solid #eee", color: "#666" }}>
+                  <td style={{ padding: 6 }}>{r.bookingNo}</td>
+                  <td style={{ padding: 6 }}>
+                    {r.customerName}
+                    {r.customerPhone && (
+                      <span style={{ color: "#999" }}> · {r.customerPhone}</span>
+                    )}
+                  </td>
+                  <td style={{ padding: 6 }}>{r.ticketBreakdown || `${r.ticketCount} stk.`}</td>
+                  <td style={{ padding: 6 }}>
+                    {r.bestilt
+                      ? new Date(r.bestilt).toLocaleString("da-DK", {
+                          timeZone: "Europe/Copenhagen",
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {(() => {
         // Oversigt under gæstelisten: kundens bemærkninger og forudbestilte

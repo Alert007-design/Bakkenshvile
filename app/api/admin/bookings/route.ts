@@ -12,7 +12,7 @@ import { getDb } from "@/lib/db";
 import { frigivUdloebne, hentTagneForShows } from "@/lib/seat-holds";
 import { getShowDate } from "@/lib/events";
 import { byggOversigt, kapaciteterFor, kategoriFraAirtable } from "@/lib/kapacitet";
-import { tildelGaestenumre, type NummerBooking } from "@/lib/gaesteliste";
+import { delEfterBetaling, tildelGaestenumre, type NummerBooking } from "@/lib/gaesteliste";
 import { udenAnnullerede } from "@/lib/annuller-booking";
 import {
   EKSTRA_STATUS_AFVENTER,
@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Annullerede bookinger tæller ikke med i bordplan, gæsteliste og gæstetal.
-  const rows = udenAnnullerede(forestillingens.map((b) => {
+  const alle = udenAnnullerede(forestillingens.map((b) => {
     const customerFields = kundeFor(b);
     return {
       id: b.id,
@@ -155,6 +155,10 @@ export async function GET(req: NextRequest) {
       customerPhone: String(customerFields[FIELDS.customer.phone] ?? ""),
     };
   }));
+  // Køb, der aldrig blev betalt (forladt betaling, afvist kort, udløbet link),
+  // er ikke gæster. De sendes for sig, så de hverken står på bordplanen eller
+  // tæller med i gæstetallet, men stadig kan ses af personalet.
+  const { gaester: rows, ikkeBetalte } = delEfterBetaling(alle);
 
   // Billetter tilbage pr. billetkategori (samme tal som /admin/kapacitet).
   // Kategorinavnet på bookingen slås op i billettyperne for at finde den
@@ -184,7 +188,7 @@ export async function GET(req: NextRequest) {
     console.error("Bordplan: kunne ikke hente billetter tilbage");
   }
 
-  return NextResponse.json({ rows, tilbage, nummerFejl });
+  return NextResponse.json({ rows, ikkeBetalte, tilbage, nummerFejl });
 }
 export async function PATCH(req: NextRequest) {
   const s = session(req);
