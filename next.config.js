@@ -29,6 +29,11 @@ const REDIRECTS = [
   { source: "/vil-du-booke-syngepigerne", destination: "/underholdning-til-fest", permanent: true },
   // Kontaktsiden → praktisk information (adresse + kontakt).
   { source: "/kontakt", destination: "/praktisk", permanent: true },
+  // Fundet som 404 i Search Console 9. nov. 2026 (gamle WordPress-adresser).
+  // /embed er WordPress' tekniske adresse og må gerne give 404.
+  { source: "/om", destination: "/historie", permanent: true },
+  { source: "/da", destination: "/", permanent: true },
+  { source: "/da/kontakt-bakkens-hvile", destination: "/praktisk", permanent: true },
   // Det gamle TicketCloud-billetsystem (lukket 31-10-2026). Domænet
   // billetter.bakkenshvile.dk peger nu på dette projekt i Vercel, og ALLE
   // adresser derfra (forside, gamle links til en bestemt forestilling, .php-
