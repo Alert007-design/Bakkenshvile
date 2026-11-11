@@ -1,7 +1,8 @@
 "use client";
 
 // Slå en booking op på bookingnummeret og se alt om bookingen og kunden.
-// Herfra kan man også skrive en note og annullere en betalt booking.
+// Herfra kan man også skrive en note, rette kundens email og annullere en
+// betalt booking.
 
 import { useCallback, useEffect, useState } from "react";
 import type { Opslag } from "@/lib/bookingopslag";
@@ -109,6 +110,64 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
       setNoteBesked(e instanceof Error ? e.message : "Noten blev ikke gemt.");
     } finally {
       setNoteArbejder(false);
+    }
+  }
+
+  const [visRetEmail, setVisRetEmail] = useState(false);
+  const [nyEmail, setNyEmail] = useState("");
+  const [emailArbejder, setEmailArbejder] = useState(false);
+  const [emailBesked, setEmailBesked] = useState("");
+  const [emailForslag, setEmailForslag] = useState("");
+  const [emailRettet, setEmailRettet] = useState<{
+    bookingNo: string;
+    email: string;
+    antalBookinger: number;
+  } | null>(null);
+  const [billetSendes, setBilletSendes] = useState(false);
+  const [billetSendt, setBilletSendt] = useState(false);
+
+  async function retEmail(o: Opslag, email: string, bekraeftet: boolean) {
+    setEmailArbejder(true);
+    setEmailBesked("");
+    setEmailForslag("");
+    try {
+      const res = await fetch("/api/admin/kunde-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ bookingId: o.id, email, bekraeftet }),
+      });
+      const data = await res.json();
+      if (res.status === 409 && data.forslag) {
+        setEmailForslag(data.forslag);
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || "Emailen blev ikke rettet.");
+      setVisRetEmail(false);
+      setBilletSendt(false);
+      await slaaOp(o.bookingNo);
+      setEmailRettet({ bookingNo: o.bookingNo, email: data.email, antalBookinger: data.antalBookinger });
+    } catch (e) {
+      setEmailBesked(e instanceof Error ? e.message : "Emailen blev ikke rettet.");
+    } finally {
+      setEmailArbejder(false);
+    }
+  }
+
+  async function sendBilletIgen(o: Opslag) {
+    setBilletSendes(true);
+    try {
+      const res = await fetch("/api/admin/resend-ticket", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ bookingId: o.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Billetten blev ikke sendt.");
+      setBilletSendt(true);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Billetten blev ikke sendt.");
+    } finally {
+      setBilletSendes(false);
     }
   }
 
@@ -491,6 +550,128 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
                   </Linje>
                 </tbody>
               </table>
+              {!visRetEmail && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNyEmail(o.kunde.email);
+                    setEmailBesked("");
+                    setEmailForslag("");
+                    setEmailRettet(null);
+                    setVisRetEmail(true);
+                  }}
+                  style={{ marginTop: 10, padding: "6px 12px", cursor: "pointer", fontSize: 14 }}
+                >
+                  Ret email
+                </button>
+              )}
+              {visRetEmail && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    retEmail(o, nyEmail, false);
+                  }}
+                  style={{ marginTop: 12 }}
+                >
+                  <label htmlFor="ny-email" style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+                    Ny email
+                  </label>
+                  <input
+                    id="ny-email"
+                    type="email"
+                    value={nyEmail}
+                    onChange={(e) => {
+                      setNyEmail(e.target.value);
+                      setEmailBesked("");
+                      setEmailForslag("");
+                    }}
+                    autoComplete="off"
+                    style={{ padding: 8, fontSize: 15, width: "100%", maxWidth: 360, boxSizing: "border-box" }}
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="submit"
+                      disabled={emailArbejder || !nyEmail.trim()}
+                      style={{
+                        padding: "6px 14px",
+                        background: "#0d3b2e",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 3,
+                        cursor: "pointer",
+                        fontSize: 14,
+                      }}
+                    >
+                      {emailArbejder ? "Gemmer…" : "Gem email"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVisRetEmail(false)}
+                      style={{ padding: "6px 12px", cursor: "pointer", fontSize: 14 }}
+                    >
+                      Fortryd
+                    </button>
+                  </div>
+                  {emailForslag && (
+                    <div style={{ marginTop: 10, background: "#fff4d6", border: "1px solid #b8860b", padding: "8px 12px", borderRadius: 4 }}>
+                      <div style={{ fontWeight: 700 }}>Mente du {emailForslag}?</div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          disabled={emailArbejder}
+                          onClick={() => {
+                            setNyEmail(emailForslag);
+                            retEmail(o, emailForslag, false);
+                          }}
+                          style={{ padding: "5px 12px", cursor: "pointer", fontSize: 14 }}
+                        >
+                          Ja, brug {emailForslag}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={emailArbejder}
+                          onClick={() => retEmail(o, nyEmail, true)}
+                          style={{ padding: "5px 12px", cursor: "pointer", fontSize: 14 }}
+                        >
+                          Nej, gem som skrevet
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {emailBesked && <p style={{ margin: "8px 0 0", fontSize: 14, color: "#8a1f2b" }}>{emailBesked}</p>}
+                </form>
+              )}
+              {emailRettet && emailRettet.bookingNo === o.bookingNo && (
+                <div style={{ marginTop: 12, background: "#eef6f1", border: "1px solid #0d3b2e", padding: "10px 14px", borderRadius: 4 }}>
+                  <div style={{ fontWeight: 700 }}>Emailen er rettet til {emailRettet.email}.</div>
+                  {emailRettet.antalBookinger > 1 && (
+                    <p style={{ margin: "4px 0 0", fontSize: 14 }}>
+                      Kunden har {emailRettet.antalBookinger} bookinger, og rettelsen gælder dem alle.
+                    </p>
+                  )}
+                  {o.status !== "Annulleret" && (
+                    <div style={{ marginTop: 8 }}>
+                      <button
+                        type="button"
+                        disabled={billetSendes || billetSendt}
+                        onClick={() => sendBilletIgen(o)}
+                        style={{ padding: "6px 12px", cursor: "pointer", fontSize: 14 }}
+                      >
+                        {billetSendt
+                          ? "Billetten er sendt"
+                          : billetSendes
+                            ? "Sender…"
+                            : "Send billetten til den nye adresse"}
+                      </button>
+                      {!billetSendt && (
+                        <span style={{ marginLeft: 10, fontSize: 13, color: "#777" }}>
+                          Der sendes ikke noget, før du trykker.
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {o.match.vilMatches && (
