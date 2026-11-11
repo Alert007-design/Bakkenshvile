@@ -38,6 +38,7 @@ import { createTicketPayment, type TicketLineItem } from "@/lib/ticket-payments"
 import { validateTicketCheckout, type TicketTypeDef } from "@/lib/ticket-checkout";
 import { ekstrabilletEmailHtml } from "@/lib/mail/ekstrabillet-email";
 import { daDateShort } from "@/lib/ticket-email";
+import { gyldigtOpslagsnummer } from "@/lib/bookingopslag";
 
 /** Hvor længe Vivas betalingslink gælder: 24 timer (86400 sek.). */
 export const EKSTRA_BETALINGSFRIST_MINUTTER = 24 * 60;
@@ -59,6 +60,8 @@ export interface EkstraDeps {
   opretBooking(fields: Record<string, unknown>): Promise<{ id: string }>;
   opretBetaling(input: CreatePaymentInput): Promise<CreatePaymentResult>;
   sendMail(m: { to: string; subject: string; html: string }): Promise<void>;
+  /** Finder den reservation, de ekstra billetter hører til. null = findes ikke. */
+  hentOriginal(bookingNo: string): Promise<{ bookingNo: string } | null>;
   /** VIVA_SOURCE_CODE_TICKETS – samme kilde som almindelige billetkøb. */
   sourceCode: string;
   origin: string;
@@ -71,6 +74,8 @@ export interface EkstraInput {
   tickets?: { ticketTypeId: string; quantity: number }[];
   customer?: { name?: string; email?: string; phone?: string };
   note?: string;
+  /** Bookingnummeret på den reservation, billetterne skal lægges til (valgfrit). */
+  tilhoererBookingNo?: string;
   /** Sættes, når personalet har set advarslen om oversalg og bekræftet. */
   bekraeftOversalg?: boolean;
 }
@@ -161,6 +166,19 @@ export async function opretEkstrabillet(
     };
   }
 
+  // Ekstra billetter til en eksisterende reservation: nummeret skal findes,
+  // før noget oprettes. Den nye booking kobles til den gamle via noten.
+  let tilhoerer = "";
+  if (typeof input.tilhoererBookingNo === "string" && input.tilhoererBookingNo.trim()) {
+    const nr = gyldigtOpslagsnummer(input.tilhoererBookingNo);
+    if (!nr) return { ok: false, status: 400, error: "Bookingnummeret er ugyldigt." };
+    const original = await deps.hentOriginal(nr);
+    if (!original) {
+      return { ok: false, status: 404, error: `Der findes ingen booking med nummeret ${nr}.` };
+    }
+    tilhoerer = original.bookingNo || nr;
+  }
+
   const show = input.showId ? await deps.hentShow(input.showId) : null;
   if (!show) return { ok: false, status: 404, error: "Forestillingen findes ikke." };
 
@@ -207,7 +225,9 @@ export async function opretEkstrabillet(
   const booking = await deps.opretBooking({
     [FIELDS.booking.bookingNo]: bookingNo,
     [FIELDS.booking.ticketCount]: result.totals.ticketCount,
-    [FIELDS.booking.specialRequests]: note ? `Ekstrabillet – ${note}` : "Ekstrabillet",
+    [FIELDS.booking.specialRequests]: ["Ekstrabillet", tilhoerer ? `hører til ${tilhoerer}` : "", note]
+      .filter(Boolean)
+      .join(" – "),
     [FIELDS.booking.status]: EKSTRA_STATUS_AFVENTER,
     [FIELDS.booking.discount]: 0,
     [FIELDS.booking.customer]: [kunde.id],
@@ -273,7 +293,9 @@ export async function opretEkstrabillet(
   try {
     await deps.sendMail({
       to: email,
-      subject: `Betal dine billetter til Bakkens Hvile ${daDateShort(show.date)} – ${bookingNo}`,
+      subject: tilhoerer
+        ? `Ekstra billetter til din booking ${tilhoerer} – betal med kort`
+        : `Betal dine billetter til Bakkens Hvile ${daDateShort(show.date)} – ${bookingNo}`,
       html: ekstrabilletEmailHtml({
         kundeNavn: navn,
         bookingNo,
@@ -285,6 +307,7 @@ export async function opretEkstrabillet(
         totalOre,
         betalingslink: betaling.redirectUrl,
         udloeber,
+        tilhoererBookingNo: tilhoerer || undefined,
       }),
     });
     emailed = true;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   createRecord,
+  findRecords,
   cachedListRecords,
   TABLES,
   FIELDS,
@@ -62,6 +63,12 @@ export async function POST(req: NextRequest) {
         opretBetaling: (input) => provider.createPayment(input),
         sendMail: async (m) => {
           await sendMail(m);
+        },
+        hentOriginal: async (nr) => {
+          // nr er allerede renset af gyldigtOpslagsnummer (kun A-Z, 0-9 og -).
+          const fundne = await findRecords(TABLES.bookings, `{Bookingnr}="${nr}"`);
+          const b = fundne[0];
+          return b ? { bookingNo: String(b.fields[FIELDS.booking.bookingNo] ?? nr) } : null;
         },
         sourceCode: vivaSourceCode("tickets"),
         origin: req.nextUrl.origin,

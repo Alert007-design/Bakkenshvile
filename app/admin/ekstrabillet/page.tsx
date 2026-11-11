@@ -12,7 +12,14 @@ export const metadata = { robots: { index: false, follow: false } };
 // Personalets side til ekstra betalte billetter (ud over kapaciteten). Bag den
 // fælles login-session (middleware håndhæver den også).
 
-export default async function EkstrabilletPage() {
+type Soeg = Record<string, string | string[] | undefined>;
+
+function enkelt(v: string | string[] | undefined, maks: number): string {
+  const s = Array.isArray(v) ? v[0] : v;
+  return typeof s === "string" ? s.trim().slice(0, maks) : "";
+}
+
+export default async function EkstrabilletPage({ searchParams = {} }: { searchParams?: Soeg }) {
   let session = null;
   try {
     session = verifyStaffSession(cookies().get(STAFF_COOKIE_NAME)?.value);
@@ -50,6 +57,13 @@ export default async function EkstrabilletPage() {
       shows={showList}
       ticketTypes={ticketTypes}
       csrf={session.csrf}
+      start={{
+        showId: enkelt(searchParams.show, 40),
+        navn: enkelt(searchParams.navn, 120),
+        email: enkelt(searchParams.email, 200),
+        telefon: enkelt(searchParams.tlf, 40),
+        tilhoerer: enkelt(searchParams.tilhoerer, 40),
+      }}
     />
   );
 }

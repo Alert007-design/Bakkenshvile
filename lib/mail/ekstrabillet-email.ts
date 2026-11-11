@@ -29,6 +29,8 @@ export interface EkstrabilletMailParams {
   betalingslink: string;
   /** Hvornår linket udløber, som tekst (fx "søndag den 1. november kl. 12.05"). */
   udloeber: string;
+  /** Den reservation, billetterne lægges til. Giver mailen form af en reservationsbekræftelse. */
+  tilhoererBookingNo?: string;
 }
 
 function kr(ore: number): string {
@@ -50,13 +52,18 @@ export function ekstrabilletEmailHtml(p: EkstrabilletMailParams): string {
 
   const knap = `      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px auto 8px;">
         <tr><td align="center" bgcolor="${FARVER.groen}" style="background:${FARVER.groen};border-radius:4px;">
-          <a href="${escapeHtml(p.betalingslink)}" style="display:inline-block;padding:14px 30px;font-family:${SKRIFT};font-size:17px;line-height:22px;color:${FARVER.creme};text-decoration:none;font-weight:bold;">Betal dine billetter</a>
+          <a href="${escapeHtml(p.betalingslink)}" style="display:inline-block;padding:14px 30px;font-family:${SKRIFT};font-size:17px;line-height:22px;color:${FARVER.creme};text-decoration:none;font-weight:bold;">${p.tilhoererBookingNo ? "Betal med kort" : "Betal dine billetter"}</a>
         </td></tr>
       </table>`;
 
-  const indhold = `${overskrift("Dine billetter er klar til betaling")}
+  const intro = p.tilhoererBookingNo
+    ? `Vi har reserveret de ekstra billetter, du har bedt om, til din booking ${escapeHtml(
+        p.tilhoererBookingNo
+      )}. Din nuværende billet gælder fortsat. Betal de ekstra billetter med kort via knappen herunder, så får du dem på mail bagefter.`
+    : "Vi har lagt billetter til side til dig. Når du har betalt, får du selve billetten på mail.";
+  const indhold = `${overskrift(p.tilhoererBookingNo ? "Dine ekstra billetter er reserveret" : "Dine billetter er klar til betaling")}
       <p style="margin:0 0 14px;font-family:${SKRIFT};font-size:16px;line-height:25px;color:${FARVER.blaek};">${hilsen}</p>
-      <p style="margin:0 0 14px;font-family:${SKRIFT};font-size:16px;line-height:25px;color:${FARVER.blaek};">Vi har lagt billetter til side til dig. Når du har betalt, får du selve billetten på mail.</p>
+      <p style="margin:0 0 14px;font-family:${SKRIFT};font-size:16px;line-height:25px;color:${FARVER.blaek};">${intro}</p>
       <p style="margin:0 0 6px;font-family:${SKRIFT};font-size:16px;line-height:25px;color:${FARVER.groen};"><strong>${forestilling}</strong></p>
       <p style="margin:0;font-family:${SKRIFT};font-size:15px;line-height:23px;color:${FARVER.blaek};">Pladser: ${escapeHtml(
         pladserTekst(p.pladser)
@@ -85,7 +92,7 @@ ${fremhaevetFelt(
 )}`;
 
   return mailLayout({
-    title: "Betal dine billetter til Bakkens Hvile",
+    title: p.tilhoererBookingNo ? "Dine ekstra billetter er reserveret" : "Betal dine billetter til Bakkens Hvile",
     preheader: `${p.bookingNo} – ${kr(p.totalOre)} – linket gælder til ${p.udloeber}`,
     indhold,
   });

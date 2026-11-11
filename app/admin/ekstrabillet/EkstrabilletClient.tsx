@@ -55,20 +55,36 @@ const input: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
+export type Start = {
+  showId: string;
+  navn: string;
+  email: string;
+  telefon: string;
+  /** Bookingnummeret, billetterne lægges til (fra opslagssiden). */
+  tilhoerer: string;
+};
+
+const TOM_START: Start = { showId: "", navn: "", email: "", telefon: "", tilhoerer: "" };
+
 export default function EkstrabilletClient({
   shows,
   ticketTypes,
   csrf,
+  start = TOM_START,
 }: {
   shows: Show[];
   ticketTypes: TicketType[];
   csrf: string;
+  start?: Start;
 }) {
-  const [showId, setShowId] = useState("");
+  const [tilhoerer, setTilhoerer] = useState(start.tilhoerer);
+  const [showId, setShowId] = useState(
+    shows.some((s) => s.id === start.showId) ? start.showId : ""
+  );
   const [qty, setQty] = useState<Record<string, number>>({});
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(start.navn);
+  const [email, setEmail] = useState(start.email);
+  const [phone, setPhone] = useState(start.telefon);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -141,6 +157,7 @@ export default function EkstrabilletClient({
             tickets,
             customer: { name: name.trim(), email: email.trim(), phone: phone.trim() },
             note: note.trim() || undefined,
+            tilhoererBookingNo: tilhoerer || undefined,
             bekraeftOversalg: bekraeft || undefined,
           }),
         }
@@ -163,6 +180,7 @@ export default function EkstrabilletClient({
       setEmail("");
       setPhone("");
       setNote("");
+      setTilhoerer("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Noget gik galt");
     } finally {
@@ -195,6 +213,29 @@ export default function EkstrabilletClient({
         almindelige billetpris med gebyr og kan ikke ændres. Billetten sendes
         først, når gæsten har betalt. Betaler gæsten ikke, frigives pladserne.
       </p>
+
+      {tilhoerer && (
+        <div
+          style={{
+            background: "#eef6f1",
+            border: "1px solid #0d3b2e",
+            borderRadius: 6,
+            padding: "10px 14px",
+            fontSize: 14,
+          }}
+        >
+          <strong>Ekstra billetter til booking {tilhoerer}.</strong> Gæsten får en
+          reservationsbekræftelse med et link til at betale med kort. Den
+          nuværende billet gælder stadig.{" "}
+          <button
+            type="button"
+            onClick={() => setTilhoerer("")}
+            style={{ background: "none", border: "none", color: "#8a1f2b", cursor: "pointer", padding: 0, fontSize: 14, textDecoration: "underline" }}
+          >
+            Fjern koblingen
+          </button>
+        </div>
+      )}
 
       <label style={label} htmlFor="eks-show">Forestilling</label>
       <select

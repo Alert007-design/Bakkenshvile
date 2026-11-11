@@ -96,6 +96,7 @@ function lavDeps(over: Partial<EkstraDeps> = {}) {
     sendMail: async (m) => {
       mails.push(m);
     },
+    hentOriginal: async (nr) => (nr === "BH-K7M2Q9XR" ? { bookingNo: nr } : null),
     sourceCode: "6238",
     origin: "https://bakkenshvile.vercel.app",
     ...over,
@@ -266,6 +267,65 @@ describe("oprettelse", () => {
     ).rejects.toThrow();
     expect((await hentTagne(db, SHOW.id)).a).toBe(0);
     expect(mails).toHaveLength(0);
+  });
+});
+
+describe("ekstra billetter til en eksisterende reservation", () => {
+  it("kobler den nye booking til den gamle og nævner den i mailen", async () => {
+    const { deps, bookinger, mails } = lavDeps();
+    const svar = await opretEkstrabillet(deps, {
+      showId: SHOW.id,
+      tickets: [{ ticketTypeId: "recTypeA", quantity: 1 }],
+      customer: GAEST,
+      note: "Svigermor kommer med",
+      tilhoererBookingNo: " bh-k7m2q9xr ",
+    });
+    expect(svar.ok).toBe(true);
+    expect(String(bookinger[0][FIELDS.booking.specialRequests])).toBe(
+      "Ekstrabillet – hører til BH-K7M2Q9XR – Svigermor kommer med"
+    );
+    expect(mails[0].subject).toContain("BH-K7M2Q9XR");
+    expect(mails[0].html).toContain("Dine ekstra billetter er reserveret");
+    expect(mails[0].html).toContain("BH-K7M2Q9XR");
+    expect(mails[0].html).toContain("Betal med kort");
+  });
+
+  it("afviser et bookingnummer, der ikke findes, uden at oprette noget", async () => {
+    const { deps, bookinger, betalinger, mails } = lavDeps();
+    const svar = await opretEkstrabillet(deps, {
+      showId: SHOW.id,
+      tickets: [{ ticketTypeId: "recTypeA", quantity: 1 }],
+      customer: GAEST,
+      tilhoererBookingNo: "BH-FINDESIKKE",
+    });
+    expect(svar).toMatchObject({ ok: false, status: 404 });
+    expect(bookinger).toHaveLength(0);
+    expect(betalinger).toHaveLength(0);
+    expect(mails).toHaveLength(0);
+    expect((await hentTagne(db, SHOW.id)).a).toBe(0);
+  });
+
+  it("afviser et ugyldigt bookingnummer", async () => {
+    const { deps, bookinger } = lavDeps();
+    const svar = await opretEkstrabillet(deps, {
+      showId: SHOW.id,
+      tickets: [{ ticketTypeId: "recTypeA", quantity: 1 }],
+      customer: GAEST,
+      tilhoererBookingNo: '"),OR(1',
+    });
+    expect(svar).toMatchObject({ ok: false, status: 400 });
+    expect(bookinger).toHaveLength(0);
+  });
+
+  it("uden bookingnummer er mailen som før", async () => {
+    const { deps, mails } = lavDeps();
+    await opretEkstrabillet(deps, {
+      showId: SHOW.id,
+      tickets: [{ ticketTypeId: "recTypeA", quantity: 1 }],
+      customer: GAEST,
+    });
+    expect(mails[0].html).toContain("Dine billetter er klar til betaling");
+    expect(mails[0].html).not.toContain("ekstra billetter er reserveret");
   });
 });
 
