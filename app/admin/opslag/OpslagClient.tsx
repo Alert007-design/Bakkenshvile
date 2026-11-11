@@ -1,8 +1,8 @@
 "use client";
 
 // Slå en booking op på bookingnummeret og se alt om bookingen og kunden.
-// Herfra kan man også skrive en note, rette kundens email og annullere en
-// betalt booking.
+// Herfra kan man også skrive en note, rette kundens email, tilføje billetter,
+// flytte en betalt booking til en anden dato og annullere den.
 
 import { useCallback, useEffect, useState } from "react";
 import type { Opslag } from "@/lib/bookingopslag";
@@ -168,6 +168,108 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
       window.alert(e instanceof Error ? e.message : "Billetten blev ikke sendt.");
     } finally {
       setBilletSendes(false);
+    }
+  }
+
+  type Mulighed = {
+    id: string;
+    title: string;
+    date: string;
+    time: string;
+    ledige: Record<string, number>;
+    plads: boolean;
+    prisforskelKr: number | null;
+    grund: string;
+  };
+  const [visFlyt, setVisFlyt] = useState(false);
+  const [flytHenter, setFlytHenter] = useState(false);
+  const [flytMuligheder, setFlytMuligheder] = useState<Mulighed[]>([]);
+  const [flytOensket, setFlytOensket] = useState<Record<string, number>>({});
+  const [flytValgt, setFlytValgt] = useState("");
+  const [flytFejl, setFlytFejl] = useState("");
+  const [flytArbejder, setFlytArbejder] = useState(false);
+  const [flytResultat, setFlytResultat] = useState<{
+    bookingNo: string;
+    fra: string;
+    til: string;
+    prisforskelKr: number;
+    betalingslink?: string;
+    tilgodeseddel?: { kode: string; kr: number };
+    emailed: boolean;
+    advarsler: string[];
+  } | null>(null);
+
+  function prisforskelTekst(kr: number | null): string {
+    if (kr === null) return "";
+    if (kr > 0) return `${KR.format(kr)} mere`;
+    if (kr < 0) return `${KR.format(-kr)} billigere`;
+    return "Samme pris";
+  }
+
+  const KATEGORI: Record<string, string> = {
+    aplusForrest: "A+ forrest",
+    aplusBagerst: "A+ bagerst",
+    a: "A",
+    b: "B",
+  };
+  function ledigeTekst(ledige: Record<string, number>): string {
+    return Object.keys(flytOensket)
+      .map((k) => `${KATEGORI[k] ?? k}: ${ledige[k] ?? 0} ledige`)
+      .join(", ");
+  }
+
+  async function aabnFlyt(o: Opslag) {
+    setVisFlyt(true);
+    setFlytHenter(true);
+    setFlytFejl("");
+    setFlytValgt("");
+    setFlytMuligheder([]);
+    try {
+      const res = await fetch(`/api/admin/flyt?bookingId=${encodeURIComponent(o.id)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Datoerne kunne ikke hentes.");
+      setFlytMuligheder(data.muligheder || []);
+      setFlytOensket(data.oensket || {});
+    } catch (e) {
+      setFlytFejl(e instanceof Error ? e.message : "Datoerne kunne ikke hentes.");
+    } finally {
+      setFlytHenter(false);
+    }
+  }
+
+  async function flyt(o: Opslag) {
+    const m = flytMuligheder.find((x) => x.id === flytValgt);
+    if (!m) return;
+    const ekstra =
+      m.prisforskelKr && m.prisforskelKr > 0
+        ? ` Kunden får et link til at betale ${KR.format(m.prisforskelKr)} med kort.`
+        : m.prisforskelKr && m.prisforskelKr < 0
+          ? ` Kunden får en tilgodeseddel på ${KR.format(-m.prisforskelKr)} til baren.`
+          : "";
+    if (
+      !window.confirm(
+        `Flyt ${o.bookingNo} til ${visDato(m.date)} kl. ${m.time}? Kunden får straks en ny billet på mail.${ekstra}`
+      )
+    ) {
+      return;
+    }
+    setFlytArbejder(true);
+    setFlytFejl("");
+    try {
+      const res = await fetch("/api/admin/flyt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ bookingId: o.id, showId: m.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Bookingen blev ikke flyttet.");
+      setVisFlyt(false);
+      await slaaOp(o.bookingNo);
+      setFlytResultat(data);
+    } catch (e) {
+      setFlytFejl(e instanceof Error ? e.message : "Bookingen blev ikke flyttet.");
+    } finally {
+      setFlytArbejder(false);
     }
   }
 
@@ -528,6 +630,136 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
                 </div>
               )}
               {fakturaBesked && <p style={{ marginBottom: 0 }}>{fakturaBesked}</p>}
+              {flytResultat && flytResultat.bookingNo === o.bookingNo && (
+                <div
+                  style={{
+                    marginTop: 14,
+                    background: "#eef6f1",
+                    border: "2px solid #0d3b2e",
+                    borderRadius: 4,
+                    padding: "10px 14px",
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>
+                    Bookingen er flyttet fra {flytResultat.fra} til {flytResultat.til}.
+                  </div>
+                  <p style={{ margin: "6px 0 0", fontSize: 14 }}>
+                    {flytResultat.emailed
+                      ? "Kunden har fået en ny billet på mail."
+                      : "Kunden har ikke fået en ny billet på mail."}
+                    {" "}Bordnummer og gæstenummer er nulstillet.
+                  </p>
+                  {flytResultat.prisforskelKr > 0 && flytResultat.betalingslink && (
+                    <p style={{ margin: "6px 0 0", fontSize: 14 }}>
+                      Kunden skal betale {KR.format(flytResultat.prisforskelKr)} i prisforskel. Linket er sendt med
+                      billetten og gælder i 24 timer:{" "}
+                      <a href={flytResultat.betalingslink} style={{ wordBreak: "break-all" }}>
+                        {flytResultat.betalingslink}
+                      </a>
+                    </p>
+                  )}
+                  {flytResultat.tilgodeseddel && (
+                    <p style={{ margin: "6px 0 0", fontSize: 14 }}>
+                      Kunden har fået en tilgodeseddel på {KR.format(flytResultat.tilgodeseddel.kr)} til baren på
+                      dagen. Kode: <strong>{flytResultat.tilgodeseddel.kode}</strong> (findes under Gavekort).
+                    </p>
+                  )}
+                  {flytResultat.advarsler.map((a) => (
+                    <p key={a} style={{ margin: "6px 0 0", fontSize: 14, color: "#8a1f2b", fontWeight: 700 }}>
+                      {a}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {o.status === "Betalt" && !visFlyt && (
+                <div style={{ marginTop: 14 }}>
+                  <button
+                    type="button"
+                    onClick={() => aabnFlyt(o)}
+                    style={{
+                      padding: "8px 16px",
+                      background: "#fff",
+                      color: "#0d3b2e",
+                      border: "2px solid #0d3b2e",
+                      borderRadius: 3,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Flyt til anden dato
+                  </button>
+                </div>
+              )}
+              {visFlyt && (
+                <div style={{ marginTop: 14, borderTop: "1px solid #e5e0d0", paddingTop: 12 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Flyt til anden dato</div>
+                  {flytHenter && <p style={{ margin: 0 }}>Henter datoer…</p>}
+                  {!flytHenter && flytMuligheder.length === 0 && !flytFejl && (
+                    <p style={{ margin: 0 }}>Der er ingen andre kommende forestillinger.</p>
+                  )}
+                  {flytMuligheder.length > 0 && (
+                    <table style={{ borderCollapse: "collapse", fontSize: 14, width: "100%" }}>
+                      <tbody>
+                        {flytMuligheder.map((m) => {
+                          const kan = m.plads && !m.grund && m.prisforskelKr !== null;
+                          return (
+                            <tr key={m.id} style={{ borderBottom: "1px solid #eee", color: kan ? "#1a1a16" : "#999" }}>
+                              <td style={{ padding: "6px 8px 6px 0" }}>
+                                <input
+                                  type="radio"
+                                  name="flyt-til"
+                                  id={`flyt-${m.id}`}
+                                  disabled={!kan}
+                                  checked={flytValgt === m.id}
+                                  onChange={() => setFlytValgt(m.id)}
+                                />
+                              </td>
+                              <td style={{ padding: "6px 8px" }}>
+                                <label htmlFor={`flyt-${m.id}`}>
+                                  {visDato(m.date)} kl. {m.time}
+                                </label>
+                              </td>
+                              <td style={{ padding: "6px 8px" }}>{prisforskelTekst(m.prisforskelKr)}</td>
+                              <td style={{ padding: "6px 0", fontSize: 13 }}>{m.grund || ledigeTekst(m.ledige)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                  {flytFejl && <p style={{ color: "#8a1f2b", fontWeight: 700, margin: "8px 0 0" }}>{flytFejl}</p>}
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      disabled={!flytValgt || flytArbejder}
+                      onClick={() => flyt(o)}
+                      style={{
+                        padding: "6px 14px",
+                        background: "#0d3b2e",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 3,
+                        cursor: "pointer",
+                        fontSize: 14,
+                      }}
+                    >
+                      {flytArbejder ? "Flytter…" : "Flyt bookingen"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVisFlyt(false)}
+                      style={{ padding: "6px 12px", cursor: "pointer", fontSize: 14 }}
+                    >
+                      Fortryd
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 13, color: "#777", margin: "8px 0 0" }}>
+                    Kunden får straks en ny billet på mail. Er den nye dato dyrere, kommer der et link til at betale
+                    forskellen med kort. Er den billigere, får kunden en tilgodeseddel til baren på dagen.
+                  </p>
+                </div>
+              )}
               {o.status === "Betalt" && (
                 <div style={{ marginTop: 14 }}>
                   <button

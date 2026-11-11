@@ -51,6 +51,7 @@ import { getRecord, updateRecord, TABLES, FIELDS } from "@/lib/airtable";
 import { fuldfoerKunHvisAktiv } from "@/lib/annuller-booking";
 import { buildBookingView } from "@/lib/genbestil";
 import { fulfillGenbestilling } from "@/lib/genbestil-fulfill";
+import { fulfillPrisforskel } from "@/lib/prisforskel-fulfill";
 import { advarOmBeloebsfejl, advarOmBetalingPaaAnnulleret } from "@/lib/payment-alerts";
 import {
   meldSalg,
@@ -496,6 +497,15 @@ async function fulfillTicketPayment(
       });
       await advarOmPladsbogsfejl(payment.bookingNo);
     }
+  }
+
+  if (payment.flow === "prisforskel") {
+    // Prisforskel efter en flytning til en dyrere dato (lib/flyt-booking.ts).
+    // Pladserne er allerede flyttet, og billetten er sendt. Her lægges beløbet
+    // på bookingen, og kunden får en kvittering. Fejler mailen, efter at
+    // Airtable er opdateret, kastes der IKKE.
+    await fulfillPrisforskel(payment);
+    return null;
   }
 
   if (payment.flow === "genbestil") {

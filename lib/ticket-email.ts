@@ -101,6 +101,12 @@ export interface TicketEmailParams {
   discountKr: number;
   totalKr: number;
   discountLabel: string;
+  /**
+   * Sat, når personalet har flyttet reservationen til en anden dato. Mailen
+   * bliver da en ny billet med en forklaring i stedet for en kvittering, og
+   * ekstraHtml (betalingslink eller tilgodeseddel) vises under billetten.
+   */
+  flytning?: { fraTekst: string; ekstraHtml: string };
 }
 
 /**
@@ -165,10 +171,15 @@ export function ticketEmailHtml(params: TicketEmailParams): string {
     discountKr,
     totalKr,
     discountLabel,
+    flytning,
   } = params;
 
   const harDato = Boolean(datoDele(showDateIso));
-  const hilsen = customerName
+  const hilsen = flytning
+    ? `${customerName ? `Kære ${escapeHtml(customerName)}. ` : ""}Vi har flyttet din reservation fra ${escapeHtml(
+        flytning.fraTekst
+      )} til datoen herunder. Det her er din nye billet. Den gamle gælder ikke længere.`
+    : customerName
     ? `Tak for din bestilling, ${escapeHtml(customerName)}. Vi glæder os til at se dig.`
     : "Tak for din bestilling. Vi glæder os til at se dig.";
 
@@ -206,7 +217,23 @@ export function ticketEmailHtml(params: TicketEmailParams): string {
         </tr>`
       : "";
 
-  const indhold = `${overskrift("Her er din billet")}
+  const efterBilletten = flytning
+    ? flytning.ekstraHtml
+    : `${mellemoverskrift("Din bestilling")}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:2px solid ${FARVER.guld};">
+${varelinjer}
+${rabatLinjer}
+${ialtLinje("I alt", `${totalKr} kr.`)}
+      </table>
+${momsNote(
+  "Alle priser er inklusive 25 % moms."
+)}
+
+${fremhaevetFelt(
+  "Bliver du selv forhindret, kan billetten ikke byttes eller refunderes, men den kan i stedet overdrages til tredjemand. Hvis en forestilling aflyses, tilbagebetales billetprisen og prisen for ikke-leverede tilvalg."
+)}`;
+
+  const indhold = `${overskrift(flytning ? "Din reservation er flyttet" : "Her er din billet")}
       <p style="margin:0 0 26px;font-family:${SKRIFT};font-size:16px;line-height:25px;color:${FARVER.blaek};">${hilsen}</p>
 
       <!-- Selve billetten -->
@@ -233,22 +260,10 @@ ${billetFelt("Pladser", pladserTekst(seats))}
       </table>
 ${jubilaeumsbaand}
 
-${mellemoverskrift("Din bestilling")}
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:2px solid ${FARVER.guld};">
-${varelinjer}
-${rabatLinjer}
-${ialtLinje("I alt", `${totalKr} kr.`)}
-      </table>
-${momsNote(
-  "Alle priser er inklusive 25 % moms."
-)}
-
-${fremhaevetFelt(
-  "Bliver du selv forhindret, kan billetten ikke byttes eller refunderes, men den kan i stedet overdrages til tredjemand. Hvis en forestilling aflyses, tilbagebetales billetprisen og prisen for ikke-leverede tilvalg."
-)}`;
+${efterBilletten}`;
 
   return mailLayout({
-    title: "Din billet til Bakkens Hvile",
+    title: flytning ? "Din reservation er flyttet" : "Din billet til Bakkens Hvile",
     preheader: `Bookingnummer ${bookingNo} – medbring billetten, gerne på mobilen.`,
     indhold,
   });
