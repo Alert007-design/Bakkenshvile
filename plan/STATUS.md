@@ -1,3 +1,3 @@
-Færdigt: A (#73) og B (#74) flettet. C (ekstra billetter til en reservation) bygget og testet, venter på ejerens ja.
-I gang: C venter på godkendelse.
-Mangler: D.
+Færdigt: A (#73), B (#74) og C (#75) flettet. D (flyt dato) bygget og testet.
+I gang: D venter på migration 008 og ejerens ja.
+Mangler: fletning af D; derefter slettes plan/.

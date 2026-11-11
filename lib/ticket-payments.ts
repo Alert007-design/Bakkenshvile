@@ -11,7 +11,7 @@
 
 import type { Queryable } from "@/lib/db";
 
-export type TicketFlow = "billet" | "genbestil";
+export type TicketFlow = "billet" | "genbestil" | "prisforskel";
 
 export interface TicketLineItem {
   description: string;

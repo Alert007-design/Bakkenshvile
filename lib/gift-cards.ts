@@ -251,3 +251,47 @@ export async function markGiftCardUsed(
   if (!current) return { status: "not_found" };
   return { status: "not_payable", card: current };
 }
+
+export interface TilgodeseddelInput {
+  bookingNo: string;
+  amountOre: number;
+  kundeNavn: string;
+  kundeEmail: string;
+  /** Sidste tidspunkt, sedlen kan bruges (slutningen af forestillingsdagen). */
+  udloeber: Date;
+}
+
+/**
+ * Udsteder en tilgodeseddel, når en reservation flyttes til en billigere dato.
+ * Den gemmes som et gavekort, der er betalt fra start (ingen Viva-betaling),
+ * så baren kan indløse koden under Gavekort i admin som et almindeligt
+ * gavekort. Referencen starter med "TILGODE-", så den aldrig kan forveksles
+ * med en Viva-reference.
+ */
+export async function opretTilgodeseddel(
+  db: Queryable,
+  input: TilgodeseddelInput
+): Promise<{ code: string; giftCardNo: string }> {
+  if (!Number.isInteger(input.amountOre) || input.amountOre <= 0) {
+    throw new Error("Tilgodesedlens beløb skal være over 0");
+  }
+  const code = generateGiftCardCode();
+  const giftCardNo = `TG-${input.bookingNo}-${randomBlock(4)}`;
+  await db.query(
+    `INSERT INTO gift_cards
+       (payment_ref, gift_card_no, code, amount_ore, purchaser_name, purchaser_email,
+        recipient_email, message, status, paid_at, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $6, $7, 'paid', now(), $8)`,
+    [
+      `TILGODE-${giftCardNo}`,
+      giftCardNo,
+      code,
+      input.amountOre,
+      input.kundeNavn || "Kunde",
+      input.kundeEmail,
+      `Tilgodeseddel ved flytning af ${input.bookingNo}`,
+      input.udloeber.toISOString(),
+    ]
+  );
+  return { code, giftCardNo };
+}

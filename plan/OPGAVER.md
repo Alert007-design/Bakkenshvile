@@ -9,7 +9,7 @@
 - [x] C1. Opslagssiden linker til ekstrabillet med udfyldte felter
 - [x] C2. Ekstrabillet tager imod det oprindelige bookingnummer og skriver note
 - [x] C3. Mailen nævner det oprindelige bookingnummer
-- [ ] D1. Flytning af pladser mellem forestillinger i ét greb, med tests
-- [ ] D2. Prisforskel: betalingslink ved dyrere dato, tilgodeseddel ved billigere
-- [ ] D3. Server-rute for flytning (Airtable, pladser, ny billet), med tests
-- [ ] D4. "Flyt til anden dato" på opslagssiden
+- [x] D1. Flytning af pladser mellem forestillinger i ét greb, med tests
+- [x] D2. Prisforskel: betalingslink ved dyrere dato, tilgodeseddel ved billigere
+- [x] D3. Server-rute for flytning (Airtable, pladser, ny billet), med tests
+- [x] D4. "Flyt til anden dato" på opslagssiden

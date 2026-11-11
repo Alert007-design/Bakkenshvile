@@ -676,3 +676,167 @@ export async function holdUdenLoft(
     );
   }
 }
+
+/** En aktiv linje i pladsbogen for en booking. */
+export interface Pladslinje {
+  showId: string;
+  kategori: Kapacitetskategori;
+  antal: number;
+  kilde: HoldKilde;
+  ticketTypeId: string | null;
+}
+
+/** Bookingens aktive (reserverede eller solgte) linjer i pladsbogen. */
+export async function hentPladslinjer(db: Queryable, bookingId: string): Promise<Pladslinje[]> {
+  const { rows } = await db.query<{
+    show_id: string;
+    category: string;
+    quantity: number | string;
+    source: string;
+    ticket_type_id: string | null;
+  }>(
+    `SELECT show_id, category, quantity, source, ticket_type_id
+       FROM seat_holds
+      WHERE booking_id = $1 AND status IN ('held','sold')
+      ORDER BY id`,
+    [bookingId]
+  );
+  return rows
+    .filter((r) => KAPACITETSKATEGORIER.includes(r.category as Kapacitetskategori))
+    .map((r) => ({
+      showId: r.show_id,
+      kategori: r.category as Kapacitetskategori,
+      antal: Number(r.quantity),
+      kilde: r.source as HoldKilde,
+      ticketTypeId: r.ticket_type_id,
+    }));
+}
+
+export type Flytningssvar =
+  | { ok: true; flyttet: number }
+  | {
+      ok: false;
+      /** Bookingen har ingen aktive pladser på den gamle forestilling. */
+      ingenPladser?: boolean;
+      /** Den første kategori, der ikke var plads nok i på den nye forestilling. */
+      mangler?: { kategori: Kapacitetskategori; oensket: number; tilbage: number };
+    };
+
+/**
+ * Flytter en bookings pladser fra én forestilling til en anden i ÉT SQL-greb.
+ *
+ * Enten lægges alle pladser til på den nye forestilling, trækkes fra på den
+ * gamle, og linjerne flyttes — eller også sker der ingenting. Postgres låser
+ * tællelinjen på den nye forestilling under opdateringen, så to samtidige
+ * flytninger eller køb ikke begge kan få de sidste pladser.
+ *
+ * kapaciteter = null betyder uden loft. Det bruges kun til at føre en
+ * flytning tilbage, hvis Airtable fejler bagefter.
+ * nyeBilletTyper sætter billettypen pr. kategori (ny prisgruppe).
+ */
+export async function flytPladser(
+  db: Queryable,
+  params: {
+    bookingId: string;
+    fraShowId: string;
+    tilShowId: string;
+    kapaciteter: Record<Kapacitetskategori, number> | null;
+    nyeBilletTyper?: Partial<Record<Kapacitetskategori, string>>;
+  }
+): Promise<Flytningssvar> {
+  const { bookingId, fraShowId, tilShowId, kapaciteter } = params;
+  if (fraShowId === tilShowId) return { ok: false };
+  await frigivUdloebne(db, tilShowId);
+  await sikrTaellelinje(db, tilShowId);
+  await sikrTaellelinje(db, fraShowId);
+
+  const loft = kapaciteter
+    ? [kapaciteter.aplusForrest, kapaciteter.aplusBagerst, kapaciteter.a, kapaciteter.b]
+    : [null, null, null, null];
+
+  const { rows } = await db.query<{
+    ok: number | string;
+    flyttet: number | string;
+    n: number | string;
+    k1: number | string;
+    k2: number | string;
+    k3: number | string;
+    k4: number | string;
+  }>(
+    `WITH linjer AS (
+       SELECT id, category, quantity FROM seat_holds
+        WHERE booking_id = $1 AND show_id = $2 AND status IN ('held','sold')
+     ), s AS (
+       SELECT
+         COALESCE(SUM(quantity) FILTER (WHERE category = 'aplusForrest'), 0)::int AS k1,
+         COALESCE(SUM(quantity) FILTER (WHERE category = 'aplusBagerst'), 0)::int AS k2,
+         COALESCE(SUM(quantity) FILTER (WHERE category = 'a'), 0)::int AS k3,
+         COALESCE(SUM(quantity) FILTER (WHERE category = 'b'), 0)::int AS k4,
+         COUNT(*)::int AS n
+       FROM linjer
+     ), ny AS (
+       UPDATE seat_counters c
+          SET taken_aplus_front = c.taken_aplus_front + s.k1,
+              taken_aplus_back  = c.taken_aplus_back  + s.k2,
+              taken_a           = c.taken_a           + s.k3,
+              taken_b           = c.taken_b           + s.k4,
+              updated_at        = now()
+         FROM s
+        WHERE c.show_id = $3 AND s.n > 0
+          AND (s.k1 = 0 OR $4::int IS NULL OR c.taken_aplus_front + s.k1 <= $4::int)
+          AND (s.k2 = 0 OR $5::int IS NULL OR c.taken_aplus_back  + s.k2 <= $5::int)
+          AND (s.k3 = 0 OR $6::int IS NULL OR c.taken_a           + s.k3 <= $6::int)
+          AND (s.k4 = 0 OR $7::int IS NULL OR c.taken_b           + s.k4 <= $7::int)
+       RETURNING c.show_id
+     ), gammel AS (
+       UPDATE seat_counters c
+          SET taken_aplus_front = GREATEST(0, c.taken_aplus_front - s.k1),
+              taken_aplus_back  = GREATEST(0, c.taken_aplus_back  - s.k2),
+              taken_a           = GREATEST(0, c.taken_a           - s.k3),
+              taken_b           = GREATEST(0, c.taken_b           - s.k4),
+              updated_at        = now()
+         FROM s
+        WHERE c.show_id = $2 AND EXISTS (SELECT 1 FROM ny)
+       RETURNING c.show_id
+     ), flyt AS (
+       UPDATE seat_holds h
+          SET show_id = $3,
+              ticket_type_id = COALESCE($8::jsonb ->> h.category, h.ticket_type_id)
+         FROM linjer l
+        WHERE h.id = l.id AND EXISTS (SELECT 1 FROM ny)
+       RETURNING h.quantity
+     )
+     SELECT (SELECT COUNT(*) FROM ny)::int AS ok,
+            COALESCE((SELECT SUM(quantity) FROM flyt), 0)::int AS flyttet,
+            (SELECT COUNT(*) FROM gammel)::int AS g,
+            s.n, s.k1, s.k2, s.k3, s.k4
+       FROM s`,
+    [bookingId, fraShowId, tilShowId, ...loft, JSON.stringify(params.nyeBilletTyper ?? {})]
+  );
+
+  const r = rows[0];
+  if (!r || Number(r.n) === 0) return { ok: false, ingenPladser: true };
+  if (Number(r.ok) === 1) return { ok: true, flyttet: Number(r.flyttet) };
+
+  // Intet er rørt. Fortæl, hvor det brast, med friske tal.
+  const oensket: Pladstal = {
+    aplusForrest: Number(r.k1),
+    aplusBagerst: Number(r.k2),
+    a: Number(r.k3),
+    b: Number(r.k4),
+  };
+  if (!kapaciteter) return { ok: false };
+  const tagne = await hentTagne(db, tilShowId);
+  const k =
+    KAPACITETSKATEGORIER.find((kat) => oensket[kat] > 0 && tagne[kat] + oensket[kat] > kapaciteter[kat]) ??
+    KAPACITETSKATEGORIER.find((kat) => oensket[kat] > 0) ??
+    KAPACITETSKATEGORIER[0];
+  return {
+    ok: false,
+    mangler: {
+      kategori: k,
+      oensket: oensket[k],
+      tilbage: Math.max(0, kapaciteter[k] - tagne[k]),
+    },
+  };
+}
