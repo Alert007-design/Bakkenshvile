@@ -23,6 +23,8 @@ export interface Forestillingsinfo {
 
 export interface Opslag {
   id: string;
+  /** Forestillingens Airtable-id; tom, hvis bookingen ikke er koblet til en. */
+  showId: string;
   bookingNo: string;
   gaestenummer: number | null;
   status: string;
@@ -86,6 +88,7 @@ export function bygOpslag(
   const bestiltFelt = tekst(f[FIELDS.booking.bestilt]);
   return {
     id: booking.id,
+    showId: Array.isArray(f[FIELDS.booking.show]) ? String((f[FIELDS.booking.show] as unknown[])[0] ?? "") : "",
     bookingNo: tekst(f[FIELDS.booking.bookingNo]),
     gaestenummer: tal(f[FIELDS.booking.gaestenummer]),
     status: tekst(f[FIELDS.booking.status]),

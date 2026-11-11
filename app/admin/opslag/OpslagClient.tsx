@@ -479,6 +479,34 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
                   </p>
                 )}
               </form>
+              {o.status !== "Annulleret" && o.showId && (
+                <div style={{ marginTop: 14 }}>
+                  <a
+                    href={`/admin/ekstrabillet?${new URLSearchParams({
+                      show: o.showId,
+                      navn: o.kunde.navn,
+                      email: o.kunde.email,
+                      tlf: o.kunde.telefon,
+                      tilhoerer: o.bookingNo,
+                    }).toString()}`}
+                    style={{
+                      display: "inline-block",
+                      padding: "6px 14px",
+                      border: "1px solid #0d3b2e",
+                      color: "#0d3b2e",
+                      borderRadius: 3,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textDecoration: "none",
+                    }}
+                  >
+                    Tilføj billetter
+                  </a>
+                  <span style={{ marginLeft: 10, fontSize: 13, color: "#777" }}>
+                    Gæsten får et link til at betale de ekstra billetter med kort.
+                  </span>
+                </div>
+              )}
               {o.status === SELSKAB_STATUS && (
                 <div style={{ marginTop: 14 }}>
                   <button
