@@ -1,11 +1,15 @@
 "use client";
 
 // Slå en booking op på bookingnummeret og se alt om bookingen og kunden.
-// Herfra kan man også annullere en betalt booking.
+// Herfra kan man også skrive en note og annullere en betalt booking.
 
 import { useCallback, useEffect, useState } from "react";
 import type { Opslag } from "@/lib/bookingopslag";
 import { SELSKAB_STATUS } from "@/lib/selskab-konstanter";
+
+// Samme loft som på serveren (lib/booking-note.ts). Gentaget her, så
+// browseren ikke henter Airtable-koden med.
+const NOTE_MAKS = 300;
 
 type Anden = { bookingNo: string; antal: number; status: string; dato: string; tid: string };
 
@@ -79,6 +83,34 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
     beloebKilde: "viva" | "airtable" | "ingen";
     pladserFrigivet: boolean;
   } | null>(null);
+
+  const [note, setNote] = useState("");
+  const [noteArbejder, setNoteArbejder] = useState(false);
+  const [noteBesked, setNoteBesked] = useState("");
+  const [noteFejl, setNoteFejl] = useState(false);
+
+  async function gemNote(o: Opslag) {
+    setNoteArbejder(true);
+    setNoteBesked("");
+    setNoteFejl(false);
+    try {
+      const res = await fetch("/api/admin/note", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ bookingId: o.id, note }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Noten blev ikke gemt.");
+      setNote("");
+      await slaaOp(o.bookingNo);
+      setNoteBesked("Noten er gemt.");
+    } catch (e) {
+      setNoteFejl(true);
+      setNoteBesked(e instanceof Error ? e.message : "Noten blev ikke gemt.");
+    } finally {
+      setNoteArbejder(false);
+    }
+  }
 
   async function annuller(o: Opslag) {
     setAnnullerArbejder(true);
@@ -340,6 +372,54 @@ export default function OpslagClient({ startNr, csrf }: { startNr: string; csrf:
                   <Linje navn="Påmindelse sendt">{o.varselSendt ? "Ja" : ""}</Linje>
                 </tbody>
               </table>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  gemNote(o);
+                }}
+                style={{ marginTop: 14 }}
+              >
+                <label htmlFor="ny-note" style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
+                  Tilføj note
+                </label>
+                <textarea
+                  id="ny-note"
+                  value={note}
+                  onChange={(e) => {
+                    setNote(e.target.value);
+                    setNoteBesked("");
+                  }}
+                  maxLength={NOTE_MAKS}
+                  rows={2}
+                  placeholder="Fx: Kommer i kørestol, sæt dem tæt ved udgangen"
+                  style={{ width: "100%", padding: 8, fontSize: 15, boxSizing: "border-box", fontFamily: "inherit" }}
+                />
+                <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
+                  <button
+                    type="submit"
+                    disabled={noteArbejder || !note.trim()}
+                    style={{
+                      padding: "6px 14px",
+                      background: "#0d3b2e",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 3,
+                      cursor: "pointer",
+                      fontSize: 14,
+                    }}
+                  >
+                    {noteArbejder ? "Gemmer…" : "Gem note"}
+                  </button>
+                  <span style={{ fontSize: 13, color: "#777" }}>
+                    Noten kommer med på gæstelisten. Kunden kan ikke se den.
+                  </span>
+                </div>
+                {noteBesked && (
+                  <p style={{ margin: "6px 0 0", fontSize: 14, color: noteFejl ? "#8a1f2b" : "#0d3b2e" }}>
+                    {noteBesked}
+                  </p>
+                )}
+              </form>
               {o.status === SELSKAB_STATUS && (
                 <div style={{ marginTop: 14 }}>
                   <button
