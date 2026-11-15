@@ -82,6 +82,14 @@ describe("log og kørsel", () => {
     expect(await reserver(db, "2026-11-16", "morgen", "instagram", "nedtaelling")).toBe(true);
   });
 
+  it("lader en live-kørsel overtage en kladde, men aldrig en story, der er lagt op", async () => {
+    await reserver(db, "2026-11-16", "eftermiddag", "facebook", "gavekort");
+    await afslut(db, "2026-11-16", "eftermiddag", "facebook", "kladde", null, null);
+    expect(await reserver(db, "2026-11-16", "eftermiddag", "facebook", "gavekort")).toBe(true);
+    await afslut(db, "2026-11-16", "eftermiddag", "facebook", "lagt", "id1", null);
+    expect(await reserver(db, "2026-11-16", "eftermiddag", "facebook", "gavekort")).toBe(false);
+  });
+
   it("gemmer resultatet og viser det i loggen", async () => {
     await reserver(db, "2026-11-16", "morgen", "facebook", "nedtaelling");
     await afslut(db, "2026-11-16", "morgen", "facebook", "lagt", "id1", null);
@@ -124,6 +132,17 @@ describe("log og kørsel", () => {
     await koerStories(d);
     await koerStories(d);
     expect(d.meta.facebookStory).toHaveBeenCalledTimes(1);
+  });
+
+  it("lægger dagens story op med det samme ved manuel kørsel, også efter en kladde", async () => {
+    const kladde = deps({ now: new Date("2026-11-16T15:25:00Z") });
+    kladde.indstillinger.tilstand = "kladde";
+    await koerStories(kladde);
+    const d = deps({ now: new Date("2026-11-16T15:47:00Z"), tvingSlot: "eftermiddag" });
+    const r = await koerStories(d);
+    expect(r.type).toBe("gavekort");
+    expect(d.meta.facebookStory).toHaveBeenCalledWith("side", NOEGLE, expect.stringContaining("/eftermiddag/2026-11-16"));
+    expect((await hentLog(db, 5)).map((l) => l.status)).toEqual(["lagt", "lagt"]);
   });
 
   it("gør intet uden for de to tidspunkter", async () => {
