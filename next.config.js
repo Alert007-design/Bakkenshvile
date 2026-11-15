@@ -55,6 +55,16 @@ const REDIRECTS = [
 ];
 
 const nextConfig = {
+  // Story-billederne (lib/stories) tegnes med resvg, der er et indbygget
+  // Node-modul og ikke må pakkes af Next. Fotos og skrifter læses fra disken
+  // og skal derfor tages med i funktionerne.
+  experimental: {
+    serverComponentsExternalPackages: ["@resvg/resvg-js"],
+    outputFileTracingIncludes: {
+      "/stories/**": ["./lib/stories/fotos/**", "./lib/stories/fonte/**"],
+    },
+  },
+
   images: {
     // Moderne formater til next/image-optimering: AVIF først (mindst),
     // WebP som fallback. Originalfilerne i public/ røres ikke.
