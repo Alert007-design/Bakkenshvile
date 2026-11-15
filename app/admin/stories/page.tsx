@@ -9,6 +9,7 @@ import { getDb } from "@/lib/db";
 import { danishToday } from "@/lib/events";
 import { hentLog, type LogLinje } from "@/lib/stories/log";
 import { laesIndstillinger } from "@/lib/stories/koersel";
+import LaegOpNu from "./LaegOpNu";
 import { plusDage, STORY_TYPER, SLOT_TIME, SLOTS, type Slot } from "@/lib/stories/plan";
 
 export const runtime = "nodejs";
@@ -123,6 +124,7 @@ export default async function StoriesSide() {
                 Ingen story i dag
               </div>
             </object>
+            <LaegOpNu slot={slot} csrf={session.csrf} label="Læg denne op nu" />
           </figure>
         ))}
       </div>

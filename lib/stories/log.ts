@@ -19,7 +19,12 @@ export interface LogLinje {
   opdateret: string;
 }
 
-/** true = rækken er vores, og vi må fortsætte. false = den findes allerede. */
+/**
+ * true = rækken er vores, og vi må fortsætte. false = den findes allerede.
+ * En række med status 'kladde' er aldrig lagt op og må derfor overtages af
+ * en senere kørsel (fx når en skabelon godkendes samme dag). Rækker med
+ * 'i_gang', 'lagt' eller 'fejl' røres aldrig.
+ */
 export async function reserver(
   db: Queryable,
   dato: string,
@@ -30,7 +35,9 @@ export async function reserver(
   const r = await db.query(
     `INSERT INTO story_log (dato, slot, platform, type, status)
      VALUES ($1, $2, $3, $4, 'i_gang')
-     ON CONFLICT (dato, slot, platform) DO NOTHING
+     ON CONFLICT (dato, slot, platform) DO UPDATE
+       SET status = 'i_gang', type = EXCLUDED.type, meta_id = NULL, besked = NULL, opdateret = now()
+       WHERE story_log.status = 'kladde'
      RETURNING dato`,
     [dato, slot, platform, type]
   );
