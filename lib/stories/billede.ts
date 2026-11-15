@@ -59,13 +59,23 @@ export function hovedStoerrelse(linjer: string[]): number {
   return 84;
 }
 
+/**
+ * Hvor i fotoet der skæres til, når det ikke passer til feltet (CSS
+ * object-position). Høje portrætfotos skæres fra toppen, så ansigterne
+ * kommer med. Justeres pr. foto efter et visuelt tjek.
+ */
+export const UDSNIT: Record<string, string> = {
+  "tre-piger.jpg": "50% 8%",
+};
+const STANDARD_UDSNIT = "50% 20%";
+
 export function layout(s: StoryIndhold): Node {
   const billede = foto(s.foto);
   const str = hovedStoerrelse(s.hoved);
   return e(
     { width: B, height: H, background: BLAA, position: "relative", fontFamily: "Work Sans", color: PAPIR },
     billede
-      ? { type: "img", props: { src: billede, style: { position: "absolute", left: 0, top: 0, width: B, height: 1280, objectFit: "cover" } } }
+      ? { type: "img", props: { src: billede, style: { position: "absolute", left: 0, top: 0, width: B, height: 1280, objectFit: "cover", objectPosition: UDSNIT[s.foto] ?? STANDARD_UDSNIT } } }
       : null,
     e({
       position: "absolute", left: 0, top: 0, width: B, height: 1280,

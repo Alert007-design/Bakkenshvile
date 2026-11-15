@@ -106,11 +106,11 @@ function hvert<T>(liste: T[], dato: string): T {
 const MORGENFOTOS = [
   "facade.jpg", "dot.jpg", "ann.jpg", "sus.jpg", "tina.jpg", "fire-piger.jpg",
   "scenen-roede.jpg", "fire-ved-bord.jpg", "rosen.jpg", "holdet.jpg",
-  "scenen-tre.jpg", "guld.jpg", "salen.jpg",
+  "scenen-tre.jpg", "salen.jpg",
 ];
 const GAVEKORTFOTOS = ["tre-piger.jpg", "fire-piger.jpg", "fire-ved-bord.jpg"];
 const BILLETFOTOS = ["facade.jpg", "scenen-roede.jpg", "scenen-tre.jpg", "holdet.jpg"];
-const PLADSFOTOS = ["rosen.jpg", "guld.jpg", "hvid-kjole.jpg", "salen.jpg"];
+const PLADSFOTOS = ["rosen.jpg", "hvid-kjole.jpg", "salen.jpg", "scenen-roede.jpg"];
 
 /** Dage, en pause mellem to forestillinger højst må vare, før den regnes som ny sæson. */
 const SAESONPAUSE = 14;
