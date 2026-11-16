@@ -9,6 +9,7 @@ import { getDb } from "@/lib/db";
 import { danishToday } from "@/lib/events";
 import { hentLog, type LogLinje } from "@/lib/stories/log";
 import { laesIndstillinger } from "@/lib/stories/koersel";
+import { CRON_MANGLER_BESKED, cronKanKoere } from "@/lib/cron-auth";
 import LaegOpNu from "./LaegOpNu";
 import { plusDage, STORY_TYPER, SLOT_TIME, SLOTS, type Slot } from "@/lib/stories/plan";
 
@@ -88,6 +89,11 @@ export default async function StoriesSide() {
         </p>
       </div>
 
+      {!cronKanKoere(process.env) && (
+        <div style={advarsel}>
+          <strong>Stories kører ikke af sig selv.</strong> {CRON_MANGLER_BESKED}
+        </div>
+      )}
       {logFejl && <div style={advarsel}>{logFejl}</div>}
       {noegleFejl && (
         <div style={advarsel}>

@@ -119,9 +119,24 @@ Query-fane i nummerorden. Alle fire i `migrations/` (001–004) er kørt mod
 produktionsdatabasen, verificeret 15-09-2026. Fremgangsmåde med klikvejledning:
 `docs/koer-migration-004.md`.
 
-**Cron:** `vercel.json` indeholder præcis ét job — `/api/cron/varsel` med
-`0 8 * * *` (08:00 UTC, varselmail to dage før show). Ruten sætter
-`maxDuration = 60`. Tilføj aldrig flere jobs uden ejerens godkendelse.
+**Cron:** `vercel.json` indeholder to job: `/api/cron/varsel` med `0 8 * * *`
+(08:00 UTC, varselmail to dage før show) og `/api/cron/stories` med
+`25 * * * *` (stories på Facebook og Instagram kl. 8.25 og 16.25 dansk tid;
+ruten gør intet i de øvrige timer). Begge sætter `maxDuration = 60`. Tilføj
+aldrig flere jobs uden ejerens godkendelse.
+
+**Krav, før et planlagt job eller en ny miljøvariabel meldes færdig**
+(indført 16-11-2026, efter at stories ikke kørte, fordi `CRON_SECRET` aldrig
+var lagt ind i Vercel):
+1. Kontrollér i Vercel (Settings → Environment Variables), at ALLE variabler,
+   som ruten læser, findes i Production – også `CRON_SECRET`. Uden den afviser
+   ruterne hvert kald, og intet virker.
+2. Udrul og vent på den første rigtige kørsel. Bekræft i Vercels runtime-log,
+   at jobbet faktisk har kørt (stories skriver en linje "Stories <dato>
+   <tidspunkt>: ..."), og at opslaget/mailen er gået ud. Først derefter må
+   opgaven meldes færdig over for ejeren.
+3. Opdatér denne fil og `env.example`, når der kommer et nyt job eller en ny
+   variabel.
 
 **Miljøvariabler** (kun navne; fuld kommenteret liste i `env.example`):
 `AIRTABLE_TOKEN`, `AIRTABLE_BASE_ID`, `RESEND_API_KEY`, `EMAIL_FROM`,
