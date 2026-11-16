@@ -9,6 +9,7 @@ import {
 import { danishToday } from "@/lib/events";
 import { sendMail } from "@/lib/resend";
 import { siteUrl } from "@/lib/site-url";
+import { CRON_MANGLER_BESKED, tjekCronAdgang } from "@/lib/cron-auth";
 // Selve mailen bygges i lib/mail/varsel-email.ts, så den deler layout med
 // husets øvrige mails og kan ses i forhåndsvisningen under /admin.
 import { formatDanishDate, varselEmailHtml } from "@/lib/mail/varsel-email";
@@ -39,9 +40,10 @@ function statusName(value: unknown): string {
 
 export async function GET(req: NextRequest) {
   // Beskyttelse: kun kald med korrekt CRON_SECRET slipper igennem.
-  const secret = process.env.CRON_SECRET;
-  const auth = req.headers.get("authorization");
-  if (!secret || auth !== `Bearer ${secret}`) {
+  const adgang = tjekCronAdgang(req.headers.get("authorization"), process.env);
+  if (adgang !== "ok") {
+    // Fejlen skal kunne ses i Vercels log, så den ikke går ubemærket hen.
+    console.error(adgang === "mangler-hemmelighed" ? `Varsel: ${CRON_MANGLER_BESKED}` : "Varsel: kald afvist (forkert nøgle)");
     return NextResponse.json({ error: "Uautoriseret" }, { status: 401 });
   }
 

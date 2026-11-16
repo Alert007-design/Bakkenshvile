@@ -8,6 +8,7 @@ import { siteUrl } from "@/lib/site-url";
 import { koerStories, laesIndstillinger } from "@/lib/stories/koersel";
 import { opretMeta } from "@/lib/stories/meta";
 import { hentShowsTilStories } from "@/lib/stories/kilder";
+import { CRON_MANGLER_BESKED, tjekCronAdgang } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,8 +16,10 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  const adgang = tjekCronAdgang(req.headers.get("authorization"), process.env);
+  if (adgang !== "ok") {
+    // Fejlen skal kunne ses i Vercels log, så den ikke går ubemærket hen.
+    console.error(adgang === "mangler-hemmelighed" ? `Stories: ${CRON_MANGLER_BESKED}` : "Stories: kald afvist (forkert nøgle)");
     return NextResponse.json({ error: "Uautoriseret" }, { status: 401 });
   }
   try {
@@ -29,6 +32,11 @@ export async function GET(req: NextRequest) {
       billedUrl: (slot, dato) => `${siteUrl()}/stories/billede/${slot}/${dato}.jpg`,
     });
     if (res.fejl) console.error(`Stories: ${res.fejl}`);
+    // Én linje pr. kørsel på et story-tidspunkt, så det kan ses i loggen, hvad der skete.
+    if (res.slot) {
+      const p = res.platforme.map((x) => `${x.platform}=${x.status}`).join(" ") || "ingen story";
+      console.log(`Stories ${res.dato} ${res.slot}: ${res.type ?? "-"} ${p}`);
+    }
     return NextResponse.json(res);
   } catch (e) {
     // Fx at tabellen story_log ikke findes endnu. Vises også på /admin/stories.
