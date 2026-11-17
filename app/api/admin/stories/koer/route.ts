@@ -1,6 +1,7 @@
 // "Læg op nu" fra /admin/stories: kører dagens story for et tidspunkt med
 // det samme i stedet for at vente på cron. Samme regler som cron: kun i live,
-// kun godkendte skabeloner, og højst én gang pr. dag og platform.
+// kun godkendte skabeloner, og højst én gang pr. dag og platform. Eneste
+// forskel: står Instagram som "fejl" i dag, prøves Instagram igen.
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyStaffSession, verifyCsrf, STAFF_COOKIE_NAME } from "@/lib/staff-auth";
@@ -35,6 +36,8 @@ export async function POST(req: NextRequest) {
       indstillinger: laesIndstillinger(process.env),
       billedUrl: (sl, dato) => `${siteUrl()}/stories/billede/${sl}/${dato}.jpg`,
       tvingSlot: slot,
+      // Står dagens Instagram-række som "fejl", prøves den igen. "lagt" røres aldrig.
+      proevInstagramIgen: true,
     });
     return NextResponse.json(res);
   } catch {

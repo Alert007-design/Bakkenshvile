@@ -8,8 +8,12 @@ const VERSION = "v25.0";
 const TIMEOUT = 20_000;
 const RETTIGHED = new Set([10, 200, 283]);
 const GRAENSE = new Set([4, 17, 32, 613]);
-const IG_FORSOEG = 10;
-const IG_PAUSE = 3_000;
+// Instagram tegner billedet først, når den henter det, og kan kræve mange
+// sekunder. Pauserne vokser, og de er i alt 35 sekunder (8 statustjek), så
+// kørslen sammen med Facebook og billedet bliver under de 60 sekunder, ruten må
+// køre. Er beholderen stadig ikke færdig, gemmes den som "venter" og udgives
+// ved næste timekørsel.
+const IG_PAUSER = [2_000, 3_000, 4_000, 5_000, 6_000, 7_000, 8_000];
 
 export type FejlArt =
   | "noegle_doed"
@@ -23,6 +27,8 @@ export type FejlArt =
 export class MetaFejl extends Error {
   art: FejlArt;
   kode?: number;
+  /** Instagram-beholderen, hvis den var oprettet, da fejlen opstod. Gemmes i loggen, så den ikke udgives to gange. */
+  creationId?: string;
   constructor(besked: string, art: FejlArt, kode?: number) {
     super(besked);
     this.name = "MetaFejl";
@@ -40,9 +46,27 @@ function art(status: number, kode?: number): FejlArt {
   return "afvist";
 }
 
+/**
+ * Udfaldet for en Instagram-beholder:
+ *  - id: udgivet nu
+ *  - venter: beholderen er endnu ikke færdig (eller svaret gik tabt); tjek igen senere
+ *  - alleredeLagt: Instagram siger, at beholderen allerede er udgivet (udgives aldrig igen)
+ */
+export type InstagramUdfald = { id: string } | { venter: string } | { alleredeLagt: string };
+
 export interface Meta {
   facebookStory(sideId: string, noegle: string, billede: string): Promise<{ id: string }>;
-  instagramStory(kontoId: string, noegle: string, billede: string): Promise<{ id: string }>;
+  /** Opretter beholderen, venter op til ca. 35 sekunder og udgiver, hvis den er færdig. */
+  instagramStory(kontoId: string, noegle: string, billede: string): Promise<InstagramUdfald>;
+  /**
+   * Tjekker en beholder, der allerede findes (ét tjek, ingen ventetid), og
+   * udgiver den kun, hvis den er FINISHED. ERROR/EXPIRED svares som `ugyldig`.
+   */
+  instagramUdgiv(
+    kontoId: string,
+    noegle: string,
+    creationId: string
+  ): Promise<InstagramUdfald | { ugyldig: string }>;
 }
 
 type Hent = (url: string, init?: RequestInit) => Promise<Response>;
@@ -110,6 +134,53 @@ export function opretMeta({
     }
   }
 
+  function medBeholder(e: MetaFejl, creationId: string): MetaFejl {
+    e.creationId = creationId;
+    return e;
+  }
+
+  // Et netværksbrud, en Meta-fejl uden svar eller en grænse for antal kald
+  // betyder ikke, at beholderen er ødelagt: den tjekkes igen senere.
+  const midlertidig = (e: unknown) => e instanceof MetaFejl && (e.art === "uvist" || e.art === "graense");
+
+  /**
+   * Fælles for en ny og en gammel beholder: tjek status (med pauser mellem
+   * tjekkene), og udgiv kun, når Instagram siger FINISHED. En beholder, der
+   * allerede er PUBLISHED, udgives aldrig igen. Mistes svaret på selve
+   * udgivelsen, svares "venter": næste tjek viser så PUBLISHED, hvis den gik
+   * igennem, og ellers udgives den da.
+   */
+  async function faerdiggoer(
+    kontoId: string,
+    noegle: string,
+    creationId: string,
+    pauser: number[]
+  ): Promise<InstagramUdfald | { ugyldig: string }> {
+    let kode = "";
+    for (let n = 0; n <= pauser.length; n++) {
+      try {
+        const s = await get(`${creationId}?fields=status_code`, noegle);
+        kode = String(s.status_code ?? "");
+      } catch (e) {
+        if (midlertidig(e)) return { venter: creationId };
+        throw e instanceof MetaFejl ? medBeholder(e, creationId) : e;
+      }
+      if (kode === "PUBLISHED") return { alleredeLagt: creationId };
+      if (kode === "ERROR" || kode === "EXPIRED") return { ugyldig: kode };
+      if (kode === "FINISHED") break;
+      if (n < pauser.length) await vent(pauser[n]);
+    }
+    if (kode !== "FINISHED") return { venter: creationId };
+    try {
+      const d = await post(`${kontoId}/media_publish`, noegle, { creation_id: creationId });
+      if (!d.id) return { venter: creationId };
+      return { id: String(d.id) };
+    } catch (e) {
+      if (midlertidig(e)) return { venter: creationId };
+      throw e instanceof MetaFejl ? medBeholder(e, creationId) : e;
+    }
+  }
+
   return {
     // Facebook-story i to trin: billedet lægges op uden at blive udgivet og
     // bliver derefter til en story. Meta henter selv billedet fra adressen.
@@ -124,23 +195,23 @@ export function opretMeta({
     },
 
     // Instagram-story: beholder med billedet (kun JPEG), vent til Meta har
-    // hentet det, og udgiv.
+    // hentet det, og udgiv. Er beholderen ikke færdig i tide, er det ikke en
+    // fejl: den gemmes som "venter" og udgives næste time.
     async instagramStory(kontoId, noegle, billede) {
       tjek(kontoId, noegle);
       const b = await post(`${kontoId}/media`, noegle, { image_url: billede, media_type: "STORIES" });
       if (!b.id) throw new MetaFejl("Instagram svarede uden id på billedet", "uvist");
-      let klar = false;
-      for (let n = 0; n < IG_FORSOEG && !klar; n++) {
-        const s = await get(`${b.id}?fields=status_code`, noegle);
-        if (s.status_code === "FINISHED") klar = true;
-        else if (s.status_code === "ERROR" || s.status_code === "EXPIRED") {
-          throw new MetaFejl(`Instagram kunne ikke bruge billedet (${s.status_code})`, "afvist");
-        } else await vent(IG_PAUSE);
+      const creationId = String(b.id);
+      const u = await faerdiggoer(kontoId, noegle, creationId, IG_PAUSER);
+      if ("ugyldig" in u) {
+        throw medBeholder(new MetaFejl(`Instagram kunne ikke bruge billedet (${u.ugyldig})`, "afvist"), creationId);
       }
-      if (!klar) throw new MetaFejl("Instagram blev ikke færdig med billedet i tide", "uvist");
-      const d = await post(`${kontoId}/media_publish`, noegle, { creation_id: String(b.id) });
-      if (!d.id) throw new MetaFejl("Instagram svarede uden id på storyen", "uvist");
-      return { id: String(d.id) };
+      return u;
+    },
+
+    async instagramUdgiv(kontoId, noegle, creationId) {
+      tjek(kontoId, noegle);
+      return faerdiggoer(kontoId, noegle, creationId, []);
     },
   };
 }

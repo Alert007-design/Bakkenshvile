@@ -5,14 +5,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { siteUrl } from "@/lib/site-url";
-import { koerStories, laesIndstillinger } from "@/lib/stories/koersel";
+import { koerStories, laesIndstillinger, loglinjer } from "@/lib/stories/koersel";
 import { opretMeta } from "@/lib/stories/meta";
 import { hentShowsTilStories } from "@/lib/stories/kilder";
 import { CRON_MANGLER_BESKED, tjekCronAdgang } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Instagram skal have tid til at hente billedet (op til ca. 30 sekunder).
+// Instagram skal have tid til at hente billedet (op til ca. 35 sekunder).
+// Ikke færdig inden da: rækken gemmes som "venter" og udgives næste time.
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
@@ -32,11 +33,9 @@ export async function GET(req: NextRequest) {
       billedUrl: (slot, dato) => `${siteUrl()}/stories/billede/${slot}/${dato}.jpg`,
     });
     if (res.fejl) console.error(`Stories: ${res.fejl}`);
-    // Én linje pr. kørsel på et story-tidspunkt, så det kan ses i loggen, hvad der skete.
-    if (res.slot) {
-      const p = res.platforme.map((x) => `${x.platform}=${x.status}`).join(" ") || "ingen story";
-      console.log(`Stories ${res.dato} ${res.slot}: ${res.type ?? "-"} ${p}`);
-    }
+    // Én linje pr. kørsel på et story-tidspunkt, og én pr. ventende række, der blev
+    // tjekket. Fejlbeskeden står med, fx instagram=fejl(<besked>), men aldrig nøglen.
+    for (const linje of loglinjer(res, String(process.env.META_PAGE_TOKEN ?? "").trim())) console.log(linje);
     return NextResponse.json(res);
   } catch (e) {
     // Fx at tabellen story_log ikke findes endnu. Vises også på /admin/stories.
