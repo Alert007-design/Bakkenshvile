@@ -8,7 +8,8 @@ import { useState } from "react";
 const STATUS: Record<string, string> = {
   lagt: "lagt op",
   kladde: "kun kladde (ikke godkendt eller ikke live)",
-  findes: "allerede lagt op i dag",
+  findes: "allerede lagt op i dag (eller venter)",
+  venter: "venter på, at Instagram bliver færdig (udgives automatisk ved næste timekørsel)",
   fejl: "fejl",
 };
 
@@ -17,7 +18,12 @@ export default function LaegOpNu({ slot, csrf, label }: { slot: string; csrf: st
   const [travl, setTravl] = useState(false);
 
   async function koer() {
-    if (!window.confirm(`${label}? Den lægges op på Facebook og Instagram med det samme.`)) return;
+    if (
+      !window.confirm(
+        `${label}? Den lægges op på Facebook og Instagram med det samme. Står Instagram som fejl i dag, prøves Instagram igen. Det, der allerede er lagt op, røres ikke.`
+      )
+    )
+      return;
     setTravl(true);
     setSvar("");
     try {

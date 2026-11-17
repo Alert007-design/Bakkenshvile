@@ -33,6 +33,7 @@ const STATUSNAVN: Record<string, string> = {
   i_gang: "I gang",
   lagt: "Lagt op",
   fejl: "Fejl",
+  venter: "Venter på Instagram (udgives automatisk ved næste timekørsel)",
   kladde: "Kladde (ikke lagt op)",
 };
 const SLOTNAVN: Record<Slot, string> = { morgen: "Kl. 8.25", eftermiddag: "Kl. 16.25" };
@@ -109,7 +110,8 @@ export default async function StoriesSide() {
       )}
       {nyligeFejl.length > 0 && (
         <div style={advarsel}>
-          {nyligeFejl.length} fejl de seneste 7 dage. Se loggen nederst. Fejl prøves ikke igen af sig selv.
+          {nyligeFejl.length} fejl de seneste 7 dage. Se loggen nederst. Fejl prøves ikke igen af sig selv. Står Instagram som fejl i dag, kan
+          &quot;Læg denne op nu&quot; prøve Instagram igen.
         </div>
       )}
 
